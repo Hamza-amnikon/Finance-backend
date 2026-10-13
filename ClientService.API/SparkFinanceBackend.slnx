@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../SalesInvoiceService.API/SalesInvoiceService.API.csproj" Id="8b073ad3-183f-45d3-a856-e24c1f54caa2" />
+  <Project Path="ClientService.API.csproj" />
+</Solution>
