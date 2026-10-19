@@ -77,7 +77,7 @@ namespace ClientService.API.Controllers
                     nameof(GetById),
                     new { id = client.Id },
                     client);
-            });
+            }, cancellationToken);
         }
 
         [HttpPut("{id:guid}")]
@@ -102,7 +102,7 @@ namespace ClientService.API.Controllers
                 }
 
                 return Ok(client);
-            });
+            }, cancellationToken);
         }
 
         [HttpDelete("{id:guid}")]
@@ -127,7 +127,7 @@ namespace ClientService.API.Controllers
                 }
 
                 return NoContent();
-            });
+            }, cancellationToken);
         }
 
         private async Task<IActionResult> HandleReadAsync(
@@ -152,11 +152,44 @@ namespace ClientService.API.Controllers
         }
 
         private async Task<IActionResult> HandleSaveAsync(
-            Func<Task<IActionResult>> action)
+            Func<Task<IActionResult>> action,
+            CancellationToken cancellationToken)
         {
             try
             {
                 return await action();
+            }
+            catch (ArgumentException exception)
+            {
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(
+                    StatusCodes.Status503ServiceUnavailable,
+                    new
+                    {
+                        message =
+                            "Unable to validate the managing branch. " +
+                            "Check that the branch API is running."
+                    });
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(
+                    StatusCodes.Status504GatewayTimeout,
+                    new
+                    {
+                        message = "Branch validation timed out. Try again later."
+                    });
             }
             catch (DbUpdateConcurrencyException)
             {

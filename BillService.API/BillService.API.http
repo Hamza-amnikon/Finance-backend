@@ -1,0 +1,11 @@
+@BillService.API_HostAddress = https://localhost:7193
+
+GET {{BillService.API_HostAddress}}/api/bills?page=1&pageSize=25
+Accept: application/json
+
+###
+
+GET {{BillService.API_HostAddress}}/api/bills/lookups/vendors?pageSize=50
+Accept: application/json
+
+###

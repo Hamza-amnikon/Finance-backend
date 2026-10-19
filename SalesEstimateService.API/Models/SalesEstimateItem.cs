@@ -1,0 +1,53 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace SalesEstimateService.API.Models
+{
+    public enum ServiceUnit
+    {
+        Hour = 0,
+        Day = 1,
+        Month = 2,
+        FixedFee = 3
+    }
+
+    public class SalesEstimateItem
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public int SalesEstimateId { get; set; }
+
+        public SalesEstimate SalesEstimate { get; set; } = null!;
+
+        public int LineNumber { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string ServiceName { get; set; } = string.Empty;
+
+        [MaxLength(1000)]
+        public string Description { get; set; } = string.Empty;
+
+        public ServiceUnit Unit { get; set; } =
+            ServiceUnit.FixedFee;
+
+        public decimal Quantity { get; set; } = 1;
+
+        public decimal UnitPrice { get; set; }
+
+        public bool DiscountEnabled { get; set; } = false;
+
+        // Monetary discount, not a percentage.
+        public decimal DiscountAmount { get; set; }
+
+        // Percentage: 5 means 5%.
+        public decimal TaxRate { get; set; }
+
+        // Calculated by the backend.
+        public decimal LineSubTotal { get; set; }
+
+        public decimal TaxAmount { get; set; }
+
+        public decimal LineTotal { get; set; }
+    }
+}

@@ -35,6 +35,20 @@ builder.Services.AddScoped<
     IClientService,
     ClientService.API.Services.ClientService>();
 
+// Branch lookup API
+builder.Services.AddHttpClient<
+    IBranchLookupService,
+    BranchLookupService>(httpClient =>
+    {
+        var baseUrl = builder.Configuration[
+            "Services:BranchService:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "BranchService BaseUrl is missing from appsettings.json.");
+
+        httpClient.BaseAddress = new Uri(baseUrl);
+        httpClient.Timeout = TimeSpan.FromSeconds(15);
+    });
+
 // Country Master repository
 builder.Services.AddScoped<
     ICountryMasterRepository,

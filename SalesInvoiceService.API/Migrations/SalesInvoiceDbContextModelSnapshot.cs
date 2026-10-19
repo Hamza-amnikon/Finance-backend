@@ -22,6 +22,141 @@ namespace SalesInvoiceService.API.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("SalesInvoiceService.API.Models.BranchMaster", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("BankAccountName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("BankAccountNumber")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("BankIban")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(34)
+                        .HasColumnType("nvarchar(34)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("BankSwiftCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("CompanyRegistrationNumber")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("InvoiceNotes")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasDefaultValue("");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(25)
+                        .HasColumnType("nvarchar(25)")
+                        .HasDefaultValue("");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("TaxRegistrationNumber")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasDefaultValue("");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("BranchMasters", "sales");
+                });
+
+            modelBuilder.Entity("SalesInvoiceService.API.Models.CreditNoteNumberCounter", b =>
+                {
+                    b.Property<string>("PeriodKey")
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("PeriodKey");
+
+                    b.ToTable("CreditNoteNumberCounters", "sales");
+                });
+
             modelBuilder.Entity("SalesInvoiceService.API.Models.CurrencyMaster", b =>
                 {
                     b.Property<string>("CurrencyCode")
@@ -42,6 +177,20 @@ namespace SalesInvoiceService.API.Migrations
                     b.HasKey("CurrencyCode");
 
                     b.ToTable("CurrencyMasters", "sales");
+                });
+
+            modelBuilder.Entity("SalesInvoiceService.API.Models.InvoiceNumberCounter", b =>
+                {
+                    b.Property<string>("PeriodKey")
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("PeriodKey");
+
+                    b.ToTable("InvoiceNumberCounters", "sales");
                 });
 
             modelBuilder.Entity("SalesInvoiceService.API.Models.PaymentMode", b =>
@@ -66,6 +215,169 @@ namespace SalesInvoiceService.API.Migrations
                         .IsUnique();
 
                     b.ToTable("PaymentModes", "sales");
+                });
+
+            modelBuilder.Entity("SalesInvoiceService.API.Models.SalesCreditNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("CreditNoteDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("CreditNoteNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<decimal>("DiscountTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("GrandTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime?>("IssuedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SalesInvoiceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("SubTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TaxTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreditNoteNumber")
+                        .IsUnique()
+                        .HasFilter("[CreditNoteNumber] IS NOT NULL");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("SalesInvoiceId", "CreditNoteDate");
+
+                    b.ToTable("SalesCreditNotes", "sales");
+                });
+
+            modelBuilder.Entity("SalesInvoiceService.API.Models.SalesCreditNoteItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("CreditAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<bool>("DiscountEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("LineSubTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("SalesCreditNoteId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SalesInvoiceItemId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("TaxAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TaxRate")
+                        .HasPrecision(7, 4)
+                        .HasColumnType("decimal(7,4)");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SalesInvoiceItemId");
+
+                    b.HasIndex("SalesCreditNoteId", "LineNumber")
+                        .IsUnique();
+
+                    b.HasIndex("SalesCreditNoteId", "SalesInvoiceItemId")
+                        .IsUnique();
+
+                    b.ToTable("SalesCreditNoteItems", "sales");
                 });
 
             modelBuilder.Entity("SalesInvoiceService.API.Models.SalesInvoice", b =>
@@ -130,8 +442,17 @@ namespace SalesInvoiceService.API.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("InvoiceTemplateVersion")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<DateTime?>("IssuedDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("IssuerSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("ModifiedDate")
                         .HasColumnType("datetime2");
@@ -168,6 +489,23 @@ namespace SalesInvoiceService.API.Migrations
                     b.Property<DateOnly?>("ServicePeriodStart")
                         .HasColumnType("date");
 
+                    b.Property<DateOnly?>("SourceEstimateDueDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("SourceEstimateId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("SourceEstimateInvoiceDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("SourceEstimateNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<byte[]>("SourceEstimateRowVersion")
+                        .HasMaxLength(8)
+                        .HasColumnType("varbinary(8)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -197,6 +535,10 @@ namespace SalesInvoiceService.API.Migrations
                         .IsUnique()
                         .HasFilter("[InvoiceNumber] IS NOT NULL");
 
+                    b.HasIndex("SourceEstimateId")
+                        .IsUnique()
+                        .HasFilter("[SourceEstimateId] IS NOT NULL");
+
                     b.ToTable("SalesInvoices", "sales");
                 });
 
@@ -216,6 +558,11 @@ namespace SalesInvoiceService.API.Migrations
                     b.Property<decimal>("DiscountAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<bool>("DiscountEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
 
                     b.Property<int>("LineNumber")
                         .HasColumnType("int");
@@ -265,6 +612,88 @@ namespace SalesInvoiceService.API.Migrations
                     b.ToTable("SalesInvoiceItems", "sales");
                 });
 
+            modelBuilder.Entity("SalesInvoiceService.API.Models.SalesInvoicePayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateOnly>("PaymentDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PaymentMode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SalesInvoiceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("SalesInvoiceId", "PaymentDate");
+
+                    b.ToTable("SalesInvoicePayments", "sales");
+                });
+
+            modelBuilder.Entity("SalesInvoiceService.API.Models.SalesCreditNote", b =>
+                {
+                    b.HasOne("SalesInvoiceService.API.Models.SalesInvoice", "SalesInvoice")
+                        .WithMany()
+                        .HasForeignKey("SalesInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SalesInvoice");
+                });
+
+            modelBuilder.Entity("SalesInvoiceService.API.Models.SalesCreditNoteItem", b =>
+                {
+                    b.HasOne("SalesInvoiceService.API.Models.SalesCreditNote", "SalesCreditNote")
+                        .WithMany("Items")
+                        .HasForeignKey("SalesCreditNoteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SalesInvoiceService.API.Models.SalesInvoiceItem", null)
+                        .WithMany()
+                        .HasForeignKey("SalesInvoiceItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SalesCreditNote");
+                });
+
             modelBuilder.Entity("SalesInvoiceService.API.Models.SalesInvoiceItem", b =>
                 {
                     b.HasOne("SalesInvoiceService.API.Models.SalesInvoice", "SalesInvoice")
@@ -274,6 +703,22 @@ namespace SalesInvoiceService.API.Migrations
                         .IsRequired();
 
                     b.Navigation("SalesInvoice");
+                });
+
+            modelBuilder.Entity("SalesInvoiceService.API.Models.SalesInvoicePayment", b =>
+                {
+                    b.HasOne("SalesInvoiceService.API.Models.SalesInvoice", "SalesInvoice")
+                        .WithMany()
+                        .HasForeignKey("SalesInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SalesInvoice");
+                });
+
+            modelBuilder.Entity("SalesInvoiceService.API.Models.SalesCreditNote", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("SalesInvoiceService.API.Models.SalesInvoice", b =>

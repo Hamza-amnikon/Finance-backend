@@ -22,6 +22,14 @@ builder.Services.AddDbContext<SalesInvoiceDbContext>(options =>
                 "sales")));
 
 builder.Services.AddScoped<
+    IBranchRepository,
+    BranchRepository>();
+
+builder.Services.AddScoped<
+    IBranchService,
+    BranchService>();
+
+builder.Services.AddScoped<
     ISalesInvoiceCalculator,
     SalesInvoiceCalculator>();
 
@@ -49,6 +57,27 @@ builder.Services.AddScoped<
     ISalesInvoiceService,
     global::SalesInvoiceService.API.Services.SalesInvoiceService>();
 
+builder.Services.AddScoped<
+    ISalesInvoicePaymentRepository,
+    SalesInvoicePaymentRepository>();
+
+builder.Services.AddScoped<
+    ISalesInvoicePaymentService,
+    SalesInvoicePaymentService>();
+
+// Credit notes
+builder.Services.AddScoped<
+    ISalesCreditNoteCalculator,
+    SalesCreditNoteCalculator>();
+
+builder.Services.AddScoped<
+    ISalesCreditNoteRepository,
+    SalesCreditNoteRepository>();
+
+builder.Services.AddScoped<
+    ISalesCreditNoteService,
+    SalesCreditNoteService>();
+
 builder.Services.AddHttpClient<
     IClientApiService,
     ClientApiService>(httpClient =>
@@ -59,6 +88,23 @@ builder.Services.AddHttpClient<
                 "ClientService BaseUrl is missing from appsettings.json.");
 
         httpClient.BaseAddress = new Uri(baseUrl);
+    });
+
+builder.Services.AddScoped<
+    IInvoiceEstimateConversionService,
+    InvoiceEstimateConversionService>();
+
+builder.Services.AddHttpClient<
+    IEstimateApiService,
+    EstimateApiService>(httpClient =>
+    {
+        var baseUrl = builder.Configuration[
+            "Services:SalesEstimateService:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "SalesEstimateService BaseUrl is missing from appsettings.json.");
+
+        httpClient.BaseAddress = new Uri(baseUrl);
+        httpClient.Timeout = TimeSpan.FromSeconds(15);
     });
 
 var app = builder.Build();

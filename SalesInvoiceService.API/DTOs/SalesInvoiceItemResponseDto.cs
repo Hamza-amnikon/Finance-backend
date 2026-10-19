@@ -18,6 +18,8 @@ namespace SalesInvoiceService.API.DTOs
 
         public decimal UnitPrice { get; set; }
 
+        public bool DiscountEnabled { get; set; } = true;
+
         public decimal DiscountAmount { get; set; }
 
         public decimal TaxRate { get; set; }

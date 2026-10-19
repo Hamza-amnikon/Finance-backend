@@ -1,8 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace ClientService.API.DTOs
 {
-    public class ClientFieldsDto
+    public class ClientFieldsDto : IValidatableObject
     {
         [Required]
         [MaxLength(200)]
@@ -48,17 +48,55 @@ namespace ClientService.API.DTOs
         [MaxLength(11)]
         public string IfscCode { get; set; } = string.Empty;
 
+        // UAE details.
+        public bool? IsVatRegistered { get; set; }
+
+        [MaxLength(15)]
+        public string VatTrn { get; set; } = string.Empty;
+
+        // US business tax ID.
+        [MaxLength(10)]
+        public string Ein { get; set; } = string.Empty;
+
+        // Optional international bank details.
+        [MaxLength(34)]
+        public string Iban { get; set; } = string.Empty;
+
+        [MaxLength(11)]
+        public string SwiftCode { get; set; } = string.Empty;
+
+        // Optional US bank routing number.
+        [MaxLength(9)]
+        public string RoutingNumber { get; set; } = string.Empty;
+
         [MaxLength(2000)]
         public string Notes { get; set; } = string.Empty;
 
         [Required]
-        [RegularExpression("^(Dubai|Turbhe)$")]
-        public string Branch { get; set; } = "Dubai";
+        [MaxLength(20)]
+        public string Branch { get; set; } = string.Empty;
 
         [Required]
         [RegularExpression("^[A-Za-z]{3}$")]
         public string Currency { get; set; } = "AED";
 
         public bool IsActive { get; set; } = true;
+
+        public IEnumerable<ValidationResult> Validate(
+            ValidationContext validationContext)
+        {
+            var country = (Country ?? string.Empty).Trim();
+
+            if ((country.Equals("United Arab Emirates", StringComparison.OrdinalIgnoreCase) ||
+                 country.Equals("AE", StringComparison.OrdinalIgnoreCase) ||
+                 country.Equals("UAE", StringComparison.OrdinalIgnoreCase)) &&
+                IsVatRegistered == true &&
+                string.IsNullOrWhiteSpace(VatTrn))
+            {
+                yield return new ValidationResult(
+                    "VAT TRN is required for a VAT-registered UAE client.",
+                    new[] { nameof(VatTrn) });
+            }
+        }
     }
 }

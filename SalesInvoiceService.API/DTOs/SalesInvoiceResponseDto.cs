@@ -8,6 +8,16 @@ namespace SalesInvoiceService.API.DTOs
 
         public Guid ClientId { get; set; }
 
+        public int? SourceEstimateId { get; set; }
+
+        public string? SourceEstimateNumber { get; set; }
+
+        public byte[]? SourceEstimateRowVersion { get; set; }
+
+        public DateOnly? SourceEstimateInvoiceDate { get; set; }
+
+        public DateOnly? SourceEstimateDueDate { get; set; }
+
         public string? InvoiceNumber { get; set; }
 
         public string ClientName { get; set; } = string.Empty;
@@ -53,6 +63,10 @@ namespace SalesInvoiceService.API.DTOs
         public DateTime? ModifiedDate { get; set; }
 
         public DateTime? IssuedDate { get; set; }
+
+        public BranchInvoiceProfileFieldsDto? Issuer { get; set; }
+
+        public string InvoiceTemplateVersion { get; set; } = string.Empty;
 
         public DateTime? VoidedDate { get; set; }
 

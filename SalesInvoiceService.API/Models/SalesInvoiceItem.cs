@@ -35,6 +35,8 @@ namespace SalesInvoiceService.API.Models
 
         public decimal UnitPrice { get; set; }
 
+        public bool DiscountEnabled { get; set; } = true;
+
         // Monetary discount, not a percentage.
         public decimal DiscountAmount { get; set; }
 

@@ -26,6 +26,8 @@ namespace SalesInvoiceService.API.DTOs
         [Range(typeof(decimal), "0", "99999999999999.9999")]
         public decimal UnitPrice { get; set; }
 
+        public bool DiscountEnabled { get; set; } = true;
+
         [Range(typeof(decimal), "0", "99999999999999.9999")]
         public decimal DiscountAmount { get; set; }
 

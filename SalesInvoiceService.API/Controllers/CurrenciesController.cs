@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using SalesInvoiceService.API.Services;
 
 namespace SalesInvoiceService.API.Controllers
@@ -15,33 +16,60 @@ namespace SalesInvoiceService.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetActive(
+        public Task<IActionResult> GetActive(
             CancellationToken cancellationToken)
         {
-            var currencies = await _service.GetActiveAsync(
-                cancellationToken);
+            return HandleReadAsync(async () =>
+            {
+                var currencies = await _service.GetActiveAsync(
+                    cancellationToken);
 
-            return Ok(currencies);
+                return Ok(currencies);
+            }, cancellationToken);
         }
 
         [HttpGet("{code}")]
-        public async Task<IActionResult> GetByCode(
+        public Task<IActionResult> GetByCode(
             string code,
             CancellationToken cancellationToken)
         {
-            var currency = await _service.GetByCodeAsync(
-                code,
-                cancellationToken);
-
-            if (currency == null)
+            return HandleReadAsync(async () =>
             {
-                return NotFound(new
-                {
-                    message = "Active currency not found."
-                });
-            }
+                var currency = await _service.GetByCodeAsync(
+                    code,
+                    cancellationToken);
 
-            return Ok(currency);
+                if (currency == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Active currency not found."
+                    });
+                }
+
+                return Ok(currency);
+            }, cancellationToken);
+        }
+
+        private async Task<IActionResult> HandleReadAsync(
+            Func<Task<IActionResult>> action,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await action();
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (SqlException exception)
+                when (cancellationToken.IsCancellationRequested &&
+                      exception.Number == 0)
+            {
+                return StatusCode(499);
+            }
         }
     }
 }

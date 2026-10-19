@@ -1,4 +1,4 @@
-﻿using ClientService.API.DTOs;
+using ClientService.API.DTOs;
 using ClientService.API.Models;
 using ClientService.API.Repositories;
 
@@ -7,10 +7,14 @@ namespace ClientService.API.Services
     public class ClientService : IClientService
     {
         private readonly IClientRepository _repository;
+        private readonly IBranchLookupService _branchLookupService;
 
-        public ClientService(IClientRepository repository)
+        public ClientService(
+            IClientRepository repository,
+            IBranchLookupService branchLookupService)
         {
             _repository = repository;
+            _branchLookupService = branchLookupService;
         }
 
         public async Task<(List<ClientResponseDto> Data, int Total)>
@@ -44,9 +48,14 @@ namespace ClientService.API.Services
             CreateClientDto dto,
             CancellationToken cancellationToken)
         {
+            var branch = await ResolveBranchAsync(
+                dto.Branch,
+                cancellationToken);
+
             var client = new Client();
 
             ApplyFields(client, dto);
+            client.Branch = branch;
 
             client.CreatedDate = DateTime.UtcNow;
 
@@ -71,7 +80,12 @@ namespace ClientService.API.Services
                 return null;
             }
 
+            var branch = await ResolveBranchAsync(
+                dto.Branch,
+                cancellationToken);
+
             ApplyFields(client, dto);
+            client.Branch = branch;
 
             client.ModifiedDate = DateTime.UtcNow;
 
@@ -108,6 +122,23 @@ namespace ClientService.API.Services
             return true;
         }
 
+        private async Task<string> ResolveBranchAsync(
+            string name,
+            CancellationToken cancellationToken)
+        {
+            var branch = await _branchLookupService.GetActiveNameAsync(
+                name,
+                cancellationToken);
+
+            if (branch == null)
+            {
+                throw new ArgumentException(
+                    "Select an active managing branch.");
+            }
+
+            return branch;
+        }
+
         private static string Clean(string? value)
         {
             return value?.Trim() ?? string.Empty;
@@ -135,6 +166,12 @@ namespace ClientService.API.Services
             client.BankName = Clean(dto.BankName);
             client.AccountNumber = Clean(dto.AccountNumber);
             client.IfscCode = Clean(dto.IfscCode);
+            client.IsVatRegistered = dto.IsVatRegistered;
+            client.VatTrn = Clean(dto.VatTrn);
+            client.Ein = Clean(dto.Ein);
+            client.Iban = Clean(dto.Iban).ToUpperInvariant();
+            client.SwiftCode = Clean(dto.SwiftCode).ToUpperInvariant();
+            client.RoutingNumber = Clean(dto.RoutingNumber);
             client.Notes = Clean(dto.Notes);
             client.Branch = Clean(dto.Branch);
             client.Currency = Clean(dto.Currency).ToUpperInvariant();
@@ -160,6 +197,12 @@ namespace ClientService.API.Services
                 BankName = client.BankName,
                 AccountNumber = client.AccountNumber,
                 IfscCode = client.IfscCode,
+                IsVatRegistered = client.IsVatRegistered,
+                VatTrn = client.VatTrn,
+                Ein = client.Ein,
+                Iban = client.Iban,
+                SwiftCode = client.SwiftCode,
+                RoutingNumber = client.RoutingNumber,
                 Notes = client.Notes,
                 Branch = client.Branch,
                 Currency = client.Currency,

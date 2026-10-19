@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.DTOs;
 using SalesInvoiceService.API.Models;
 using SalesInvoiceService.API.Services;
@@ -21,6 +22,36 @@ namespace SalesInvoiceService.API.Controllers
             _currencyService = currencyService;
             _calculator = calculator;
             _invoiceService = invoiceService;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll(
+            CancellationToken cancellationToken,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            if (page < 1 || pageSize < 1 || pageSize > 100)
+            {
+                return BadRequest(new
+                {
+                    message =
+                        "Page must be at least 1. " +
+                        "Page size must be between 1 and 100."
+                });
+            }
+
+            var result = await _invoiceService.GetAllAsync(
+                page,
+                pageSize,
+                cancellationToken);
+
+            return Ok(new
+            {
+                data = result.Data,
+                total = result.Total,
+                page,
+                pageSize
+            });
         }
 
         [HttpPost("preview")]
@@ -67,7 +98,10 @@ namespace SalesInvoiceService.API.Controllers
                         Unit = item.Unit,
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
-                        DiscountAmount = item.DiscountAmount,
+                        DiscountEnabled = item.DiscountEnabled,
+                        DiscountAmount = item.DiscountEnabled
+                            ? item.DiscountAmount
+                            : 0m,
                         TaxRate = item.TaxRate
                     }).ToList()
             };
@@ -107,6 +141,7 @@ namespace SalesInvoiceService.API.Controllers
                     unit = item.Unit,
                     quantity = item.Quantity,
                     unitPrice = item.UnitPrice,
+                    discountEnabled = item.DiscountEnabled,
                     discountAmount = item.DiscountAmount,
                     taxRate = item.TaxRate,
                     lineSubTotal = item.LineSubTotal,
@@ -168,6 +203,45 @@ namespace SalesInvoiceService.API.Controllers
                             "ClientService took too long to respond. " +
                             "Try again later."
                     });
+            }
+        }
+
+        [HttpPost("{id:int}/issue")]
+        public async Task<IActionResult> Issue(
+            int id,
+            [FromBody] IssueSalesInvoiceDto dto,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var invoice = await _invoiceService.IssueAsync(id, dto, cancellationToken);
+                return invoice == null
+                    ? NotFound(new { message = "Invoice not found." })
+                    : Ok(invoice);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Conflict(new { message = "Invoice changed since you opened it. Reload it before issuing." });
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Conflict(new { message = exception.Message });
+            }
+            catch (ArgumentException exception)
+            {
+                return BadRequest(new { message = exception.Message });
+            }
+            catch (OverflowException)
+            {
+                return BadRequest(new { message = "Invoice amounts exceed the supported range." });
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(503, new { message = "ClientService is unavailable. Try issuing again later." });
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(504, new { message = "ClientService took too long to respond. Try again later." });
             }
         }
 

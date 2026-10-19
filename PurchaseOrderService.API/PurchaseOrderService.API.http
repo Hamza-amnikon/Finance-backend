@@ -1,0 +1,11 @@
+@PurchaseOrderService.API_HostAddress = https://localhost:7191
+
+GET {{PurchaseOrderService.API_HostAddress}}/api/purchase-orders?page=1&pageSize=25
+Accept: application/json
+
+###
+
+GET {{PurchaseOrderService.API_HostAddress}}/api/purchase-orders/lookups/vendors?pageSize=50
+Accept: application/json
+
+###
