@@ -1,8 +1,11 @@
 <Solution>
+  <Project Path="../ExpenseService.API/ExpenseService.API.csproj" />
+  <Project Path="../BillService.API/BillService.API.csproj" />
+  <Project Path="../PaymentMadeService.API/PaymentMadeService.API.csproj" Id="db2af5fd-62cb-4552-9b00-fdc4f7fb4f6b" />
+  <Project Path="../PurchaseOrderService.API/PurchaseOrderService.API.csproj" />
   <Project Path="../SalesEstimateService.API/SalesEstimateService.API.csproj" Id="f7cc3984-b90b-40e8-bd2c-0857651dea60" />
   <Project Path="../SalesInvoiceService.API/SalesInvoiceService.API.csproj" Id="8b073ad3-183f-45d3-a856-e24c1f54caa2" />
+  <Project Path="../VendorCreditService.API/VendorCreditService.API.csproj" Id="b9e9f72f-e72c-483b-ae48-d2a3c833563e" />
   <Project Path="../VendorService.API/VendorService.API.csproj" Id="d3f9bf83-66ff-41cf-9586-52cf964be48b" />
   <Project Path="ClientService.API.csproj" />
-  <Project Path="../PurchaseOrderService.API/PurchaseOrderService.API.csproj" />
-  <Project Path="../BillService.API/BillService.API.csproj" />
 </Solution>

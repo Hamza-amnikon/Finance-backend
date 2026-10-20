@@ -105,6 +105,22 @@ namespace BillService.API.Repositories
             {
                 if (stored.Status != BillStatus.Draft && stored.Status != BillStatus.Issued)
                     throw new InvalidOperationException("This bill cannot be cancelled.");
+                var paid = await _context.Database
+                    .SqlQuery<decimal>(
+                        $"SELECT COALESCE(SUM([Amount]), 0) AS [Value] FROM [purchases].[PaymentsMade] WHERE [BillId] = {stored.Id} AND [Status] = N'Recorded'")
+                    .SingleAsync(cancellationToken);
+
+                var credits = await _context.Database
+                    .SqlQuery<decimal>(
+                        $"SELECT COALESCE(SUM([Amount]), 0) AS [Value] FROM [purchases].[VendorCreditApplications] WHERE [BillId] = {stored.Id} AND [Status] = N'Applied'")
+                    .SingleAsync(cancellationToken);
+
+                if (paid > 0 || credits > 0)
+                {
+                    throw new InvalidOperationException(
+                        "Void active payments and credit applications before cancelling this bill.");
+                }
+
                 stored.CancelledDate = DateTime.UtcNow;
             }
             else throw new ArgumentException("Unsupported bill action.");

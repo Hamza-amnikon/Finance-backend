@@ -200,11 +200,20 @@ namespace PurchaseOrderService.API.Controllers
                 return Ok(new
                 {
                     total = groups.Sum(group => group.Count),
-                    draft = groups.Where(group => group.Status == PurchaseOrderStatus.Draft)
+
+                    draft = groups
+                        .Where(group =>
+                            group.Status == PurchaseOrderStatus.Draft)
                         .Sum(group => group.Count),
-                    issued = groups.Where(group => group.Status == PurchaseOrderStatus.Issued)
+
+                    issued = groups
+                        .Where(group =>
+                            group.Status == PurchaseOrderStatus.Issued)
                         .Sum(group => group.Count),
-                    cancelled = groups.Where(group => group.Status == PurchaseOrderStatus.Cancelled)
+
+                    cancelled = groups
+                        .Where(group =>
+                            group.Status == PurchaseOrderStatus.Cancelled)
                         .Sum(group => group.Count)
                 });
             }, cancellationToken);
@@ -232,8 +241,11 @@ namespace PurchaseOrderService.API.Controllers
                         vendor.CompanyName.Contains(value));
                 }
 
-                var total = await query.CountAsync(cancellationToken);
+                var total = await query.CountAsync(
+                    cancellationToken);
+
                 var offset = ((long)page - 1) * pageSize;
+
                 var vendors = offset >= total
                     ? new List<PurchaseVendorLookup>()
                     : await query
@@ -285,6 +297,27 @@ namespace PurchaseOrderService.API.Controllers
             }, cancellationToken);
         }
 
+        [HttpGet("lookups/payment-modes")]
+        public Task<IActionResult> PaymentModes(
+            CancellationToken cancellationToken)
+        {
+            return HandleReadAsync(async () =>
+            {
+                var paymentModes = await _context.PaymentModes
+                    .AsNoTracking()
+                    .Where(mode => mode.IsActive)
+                    .OrderBy(mode => mode.Name)
+                    .Select(mode => new
+                    {
+                        mode.Id,
+                        mode.Name
+                    })
+                    .ToListAsync(cancellationToken);
+
+                return Ok(paymentModes);
+            }, cancellationToken);
+        }
+
         private async Task<IActionResult> HandleReadAsync(
             Func<Task<IActionResult>> action,
             CancellationToken cancellationToken)
@@ -311,7 +344,8 @@ namespace PurchaseOrderService.API.Controllers
             {
                 return Conflict(new
                 {
-                    message = "This purchase order changed. Refresh it before trying again."
+                    message =
+                        "This purchase order changed. Refresh it before trying again."
                 });
             }
             catch (InvalidOperationException exception)
@@ -369,7 +403,8 @@ namespace PurchaseOrderService.API.Controllers
             {
                 return Conflict(new
                 {
-                    message = "This purchase order changed. Refresh it before trying again."
+                    message =
+                        "This purchase order changed. Refresh it before trying again."
                 });
             }
             catch (InvalidOperationException exception)

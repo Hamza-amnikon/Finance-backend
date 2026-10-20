@@ -127,6 +127,9 @@ namespace PurchaseOrderService.API.Migrations
                     b.Property<DateOnly>("OrderDate")
                         .HasColumnType("date");
 
+                    b.Property<int?>("PaymentModeId")
+                        .HasColumnType("int");
+
                     b.Property<string>("PaymentTerms")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -275,6 +278,30 @@ namespace PurchaseOrderService.API.Migrations
                     b.HasKey("PeriodKey");
 
                     b.ToTable("PurchaseOrderNumberCounters", "purchases");
+                });
+
+            modelBuilder.Entity("PurchaseOrderService.API.Models.PurchasePaymentModeLookup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PaymentModes", "sales", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
                 });
 
             modelBuilder.Entity("PurchaseOrderService.API.Models.PurchaseVendorLookup", b =>

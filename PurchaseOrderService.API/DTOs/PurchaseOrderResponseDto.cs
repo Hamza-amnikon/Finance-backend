@@ -17,6 +17,8 @@ public class PurchaseOrderResponseDto
     public DateOnly? ExpectedDeliveryDate { get; set; }
     public string Reference { get; set; } = "";
     public string PaymentTerms { get; set; } = "";
+    public int? PaymentModeId { get; set; }
+
     public string Notes { get; set; } = "";
     public string AdditionalTerms { get; set; } = "";
     public string Branch { get; set; } = "";
