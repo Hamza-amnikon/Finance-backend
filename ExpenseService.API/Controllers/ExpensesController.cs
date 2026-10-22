@@ -234,16 +234,17 @@ namespace ExpenseService.API.Controllers
                         "Select an existing company.");
                 }
 
-                await _lookups.ResolveCurrencyAsync(
-                    dto.Currency,
-                    true,
-                    cancellationToken);
+                var currency = await _lookups.ResolveCurrencyAsync(
+                dto.Currency,
+                true,
+                cancellationToken);
 
                 var account = new BankAccount
                 {
                     CompanyId = dto.CompanyId,
                     Name = dto.Name.Trim(),
-                    Currency = dto.Currency,
+                    Currency = currency.CurrencyCode,
+                    CurrencyDecimalPlaces = currency.DecimalPlaces,
                     LastFour = dto.LastFour ?? ""
                 };
 

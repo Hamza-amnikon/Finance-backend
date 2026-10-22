@@ -624,6 +624,24 @@ namespace SalesInvoiceService.API.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<int?>("BankAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BankAccountName")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<decimal?>("BankAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("BankCurrency")
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<int?>("BankTransactionId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
@@ -656,7 +674,15 @@ namespace SalesInvoiceService.API.Migrations
                     b.Property<int>("SalesInvoiceId")
                         .HasColumnType("int");
 
+                    b.Property<string>("SettlementType")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("BankTransactionId")
+                        .IsUnique()
+                        .HasFilter("[BankTransactionId] IS NOT NULL");
 
                     b.HasIndex("RequestId")
                         .IsUnique();

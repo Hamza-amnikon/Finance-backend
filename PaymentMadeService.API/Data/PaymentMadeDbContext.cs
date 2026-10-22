@@ -41,6 +41,9 @@ namespace PaymentMadeService.API.Data
                     .HasConversion<string>()
                     .HasMaxLength(20);
                 entity.Property(row => row.Amount).HasPrecision(18, 4);
+                entity.Property(row => row.BankAmount).HasPrecision(18, 4);
+                entity.HasIndex(row => row.BankTransactionId).IsUnique()
+                    .HasFilter("[BankTransactionId] IS NOT NULL");
                 entity.Property(row => row.RowVersion).IsRowVersion();
             });
 

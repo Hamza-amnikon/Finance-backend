@@ -73,6 +73,28 @@ namespace PaymentMadeService.API.Migrations
                     b.ToView("Bills", "purchases");
                 });
 
+            modelBuilder.Entity("PaymentMadeService.API.Models.PaymentCreditApplicationLookup", b =>
+                {
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("BillId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("VendorCreditApplications", "purchases");
+                });
+
             modelBuilder.Entity("PaymentMadeService.API.Models.PaymentMade", b =>
                 {
                     b.Property<int>("Id")
@@ -84,6 +106,27 @@ namespace PaymentMadeService.API.Migrations
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("BankAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BankAccountName")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<decimal?>("BankAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("BankCurrency")
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<int?>("BankReversalTransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BankTransactionId")
+                        .HasColumnType("int");
 
                     b.Property<int>("BillId")
                         .HasColumnType("int");
@@ -149,6 +192,10 @@ namespace PaymentMadeService.API.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<string>("SettlementType")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -176,6 +223,10 @@ namespace PaymentMadeService.API.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BankTransactionId")
+                        .IsUnique()
+                        .HasFilter("[BankTransactionId] IS NOT NULL");
 
                     b.HasIndex("PaymentNumber")
                         .IsUnique();

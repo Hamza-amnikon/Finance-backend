@@ -1,9 +1,24 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace SalesInvoiceService.API.Models
 {
     public class SalesInvoicePayment
     {
+        [MaxLength(10)]
+        public string? SettlementType { get; set; }
+
+        public int? BankAccountId { get; set; }
+
+        public decimal? BankAmount { get; set; }
+
+        [MaxLength(160)]
+        public string? BankAccountName { get; set; }
+
+        [MaxLength(3)]
+        public string? BankCurrency { get; set; }
+
+        public int? BankTransactionId { get; set; }
+
         public int Id { get; set; }
 
         public int SalesInvoiceId { get; set; }

@@ -134,6 +134,9 @@ namespace SalesInvoiceService.API.Data
 
             modelBuilder.Entity<SalesInvoicePayment>(entity =>
             {
+                entity.Property(row => row.BankAmount).HasPrecision(18, 4);
+                entity.HasIndex(row => row.BankTransactionId).IsUnique()
+                    .HasFilter("[BankTransactionId] IS NOT NULL");
                 entity.ToTable("SalesInvoicePayments", "sales");
 
                 entity.HasKey(x => x.Id);

@@ -46,7 +46,10 @@ namespace ExpenseService.API.Data
 
             builder.Entity<BankAccount>(entity =>
             {
-                entity.ToTable("BankAccounts");
+                entity.ToTable(
+                    "BankAccounts",
+                    "expenses",
+                    table => table.ExcludeFromMigrations());
 
                 entity.HasIndex(row => new
                 {

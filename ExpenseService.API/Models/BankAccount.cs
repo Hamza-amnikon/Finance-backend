@@ -16,6 +16,8 @@ namespace ExpenseService.API.Models
         [MaxLength(3)]
         public string Currency { get; set; } = "";
 
+        public int CurrencyDecimalPlaces { get; set; }
+
         [MaxLength(4)]
         public string LastFour { get; set; } = "";
     }
