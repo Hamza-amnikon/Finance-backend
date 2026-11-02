@@ -47,6 +47,11 @@ namespace BankingService.API.Services
                 FROM [sales].[SalesInvoicePayments] p
                 WHERE p.[CreatedDate] >= {since} AND p.[BankTransactionId] IS NULL
                 AND NOT EXISTS (SELECT 1 FROM [banking].[PaymentBankingLinks] l WHERE l.[Source] = 'Received' AND l.[SourcePaymentId] = p.[Id])
+                UNION ALL
+                SELECT TOP (100) 'Expense' AS [Source], e.[Id]
+                FROM [expenses].[Expenses] e
+                WHERE e.[CreatedDate] >= {since} AND e.[Status] = 'Recorded' AND e.[BankAccountId] IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM [banking].[PaymentBankingLinks] l WHERE l.[Source] = 'Expense' AND l.[SourcePaymentId] = e.[Id])
                 """).ToListAsync(cancellationToken);
 
             var retries = await _context.PaymentBankingLinks.AsNoTracking()
@@ -93,14 +98,28 @@ namespace BankingService.API.Services
             {
                 return (await _context.Database.SqlQuery<PaymentBankingSource>($"""
                     SELECT 'Made' AS [Source], [Id], [RequestId], [PaymentNumber], [VendorName] AS [PartyName],
-                    [Branch], [Currency], [Amount], [PaymentMode], [Reference], [PaymentDate], [CreatedDate], [VoidedDate], [Status]
+                    [Branch], [Currency], [Amount], CAST(NULL AS int) AS [BankAccountId], 0 AS [CompanyId],
+                    [PaymentMode], [Reference], [PaymentDate], [CreatedDate], [VoidedDate], [Status]
                     FROM [purchases].[PaymentsMade] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {id}
+                    """).ToListAsync(cancellationToken)).SingleOrDefault();
+            }
+
+            if (source == "Expense")
+            {
+                return (await _context.Database.SqlQuery<PaymentBankingSource>($"""
+                    SELECT 'Expense' AS [Source], e.[Id], e.[RequestId], CONCAT('EXP-', FORMAT(e.[Id], '000000')) AS [PaymentNumber],
+                    e.[Supplier] AS [PartyName], '' AS [Branch], e.[Currency], e.[Amount], '' AS [PaymentMode], e.[BankAccountId],
+                    e.[CompanyId], e.[Reference], e.[Date] AS [PaymentDate], e.[CreatedDate],
+                    CASE WHEN e.[Status] = 'Voided' THEN e.[ModifiedDate] ELSE CAST(NULL AS datetime2) END AS [VoidedDate], e.[Status]
+                    FROM [expenses].[Expenses] e WITH (UPDLOCK,HOLDLOCK)
+                    WHERE e.[Id] = {id}
                     """).ToListAsync(cancellationToken)).SingleOrDefault();
             }
 
             return (await _context.Database.SqlQuery<PaymentBankingSource>($"""
                 SELECT 'Received' AS [Source], p.[Id], p.[RequestId], CONCAT('PAY-',FORMAT(p.[Id],'000000')) AS [PaymentNumber],
-                i.[ClientName] AS [PartyName], i.[Branch], p.[Currency], p.[Amount], p.[PaymentMode], p.[Reference],
+                i.[ClientName] AS [PartyName], i.[Branch], p.[Currency], p.[Amount], CAST(NULL AS int) AS [BankAccountId],
+                0 AS [CompanyId], p.[PaymentMode], p.[Reference],
                 p.[PaymentDate], p.[CreatedDate], CAST(NULL AS datetime2) AS [VoidedDate], 'Recorded' AS [Status]
                 FROM [sales].[SalesInvoicePayments] p WITH (UPDLOCK,HOLDLOCK)
                 JOIN [sales].[SalesInvoices] i ON i.[Id] = p.[SalesInvoiceId]
@@ -170,6 +189,45 @@ namespace BankingService.API.Services
             CancellationToken cancellationToken)
         {
             link.State = "NeedsReview";
+
+            if (payment.Source == "Expense")
+            {
+                var expenseAccount = payment.BankAccountId.HasValue
+                    ? await _context.BankAccounts.SingleOrDefaultAsync(
+                        row => row.Id == payment.BankAccountId.Value,
+                        cancellationToken)
+                    : null;
+
+                if (expenseAccount == null || expenseAccount.CompanyId != payment.CompanyId || !expenseAccount.IsActive)
+                {
+                    link.Message = "The expense bank account is missing, inactive, or belongs to another company.";
+                    return;
+                }
+
+                await BankingPaymentLock.AcquireAsync(_context, "Account." + expenseAccount.Id, cancellationToken);
+                if (expenseAccount.OpeningBalanceDate == null || payment.PaymentDate < expenseAccount.OpeningBalanceDate ||
+                    expenseAccount.Currency != payment.Currency || expenseAccount.CurrencyDecimalPlaces < 0 ||
+                    expenseAccount.CurrencyDecimalPlaces > 4 || payment.Amount <= 0 ||
+                    decimal.Round(payment.Amount, expenseAccount.CurrencyDecimalPlaces) != payment.Amount)
+                {
+                    link.Message = "Expense date, amount, or currency does not match the selected bank account settings.";
+                    return;
+                }
+
+                var closedExpensePeriod = await IsClosedAsync(expenseAccount.Id, payment.PaymentDate, cancellationToken);
+                var expenseStatus = closedExpensePeriod ? "Draft" : "Posted";
+                var expenseMessage = closedExpensePeriod
+                    ? "Expense date is in a completed bank reconciliation. Review the transaction date before posting."
+                    : "";
+                var expenseEntry = NewEntry(payment, expenseAccount, payment.PaymentDate, expenseStatus, expenseMessage);
+                _context.BankTransactions.Add(expenseEntry);
+                await _context.SaveChangesAsync(cancellationToken);
+                link.BankTransactionId = expenseEntry.Id;
+                link.State = expenseEntry.Status;
+                link.Message = expenseMessage;
+                return;
+            }
+
             var routes = _options.Routes.Where(route => Contains(route.Branches, payment.Branch)).ToList();
             if (routes.Count != 1)
             {
@@ -252,29 +310,47 @@ namespace BankingService.API.Services
                 return;
             }
 
-            var route = _options.Routes.Single(row => Contains(row.Branches, payment.Branch));
             var utc = DateTime.SpecifyKind(payment.VoidedDate ?? _time.GetUtcNow().UtcDateTime, DateTimeKind.Utc);
-            var date = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById(route.TimeZoneId)));
+            var date = payment.Source == "Expense"
+                ? DateOnly.FromDateTime(utc)
+                : DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
+                    utc,
+                    TimeZoneInfo.FindSystemTimeZoneById(
+                        _options.Routes.Single(row => Contains(row.Branches, payment.Branch)).TimeZoneId)));
             if (date < entry.TransactionDate) date = entry.TransactionDate;
             var closed = await IsClosedAsync(entry.BankAccountId, date, cancellationToken);
-            var reversal = NewEntry(payment, entry.BankAccount, date, closed ? "Draft" : "Posted", "Source vendor payment voided; Finance reversal only.");
+            var reversalNotes = payment.Source == "Expense"
+                ? "Source expense voided; Finance reversal only."
+                : "Source vendor payment voided; Finance reversal only.";
+            var reversal = NewEntry(payment, entry.BankAccount, date, closed ? "Draft" : "Posted", reversalNotes);
             reversal.Direction = entry.Direction == BankTransactionDirection.MoneyOut
                 ? BankTransactionDirection.MoneyIn : BankTransactionDirection.MoneyOut;
             reversal.Amount = entry.Amount;
             reversal.Currency = entry.Currency;
             reversal.CurrencyDecimalPlaces = entry.CurrencyDecimalPlaces;
             reversal.ReversalOfTransactionId = entry.Id;
-            reversal.Description = "Reversal of payment " + payment.PaymentNumber + " · " + payment.PartyName;
+            reversal.Description = payment.Source == "Expense"
+                ? "Reversal of expense " + payment.PaymentNumber + " · " + payment.PartyName
+                : "Reversal of payment " + payment.PaymentNumber + " · " + payment.PartyName;
             _context.BankTransactions.Add(reversal);
             await _context.SaveChangesAsync(cancellationToken);
             link.ReversalTransactionId = reversal.Id;
             link.State = "Reversed";
-            link.Message = closed ? "Reversal created as Draft because its date is in a completed reconciliation." : "Payment void reversal posted.";
+            link.Message = closed
+                ? "Reversal created as Draft because its date is in a completed reconciliation."
+                : payment.Source == "Expense"
+                    ? "Expense void reversal posted."
+                    : "Payment void reversal posted.";
         }
 
         private BankTransaction NewEntry(PaymentBankingSource payment, BankAccount account, DateOnly date, string status, string notes)
         {
-            var description = (payment.Source == "Made" ? "Payment to " : "Payment received from ") + payment.PartyName + " · " + payment.PaymentNumber;
+            var description = payment.Source switch
+            {
+                "Made" => "Payment to " + payment.PartyName + " · " + payment.PaymentNumber,
+                "Received" => "Payment received from " + payment.PartyName + " · " + payment.PaymentNumber,
+                _ => "Expense to " + payment.PartyName + " · " + payment.PaymentNumber
+            };
             return new BankTransaction
             {
                 RequestId = Guid.NewGuid(),
@@ -282,7 +358,9 @@ namespace BankingService.API.Services
                 BankAccountId = account.Id,
                 CompanyId = account.CompanyId,
                 TransactionDate = date,
-                Direction = payment.Source == "Made" ? BankTransactionDirection.MoneyOut : BankTransactionDirection.MoneyIn,
+                Direction = payment.Source == "Received"
+                    ? BankTransactionDirection.MoneyIn
+                    : BankTransactionDirection.MoneyOut,
                 Amount = payment.Amount,
                 Currency = account.Currency,
                 CurrencyDecimalPlaces = account.CurrencyDecimalPlaces,

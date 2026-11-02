@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using BankingService.API.DTOs;
 using BankingService.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -94,6 +94,30 @@ namespace BankingService.API.Controllers
                     var result = await _service.MatchAsync(
                         id,
                         lineId,
+                        dto,
+                        cancellationToken);
+
+                    if (result == null)
+                    {
+                        return ReconciliationNotFound();
+                    }
+
+                    return Ok(result);
+                },
+                cancellationToken);
+        }
+
+        [HttpPost("{id:int:min(1)}/auto-match")]
+        public Task<IActionResult> AutoMatch(
+            int id,
+            [FromBody] BankReconciliationVersionDto dto,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync(
+                async () =>
+                {
+                    var result = await _service.AutoMatchAsync(
+                        id,
                         dto,
                         cancellationToken);
 

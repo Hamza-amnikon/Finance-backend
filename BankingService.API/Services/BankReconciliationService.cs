@@ -236,6 +236,10 @@ namespace BankingService.API.Services
                 });
             }
 
+            await AutoMatchEntriesAsync(
+                reconciliation,
+                cancellationToken);
+
             await _repository.AddAsync(
                 reconciliation,
                 cancellationToken);
@@ -251,6 +255,82 @@ namespace BankingService.API.Services
                 cancellationToken);
 
             return response;
+        }
+
+        public async Task<BankReconciliationResponseDto?> AutoMatchAsync(
+            int id,
+            BankReconciliationVersionDto dto,
+            CancellationToken cancellationToken)
+        {
+            BankReconciliationHelper.Validate(dto);
+
+            await using var databaseTransaction =
+                await _repository.BeginTransactionAsync(
+                    cancellationToken);
+
+            var reconciliation = await _repository.GetByIdAsync(
+                id,
+                cancellationToken);
+
+            if (reconciliation == null)
+            {
+                return null;
+            }
+
+            ValidateSnapshot(reconciliation);
+            BankReconciliationHelper.CheckDraft(reconciliation);
+
+            BankReconciliationHelper.CheckVersion(
+                reconciliation.RowVersion,
+                dto.RowVersion);
+
+            var matchedCount = await AutoMatchEntriesAsync(
+                reconciliation,
+                cancellationToken);
+
+            if (matchedCount > 0)
+            {
+                reconciliation.ModifiedDate = DateTime.UtcNow;
+                await _repository.SaveChangesAsync(
+                    cancellationToken);
+            }
+
+            var response = await ToResponseAsync(
+                reconciliation,
+                cancellationToken);
+
+            await databaseTransaction.CommitAsync(
+                cancellationToken);
+
+            return response;
+        }
+
+        private async Task<int> AutoMatchEntriesAsync(
+            BankReconciliation reconciliation,
+            CancellationToken cancellationToken)
+        {
+            var reservedIds = await _repository.QueryLines()
+                .Where(line => line.MatchedBankTransactionId.HasValue)
+                .Select(line => line.MatchedBankTransactionId!.Value)
+                .ToListAsync(cancellationToken);
+            reservedIds.AddRange(reconciliation.Lines
+                .Where(line => line.MatchedBankTransactionId.HasValue)
+                .Select(line => line.MatchedBankTransactionId!.Value));
+            var transactions = await _transactions.Query()
+                .Where(transaction =>
+                    transaction.BankAccountId == reconciliation.BankAccountId &&
+                    transaction.CompanyId == reconciliation.CompanyId &&
+                    transaction.Currency == reconciliation.Currency &&
+                    transaction.CurrencyDecimalPlaces == reconciliation.CurrencyDecimalPlaces &&
+                    transaction.Status == "Posted" &&
+                    transaction.TransactionDate >= reconciliation.BankAccount.OpeningBalanceDate &&
+                    transaction.TransactionDate <= reconciliation.PeriodEnd &&
+                    !reservedIds.Contains(transaction.Id))
+                .ToListAsync(cancellationToken);
+
+            return BankStatementAutoMatcher.Match(
+                reconciliation.Lines.ToList(),
+                transactions);
         }
 
         public async Task<BankReconciliationResponseDto?> MatchAsync(

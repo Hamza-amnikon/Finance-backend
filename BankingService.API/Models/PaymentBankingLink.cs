@@ -52,6 +52,8 @@ namespace BankingService.API.Models
         public string Branch { get; set; } = "";
         public string Currency { get; set; } = "";
         public decimal Amount { get; set; }
+        public int? BankAccountId { get; set; }
+        public int CompanyId { get; set; }
         public string PaymentMode { get; set; } = "";
         public string Reference { get; set; } = "";
         public DateOnly PaymentDate { get; set; }

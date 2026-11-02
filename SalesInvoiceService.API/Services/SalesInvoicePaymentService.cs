@@ -52,6 +52,11 @@ namespace SalesInvoiceService.API.Services
             var reference = Clean(dto.Reference);
             var notes = Clean(dto.Notes);
 
+            if (string.IsNullOrWhiteSpace(reference))
+            {
+                throw new ArgumentException("Enter a payment reference.");
+            }
+
             // Return the original payment when the same submission is retried.
             var existing = await _paymentRepository.GetByRequestIdAsync(
                 dto.RequestId,

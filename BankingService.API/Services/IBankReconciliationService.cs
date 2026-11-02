@@ -1,4 +1,4 @@
-﻿using BankingService.API.DTOs;
+using BankingService.API.DTOs;
 
 namespace BankingService.API.Services
 {
@@ -14,6 +14,11 @@ namespace BankingService.API.Services
 
         Task<BankReconciliationResponseDto> CreateAsync(
             CreateBankReconciliationDto dto,
+            CancellationToken cancellationToken);
+
+        Task<BankReconciliationResponseDto?> AutoMatchAsync(
+            int id,
+            BankReconciliationVersionDto dto,
             CancellationToken cancellationToken);
 
         Task<BankReconciliationResponseDto?> MatchAsync(

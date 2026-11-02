@@ -19,6 +19,7 @@ namespace SalesInvoiceService.API.DTOs
         [MaxLength(50)]
         public string PaymentMode { get; set; } = string.Empty;
 
+        [Required]
         [MaxLength(200)]
         public string Reference { get; set; } = string.Empty;
 
@@ -47,6 +48,13 @@ namespace SalesInvoiceService.API.DTOs
                 yield return new ValidationResult(
                     "Select a payment mode.",
                     new[] { nameof(PaymentMode) });
+            }
+
+            if (string.IsNullOrWhiteSpace(Reference))
+            {
+                yield return new ValidationResult(
+                    "Enter a payment reference.",
+                    new[] { nameof(Reference) });
             }
         }
     }
