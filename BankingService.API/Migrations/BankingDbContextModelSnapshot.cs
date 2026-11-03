@@ -35,6 +35,9 @@ namespace BankingService.API.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int?>("AccountingAccountId")
+                        .HasColumnType("int");
+
                     b.Property<string>("BankName")
                         .IsRequired()
                         .HasMaxLength(160)
@@ -86,6 +89,10 @@ namespace BankingService.API.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
+
+                    b.HasIndex("CompanyId", "AccountingAccountId")
+                        .IsUnique()
+                        .HasFilter("[AccountingAccountId] IS NOT NULL");
 
                     b.ToTable("BankAccounts", "expenses");
                 });
@@ -517,6 +524,59 @@ namespace BankingService.API.Migrations
                             t.HasCheckConstraint("CK_BankTransfer_SourceFee", "[SourceFeeAmount] >= 0");
 
                             t.HasCheckConstraint("CK_BankTransfer_Status", "[Status] IN (0, 1, 2, 3)");
+                        });
+                });
+
+            modelBuilder.Entity("BankingService.API.Models.BankingAccountingAccountLookup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsControlAccount")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPostingAccount")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsSystemAccount")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<int?>("ParentAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SystemKey")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Accounts", "accounting", t =>
+                        {
+                            t.ExcludeFromMigrations();
                         });
                 });
 

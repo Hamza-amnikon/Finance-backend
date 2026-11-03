@@ -2,6 +2,7 @@
 bin/
 obj/
 .artifacts/
+backups/
 *.user
 *.tmp
 Finance-backend/
