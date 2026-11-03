@@ -9,6 +9,7 @@ namespace BillService.API.Models
         public Bill Bill { get; set; } = null!;
         public int LineNumber { get; set; }
         [Required, MaxLength(200)] public string ItemName { get; set; } = "";
+        [Required, MaxLength(30)] public string AccountCode { get; set; } = "";
         [MaxLength(1000)] public string Description { get; set; } = "";
         public BillUnit Unit { get; set; } = BillUnit.Piece;
         public decimal Quantity { get; set; } = 1;

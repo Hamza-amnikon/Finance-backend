@@ -107,6 +107,32 @@ builder.Services.AddHttpClient<
         httpClient.Timeout = TimeSpan.FromSeconds(15);
     });
 
+builder.Services.AddHttpClient<
+    IAccountingApiService,
+    AccountingApiService>(httpClient =>
+    {
+        var baseUrl = builder.Configuration[
+            "Services:AccountingService:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "AccountingService BaseUrl is missing from appsettings.json.");
+
+        httpClient.BaseAddress = new Uri(baseUrl);
+        httpClient.Timeout = TimeSpan.FromSeconds(15);
+    });
+
+builder.Services.AddHttpClient<
+    IInvoiceExchangeRateService,
+    InvoiceExchangeRateService>(httpClient =>
+    {
+        var baseUrl = builder.Configuration[
+            "Services:ExchangeRateService:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "ExchangeRateService BaseUrl is missing from appsettings.json.");
+
+        httpClient.BaseAddress = new Uri(baseUrl);
+        httpClient.Timeout = TimeSpan.FromSeconds(15);
+    });
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -124,6 +150,22 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (OperationCanceledException)
+        when (context.RequestAborted.IsCancellationRequested)
+    {
+        if (!context.Response.HasStarted)
+        {
+            context.Response.StatusCode = 499;
+        }
+    }
+});
 
 app.MapControllers();
 

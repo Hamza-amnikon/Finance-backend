@@ -142,6 +142,10 @@ namespace BillService.API.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("TaxTreatment")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<Guid>("VendorId")
                         .HasColumnType("uniqueidentifier");
 
@@ -184,6 +188,11 @@ namespace BillService.API.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<int>("BillId")
                         .HasColumnType("int");
@@ -261,6 +270,13 @@ namespace BillService.API.Migrations
 
             modelBuilder.Entity("BillService.API.Models.PurchaseBranchLookup", b =>
                 {
+                    b.Property<int?>("AccountingCompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Id")
                         .HasColumnType("int");
 

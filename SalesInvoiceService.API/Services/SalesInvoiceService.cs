@@ -14,6 +14,9 @@ namespace SalesInvoiceService.API.Services
         private readonly ISalesInvoiceCalculator _calculator;
         private readonly IPaymentModeService _paymentModeService;
         private readonly IBranchService _branchService;
+        private readonly IAccountingApiService _accountingApiService;
+        private readonly IInvoiceExchangeRateService
+            _exchangeRateService;
 
         public SalesInvoiceService(
             ISalesInvoiceRepository repository,
@@ -21,7 +24,9 @@ namespace SalesInvoiceService.API.Services
             ICurrencyService currencyService,
             ISalesInvoiceCalculator calculator,
             IPaymentModeService paymentModeService,
-            IBranchService branchService)
+            IBranchService branchService,
+            IAccountingApiService accountingApiService,
+            IInvoiceExchangeRateService exchangeRateService)
         {
             _repository = repository;
             _clientApiService = clientApiService;
@@ -29,6 +34,8 @@ namespace SalesInvoiceService.API.Services
             _calculator = calculator;
             _paymentModeService = paymentModeService;
             _branchService = branchService;
+            _accountingApiService = accountingApiService;
+            _exchangeRateService = exchangeRateService;
         }
 
         public async Task<SalesInvoiceResponseDto> CreateAsync(
@@ -127,6 +134,7 @@ namespace SalesInvoiceService.API.Services
                 PaymentTerms = Clean(dto.PaymentTerms),
                 PreferredPaymentMode = preferredPaymentMode,
                 Reference = Clean(dto.Reference),
+                TaxTreatment = dto.TaxTreatment,
                 Notes = Clean(dto.Notes),
                 AdditionalTerms = Clean(dto.AdditionalTerms),
                 Status = SalesInvoiceStatus.Draft,
@@ -170,9 +178,22 @@ namespace SalesInvoiceService.API.Services
                 return null;
             }
 
-            // A retry returns the previously issued invoice without a new number.
+            // A retry never creates a new invoice number. It only ensures that
+            // the already-issued invoice reached Accounting.
             if (invoice.Status == SalesInvoiceStatus.Issued)
             {
+                var issuedBranch =
+                    await _branchService.GetByNameAsync(
+                        invoice.Branch,
+                        cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        "The invoice branch no longer exists.");
+
+                await PostToAccountingAsync(
+                    invoice,
+                    issuedBranch,
+                    cancellationToken);
+
                 return ToResponse(invoice);
             }
 
@@ -226,6 +247,12 @@ namespace SalesInvoiceService.API.Services
                 throw new InvalidOperationException("Draft totals no longer match the service lines. Review the draft before issuing.");
             }
 
+            invoice.TaxTreatment =
+                ResolveTaxTreatment(
+                    invoice.TaxTreatment,
+                    branch.CountryCode,
+                    invoice.TaxTotal);
+
             var issuer = new BranchInvoiceProfileFieldsDto
             {
                 CompanyName = branch.CompanyName,
@@ -250,6 +277,11 @@ namespace SalesInvoiceService.API.Services
             invoice.ModifiedDate = invoice.IssuedDate;
 
             var issued = await _repository.IssueAsync(invoice, dto.RowVersion, cancellationToken);
+
+            await PostToAccountingAsync(
+                issued,
+                branch,
+                cancellationToken);
 
             return ToResponse(issued);
         }
@@ -284,6 +316,141 @@ namespace SalesInvoiceService.API.Services
         private static string Clean(string? value)
         {
             return value?.Trim() ?? string.Empty;
+        }
+
+        private async Task PostToAccountingAsync(
+            SalesInvoice invoice,
+            BranchMaster branch,
+            CancellationToken cancellationToken)
+        {
+            if (!branch.AccountingCompanyId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "Link the invoice branch to an accounting company before issuing.");
+            }
+
+            var company =
+                await _accountingApiService.GetCompanyAsync(
+                    branch.AccountingCompanyId.Value,
+                    cancellationToken)
+                ?? throw new InvalidOperationException(
+                    "The linked accounting company does not exist.");
+
+            var exchangeRate =
+                await _exchangeRateService.GetRateAsync(
+                    invoice.Currency,
+                    company.Currency,
+                    invoice.InvoiceDate,
+                    cancellationToken);
+
+            var taxTreatment =
+                ResolveTaxTreatment(
+                    invoice.TaxTreatment,
+                    branch.CountryCode,
+                    invoice.TaxTotal);
+
+            var invoiceNumber =
+                Clean(invoice.InvoiceNumber);
+
+            if (invoiceNumber.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "The issued invoice number is missing.");
+            }
+
+            var posting =
+                new SalesInvoiceAccountingPostingDto
+                {
+                    CompanyId = company.Id,
+                    InvoiceId = invoice.Id,
+                    InvoiceNumber = invoiceNumber,
+                    InvoiceDate = invoice.InvoiceDate,
+                    Branch = invoice.Branch,
+                    Currency = invoice.Currency,
+                    ExchangeRate = exchangeRate,
+                    CustomerId = invoice.ClientId,
+                    CustomerName = invoice.ClientName,
+                    NetAmount =
+                        invoice.SubTotal -
+                        invoice.DiscountTotal,
+                    TotalAmount = invoice.GrandTotal,
+                    Taxes = BuildTaxPostings(
+                        taxTreatment,
+                        invoice.TaxTotal)
+                };
+
+            await _accountingApiService.PostSalesInvoiceAsync(
+                posting,
+                cancellationToken);
+        }
+
+        private static List<SalesInvoiceAccountingTaxDto>
+            BuildTaxPostings(
+                SalesInvoiceTaxTreatment taxTreatment,
+                decimal taxTotal)
+        {
+            if (
+                taxTreatment == SalesInvoiceTaxTreatment.NoTax ||
+                taxTotal == 0)
+            {
+                return new();
+            }
+
+            if (taxTreatment == SalesInvoiceTaxTreatment.UaeVat)
+            {
+                return new()
+                {
+                    CreateTaxPosting(
+                        "OUTPUT_VAT",
+                        "Output VAT on sales invoice",
+                        taxTotal)
+                };
+            }
+
+            if (taxTreatment == SalesInvoiceTaxTreatment.IndiaIgst)
+            {
+                return new()
+                {
+                    CreateTaxPosting(
+                        "OUTPUT_IGST",
+                        "Output IGST on sales invoice",
+                        taxTotal)
+                };
+            }
+
+            var cgst = decimal.Round(
+                taxTotal / 2m,
+                4,
+                MidpointRounding.AwayFromZero);
+
+            var sgst = taxTotal - cgst;
+
+            return new()
+            {
+                CreateTaxPosting(
+                    "OUTPUT_CGST",
+                    "Output CGST on sales invoice",
+                    cgst),
+
+                CreateTaxPosting(
+                    "OUTPUT_SGST",
+                    "Output SGST on sales invoice",
+                    sgst)
+            };
+        }
+
+        private static SalesInvoiceAccountingTaxDto
+            CreateTaxPosting(
+                string systemKey,
+                string description,
+                decimal amount)
+        {
+            return new SalesInvoiceAccountingTaxDto
+            {
+                SystemKey = systemKey,
+                Description = description,
+                Amount = amount
+            };
         }
 
         private static string BuildBillingAddress(
@@ -333,6 +500,7 @@ namespace SalesInvoiceService.API.Services
                 SubTotal = invoice.SubTotal,
                 DiscountTotal = invoice.DiscountTotal,
                 TaxTotal = invoice.TaxTotal,
+                TaxTreatment = invoice.TaxTreatment,
                 GrandTotal = invoice.GrandTotal,
                 Status = invoice.Status,
                 Notes = invoice.Notes,
@@ -368,6 +536,55 @@ namespace SalesInvoiceService.API.Services
                         LineTotal = item.LineTotal
                     }).ToList()
             };
+        }
+
+        private static SalesInvoiceTaxTreatment
+            ResolveTaxTreatment(
+                SalesInvoiceTaxTreatment? selected,
+                string countryCode,
+                decimal taxTotal)
+        {
+            if (taxTotal == 0)
+            {
+                return SalesInvoiceTaxTreatment.NoTax;
+            }
+
+            var country =
+                countryCode
+                    .Trim()
+                    .ToUpperInvariant();
+
+            if (country == "AE")
+            {
+                if (
+                    selected.HasValue &&
+                    selected.Value !=
+                    SalesInvoiceTaxTreatment.UaeVat)
+                {
+                    throw new ArgumentException(
+                        "A taxable UAE invoice must use UAE VAT tax treatment.");
+                }
+
+                return SalesInvoiceTaxTreatment.UaeVat;
+            }
+
+            if (country == "IN")
+            {
+                if (
+                    selected !=
+                        SalesInvoiceTaxTreatment.IndiaCgstSgst &&
+                    selected !=
+                        SalesInvoiceTaxTreatment.IndiaIgst)
+                {
+                    throw new ArgumentException(
+                        "Select India CGST + SGST for an intrastate sale or India IGST for an interstate sale before issuing.");
+                }
+
+                return selected.Value;
+            }
+
+            throw new ArgumentException(
+                "Tax treatment is not configured for the branch country.");
         }
     }
 }

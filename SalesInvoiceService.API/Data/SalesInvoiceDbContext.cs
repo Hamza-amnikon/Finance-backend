@@ -66,6 +66,10 @@ namespace SalesInvoiceService.API.Data
                     .HasConversion<string>()
                     .HasMaxLength(20);
 
+                entity.Property(x => x.TaxTreatment)
+                    .HasConversion<string>()
+                    .HasMaxLength(30);
+
                 entity.Property(x => x.SubTotal)
                     .HasPrecision(18, 4);
 

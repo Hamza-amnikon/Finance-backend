@@ -34,6 +34,9 @@ namespace SalesInvoiceService.API.Services
                 return null;
             }
 
+            branch.AccountingCompanyId =
+                dto.AccountingCompanyId;
+
             branch.CompanyName = dto.CompanyName?.Trim() ?? string.Empty;
             branch.Address = dto.Address?.Trim() ?? string.Empty;
             branch.CountryCode = dto.CountryCode?.Trim() ?? string.Empty;
@@ -61,6 +64,8 @@ namespace SalesInvoiceService.API.Services
             return new BranchInvoiceProfileDto
             {
                 Id = branch.Id,
+                AccountingCompanyId =
+                    branch.AccountingCompanyId,
                 BranchName = branch.Name,
                 RowVersion = branch.RowVersion,
                 CompanyName = branch.CompanyName,

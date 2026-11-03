@@ -51,6 +51,36 @@ namespace BankingService.API.Repositories
                     cancellationToken);
         }
 
+        public async Task<BankingAccountingAccountLookup?>
+            GetAccountingAccountAsync(
+                int accountId,
+                int companyId,
+                CancellationToken cancellationToken)
+        {
+            return await _context.AccountingAccounts
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    account =>
+                        account.Id == accountId &&
+                        account.CompanyId == companyId,
+                    cancellationToken);
+        }
+
+        public async Task<List<BankingAccountingAccountLookup>>
+            GetAccountingAccountsAsync(
+                IEnumerable<int> accountIds,
+                CancellationToken cancellationToken)
+        {
+            var ids = accountIds
+                .Distinct()
+                .ToList();
+
+            return await _context.AccountingAccounts
+                .AsNoTracking()
+                .Where(account => ids.Contains(account.Id))
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<List<BankingCompanyLookup>> GetCompaniesAsync(
             CancellationToken cancellationToken)
         {

@@ -16,15 +16,21 @@ namespace BillService.API.Services
         private readonly BillDbContext _context;
         private readonly IBillRepository _repository;
         private readonly IBillCalculator _calculator;
+        private readonly IBillAccountingApiService _accountingApiService;
+        private readonly IBillExchangeRateService _exchangeRateService;
 
         public BillService(
             BillDbContext db,
             IBillRepository repository,
-            IBillCalculator calculator)
+            IBillCalculator calculator,
+            IBillAccountingApiService accountingApiService,
+            IBillExchangeRateService exchangeRateService)
         {
             _context = db;
             _repository = repository;
             _calculator = calculator;
+            _accountingApiService = accountingApiService;
+            _exchangeRateService = exchangeRateService;
         }
 
         public async Task<(List<BillResponseDto> Data, int Total)> GetPagedAsync(BillQueryDto query, CancellationToken cancellationToken)
@@ -77,6 +83,10 @@ namespace BillService.API.Services
         {
             if (rowVersion == null || rowVersion.Length != 8) throw new ArgumentException("A valid row version is required.");
             var saved = await _repository.ChangeStatusAsync(id, status, rowVersion, ValidateIssueAsync, cancellationToken);
+
+            if (saved != null && status == BillStatus.Issued)
+                await PostToAccountingAsync(saved, cancellationToken);
+
             return saved == null ? null : ToResponse(saved);
         }
         private async Task ValidateIssueAsync(Bill bill, CancellationToken cancellationToken)
@@ -94,10 +104,137 @@ namespace BillService.API.Services
                 throw new InvalidOperationException("The vendor is inactive or unavailable.");
             if (!await _context.Branches.AnyAsync(row => row.Name == bill.Branch && row.IsActive, cancellationToken))
                 throw new InvalidOperationException("The managing branch is inactive or unavailable.");
+
+            var branch = await _context.Branches.AsNoTracking()
+                .SingleAsync(row => row.Name == bill.Branch && row.IsActive, cancellationToken);
+
+            if (!branch.AccountingCompanyId.HasValue)
+                throw new InvalidOperationException("Link the bill branch to an accounting company before issuing.");
+
+            bill.TaxTreatment = ResolveTaxTreatment(
+                bill.TaxTreatment,
+                branch.CountryCode,
+                bill.TaxTotal);
+
+            if (bill.Items.Any(item => string.IsNullOrWhiteSpace(item.AccountCode)))
+                throw new ArgumentException("Select an expense or asset account for every bill line before issuing.");
             var currency = await _context.Currencies.SingleOrDefaultAsync(row => row.CurrencyCode == bill.Currency && row.IsActive, cancellationToken);
             if (currency == null || currency.DecimalPlaces != bill.CurrencyDecimalPlaces)
                 throw new InvalidOperationException("Currency settings changed. Edit and save the draft before issuing.");
         }
+
+        private async Task PostToAccountingAsync(
+            Bill bill,
+            CancellationToken cancellationToken)
+        {
+            var branch = await _context.Branches.AsNoTracking()
+                .SingleOrDefaultAsync(row => row.Name == bill.Branch && row.IsActive, cancellationToken)
+                ?? throw new InvalidOperationException("The managing branch is inactive or unavailable.");
+
+            if (!branch.AccountingCompanyId.HasValue)
+                throw new InvalidOperationException("Link the bill branch to an accounting company before issuing.");
+
+            var company = await _accountingApiService.GetCompanyAsync(
+                branch.AccountingCompanyId.Value,
+                cancellationToken)
+                ?? throw new InvalidOperationException("The linked accounting company does not exist.");
+
+            var billNumber = Clean(bill.BillNumber);
+            if (billNumber.Length == 0)
+                throw new InvalidOperationException("The issued bill number is missing.");
+
+            var exchangeRate = await _exchangeRateService.GetRateAsync(
+                bill.Currency,
+                company.Currency,
+                bill.BillDate,
+                cancellationToken);
+
+            var treatment = ResolveTaxTreatment(
+                bill.TaxTreatment,
+                branch.CountryCode,
+                bill.TaxTotal);
+
+            var posting = new BillAccountingPostingDto
+            {
+                CompanyId = company.Id,
+                BillId = bill.Id,
+                BillNumber = billNumber,
+                BillDate = bill.BillDate,
+                Branch = bill.Branch,
+                Currency = bill.Currency,
+                ExchangeRate = exchangeRate,
+                VendorId = bill.VendorId,
+                VendorName = bill.VendorName,
+                NetAmount = bill.SubTotal - bill.DiscountTotal,
+                TotalAmount = bill.GrandTotal,
+                Expenses = bill.Items.Select(item => new BillAccountingExpenseDto
+                {
+                    AccountCode = item.AccountCode,
+                    Description = string.IsNullOrWhiteSpace(item.Description)
+                        ? item.ItemName
+                        : item.Description,
+                    Amount = item.LineSubTotal - item.DiscountAmount
+                }).ToList(),
+                Taxes = BuildTaxPostings(treatment, bill.TaxTotal)
+            };
+
+            await _accountingApiService.PostBillAsync(posting, cancellationToken);
+        }
+
+        private static BillTaxTreatment ResolveTaxTreatment(
+            BillTaxTreatment? selected,
+            string countryCode,
+            decimal taxTotal)
+        {
+            if (taxTotal == 0) return BillTaxTreatment.NoTax;
+
+            var country = countryCode.Trim().ToUpperInvariant();
+            if (country == "AE")
+            {
+                if (selected.HasValue && selected != BillTaxTreatment.UaeVat)
+                    throw new ArgumentException("A taxable UAE bill must use UAE VAT tax treatment.");
+                return BillTaxTreatment.UaeVat;
+            }
+
+            if (country == "IN")
+            {
+                if (selected != BillTaxTreatment.IndiaCgstSgst && selected != BillTaxTreatment.IndiaIgst)
+                    throw new ArgumentException("Select India CGST + SGST or India IGST before issuing the bill.");
+                return selected.Value;
+            }
+
+            throw new ArgumentException("Tax treatment is not configured for the branch country.");
+        }
+
+        private static List<BillAccountingTaxDto> BuildTaxPostings(
+            BillTaxTreatment treatment,
+            decimal taxTotal)
+        {
+            if (treatment == BillTaxTreatment.NoTax || taxTotal == 0) return new();
+
+            if (treatment == BillTaxTreatment.UaeVat)
+                return new() { CreateTax("INPUT_VAT", "Input VAT on purchase bill", taxTotal) };
+
+            if (treatment == BillTaxTreatment.IndiaIgst)
+                return new() { CreateTax("INPUT_IGST", "Input IGST on purchase bill", taxTotal) };
+
+            var cgst = decimal.Round(taxTotal / 2m, 4, MidpointRounding.AwayFromZero);
+            return new()
+            {
+                CreateTax("INPUT_CGST", "Input CGST on purchase bill", cgst),
+                CreateTax("INPUT_SGST", "Input SGST on purchase bill", taxTotal - cgst)
+            };
+        }
+
+        private static BillAccountingTaxDto CreateTax(
+            string systemKey,
+            string description,
+            decimal amount) => new()
+            {
+                SystemKey = systemKey,
+                Description = description,
+                Amount = amount
+            };
         private async Task<Bill> PrepareAsync(BillFieldsDto dto, CancellationToken cancellationToken)
         {
             Validate(dto);
@@ -128,10 +265,12 @@ namespace BillService.API.Services
                 AdditionalTerms = Clean(dto.AdditionalTerms),
                 Branch = dto.Branch.Trim(),
                 Currency = code,
+                TaxTreatment = dto.TaxTreatment,
                 CurrencyDecimalPlaces = currency.DecimalPlaces,
                 Items = dto.Items.Select(item => new BillItem
                 {
                     ItemName = item.ItemName.Trim(),
+                    AccountCode = item.AccountCode.Trim(),
                     Description = Clean(item.Description),
                     Unit = item.Unit,
                     Quantity = item.Quantity,
@@ -180,6 +319,7 @@ namespace BillService.API.Services
             SubTotal = bill.SubTotal,
             DiscountTotal = bill.DiscountTotal,
             TaxTotal = bill.TaxTotal,
+            TaxTreatment = bill.TaxTreatment,
             GrandTotal = bill.GrandTotal,
             Status = bill.Status,
             CreatedDate = bill.CreatedDate,
@@ -192,6 +332,7 @@ namespace BillService.API.Services
                 Id = item.Id,
                 LineNumber = item.LineNumber,
                 ItemName = item.ItemName,
+                AccountCode = item.AccountCode,
                 Description = item.Description,
                 Unit = item.Unit,
                 Quantity = item.Quantity,

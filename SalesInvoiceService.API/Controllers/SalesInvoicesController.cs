@@ -40,18 +40,26 @@ namespace SalesInvoiceService.API.Controllers
                 });
             }
 
-            var result = await _invoiceService.GetAllAsync(
-                page,
-                pageSize,
-                cancellationToken);
-
-            return Ok(new
+            try
             {
-                data = result.Data,
-                total = result.Total,
-                page,
-                pageSize
-            });
+                var result = await _invoiceService.GetAllAsync(
+                    page,
+                    pageSize,
+                    cancellationToken);
+
+                return Ok(new
+                {
+                    data = result.Data,
+                    total = result.Total,
+                    page,
+                    pageSize
+                });
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
         }
 
         [HttpPost("preview")]
@@ -193,6 +201,11 @@ namespace SalesInvoiceService.API.Controllers
                     });
             }
             catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (OperationCanceledException)
                 when (!cancellationToken.IsCancellationRequested)
             {
                 return StatusCode(
@@ -237,11 +250,26 @@ namespace SalesInvoiceService.API.Controllers
             }
             catch (HttpRequestException)
             {
-                return StatusCode(503, new { message = "ClientService is unavailable. Try issuing again later." });
+                return StatusCode(503, new
+                {
+                    message =
+                        "A required finance service is unavailable. " +
+                        "The invoice may already be issued; try issuing it again to complete the accounting posting."
+                });
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                return StatusCode(504, new { message = "ClientService took too long to respond. Try again later." });
+                return StatusCode(504, new
+                {
+                    message =
+                        "A required finance service took too long to respond. " +
+                        "Try issuing the invoice again."
+                });
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
             }
         }
 
@@ -250,19 +278,27 @@ namespace SalesInvoiceService.API.Controllers
             int id,
             CancellationToken cancellationToken)
         {
-            var invoice = await _invoiceService.GetByIdAsync(
-                id,
-                cancellationToken);
-
-            if (invoice == null)
+            try
             {
-                return NotFound(new
-                {
-                    message = "Invoice not found."
-                });
-            }
+                var invoice = await _invoiceService.GetByIdAsync(
+                    id,
+                    cancellationToken);
 
-            return Ok(invoice);
+                if (invoice == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Invoice not found."
+                    });
+                }
+
+                return Ok(invoice);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
         }
     }
 }

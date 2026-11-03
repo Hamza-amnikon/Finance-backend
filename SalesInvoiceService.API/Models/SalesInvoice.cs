@@ -9,6 +9,14 @@ namespace SalesInvoiceService.API.Models
         Void = 2
     }
 
+    public enum SalesInvoiceTaxTreatment
+    {
+        NoTax = 0,
+        UaeVat = 1,
+        IndiaCgstSgst = 2,
+        IndiaIgst = 3
+    }
+
     public class SalesInvoice
     {
         [Key]
@@ -76,6 +84,8 @@ namespace SalesInvoiceService.API.Models
         public decimal DiscountTotal { get; set; }
 
         public decimal TaxTotal { get; set; }
+
+        public SalesInvoiceTaxTreatment? TaxTreatment { get; set; }
 
         public decimal GrandTotal { get; set; }
 

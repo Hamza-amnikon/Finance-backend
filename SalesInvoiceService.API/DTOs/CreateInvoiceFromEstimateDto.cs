@@ -19,6 +19,11 @@ namespace SalesInvoiceService.API.DTOs
         [MaxLength(50)]
         public string PreferredPaymentMode { get; set; } = string.Empty;
 
+        [System.Text.Json.Serialization.JsonConverter(
+            typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+        public SalesInvoiceService.API.Models.SalesInvoiceTaxTreatment?
+            TaxTreatment { get; set; }
+
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             if (InvoiceDate == default)

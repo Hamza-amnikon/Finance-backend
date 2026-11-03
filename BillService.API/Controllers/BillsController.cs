@@ -321,6 +321,11 @@ namespace BillService.API.Controllers
             {
                 return await action();
             }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
             catch (ValidationException exception)
             {
                 return BadRequest(new
@@ -348,6 +353,28 @@ namespace BillService.API.Controllers
                 {
                     message = exception.Message
                 });
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(
+                    StatusCodes.Status503ServiceUnavailable,
+                    new
+                    {
+                        message =
+                            "A required finance service is unavailable. " +
+                            "The bill may already be issued; try issuing it again to complete the accounting posting."
+                    });
+            }
+            catch (OperationCanceledException)
+                when (!cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(
+                    StatusCodes.Status504GatewayTimeout,
+                    new
+                    {
+                        message =
+                            "A required finance service took too long to respond. Try issuing the bill again."
+                    });
             }
             catch (DbUpdateException exception)
                 when (exception.InnerException is SqlException sqlException &&
@@ -388,6 +415,11 @@ namespace BillService.API.Controllers
             {
                 return await action();
             }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
             catch (ValidationException exception)
             {
                 return BadRequest(new
@@ -415,6 +447,28 @@ namespace BillService.API.Controllers
                 {
                     message = exception.Message
                 });
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(
+                    StatusCodes.Status503ServiceUnavailable,
+                    new
+                    {
+                        message =
+                            "A required finance service is unavailable. " +
+                            "The bill may already be issued; try issuing it again to complete the accounting posting."
+                    });
+            }
+            catch (OperationCanceledException)
+                when (!cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(
+                    StatusCodes.Status504GatewayTimeout,
+                    new
+                    {
+                        message =
+                            "A required finance service took too long to respond. Try issuing the bill again."
+                    });
             }
             catch (DbUpdateException exception)
                 when (exception.InnerException is SqlException sqlException &&

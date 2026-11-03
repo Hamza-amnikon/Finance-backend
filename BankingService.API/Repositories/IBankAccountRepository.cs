@@ -18,6 +18,17 @@ namespace BankingService.API.Repositories
             string currencyCode,
             CancellationToken cancellationToken);
 
+        Task<BankingAccountingAccountLookup?>
+            GetAccountingAccountAsync(
+                int accountId,
+                int companyId,
+                CancellationToken cancellationToken);
+
+        Task<List<BankingAccountingAccountLookup>>
+            GetAccountingAccountsAsync(
+                IEnumerable<int> accountIds,
+                CancellationToken cancellationToken);
+
         Task<List<BankingCompanyLookup>> GetCompaniesAsync(
             CancellationToken cancellationToken);
 

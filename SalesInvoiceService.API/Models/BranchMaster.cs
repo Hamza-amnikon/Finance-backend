@@ -7,6 +7,8 @@ namespace SalesInvoiceService.API.Models
         [Key]
         public int Id { get; set; }
 
+        public int? AccountingCompanyId { get; set; }
+
         [Required]
         [MaxLength(20)]
         public string Name { get; set; } = string.Empty;

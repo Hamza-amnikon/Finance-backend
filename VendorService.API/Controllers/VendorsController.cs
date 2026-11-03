@@ -148,6 +148,11 @@ namespace VendorService.API.Controllers
             {
                 return await action();
             }
+            catch (OperationCanceledException)
+                when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
             catch (ValidationException exception)
             {
                 return BadRequest(new

@@ -84,6 +84,8 @@ namespace SalesInvoiceService.API.Controllers
                 {
                     branch.Id,
                     branch.Name,
+                    branch.CountryCode,
+                    branch.AccountingCompanyId,
                     branch.IsActive
                 }));
             }

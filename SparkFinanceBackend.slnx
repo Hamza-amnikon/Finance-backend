@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="AccountingService.API/AccountingService.API.csproj" Id="a888b108-35d8-4089-8ede-430c8dd30f81" />
   <Project Path="ExchangeRateService.API/ExchangeRateService.API.csproj" />
   <Project Path="BankingService.API/BankingService.API.csproj" Id="aa605ca9-b5df-4306-a1df-8914909a3fe0" />
   <Project Path="DashboardService.API/DashboardService.API.csproj" />

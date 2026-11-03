@@ -51,6 +51,38 @@ builder.Services.AddScoped<
     IChartOfAccountsSetupService,
     ChartOfAccountsSetupService>();
 
+builder.Services.AddScoped<
+    IJournalEntryRepository,
+    JournalEntryRepository>();
+
+builder.Services.AddScoped<
+    IJournalEntryService,
+    JournalEntryService>();
+
+builder.Services.AddScoped<
+    IGeneralLedgerRepository,
+    GeneralLedgerRepository>();
+
+builder.Services.AddScoped<
+    IGeneralLedgerService,
+    GeneralLedgerService>();
+
+builder.Services.AddScoped<
+    ITrialBalanceRepository,
+    TrialBalanceRepository>();
+
+builder.Services.AddScoped<
+    ITrialBalanceService,
+    TrialBalanceService>();
+
+builder.Services.AddScoped<
+    ISalesInvoicePostingService,
+    SalesInvoicePostingService>();
+
+builder.Services.AddScoped<
+    IPurchaseBillPostingService,
+    PurchaseBillPostingService>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ReactPolicy", policy =>
@@ -87,6 +119,24 @@ else
 }
 
 app.UseCors("ReactPolicy");
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (OperationCanceledException)
+        when (
+            context.RequestAborted
+                .IsCancellationRequested)
+    {
+        if (!context.Response.HasStarted)
+        {
+            context.Response.StatusCode = 499;
+        }
+    }
+});
 
 app.MapControllers();
 

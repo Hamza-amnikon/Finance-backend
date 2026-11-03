@@ -8,6 +8,8 @@ namespace BankingService.API.Models
 
         public int CompanyId { get; set; }
 
+        public int? AccountingAccountId { get; set; }
+
         [Required]
         [MaxLength(160)]
         public string Name { get; set; } = "";

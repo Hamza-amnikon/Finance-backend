@@ -32,6 +32,7 @@ namespace BillService.API.Data
                     .HasFilter("[VendorInvoiceNumber] <> N'' AND [Status] <> N'Cancelled'");
                 entity.HasIndex(row => row.BillNumber).IsUnique().HasFilter("[BillNumber] IS NOT NULL");
                 entity.Property(row => row.Status).HasConversion<string>().HasMaxLength(20);
+                entity.Property(row => row.TaxTreatment).HasConversion<string>().HasMaxLength(30);
                 entity.Property(row => row.RowVersion).IsRowVersion();
                 entity.Property(row => row.SubTotal).HasPrecision(18, 4);
                 entity.Property(row => row.DiscountTotal).HasPrecision(18, 4);
@@ -46,6 +47,7 @@ namespace BillService.API.Data
                 entity.HasKey(row => row.Id);
                 entity.HasIndex(row => new { row.BillId, row.LineNumber }).IsUnique();
                 entity.Property(row => row.Unit).HasConversion<string>().HasMaxLength(20);
+                entity.Property(row => row.AccountCode).HasMaxLength(30).IsRequired();
                 foreach (var property in new[] { "Quantity", "UnitPrice", "DiscountAmount", "TaxRate", "LineSubTotal", "TaxAmount", "LineTotal" })
                     entity.Property<decimal>(property).HasPrecision(18, 4);
             });

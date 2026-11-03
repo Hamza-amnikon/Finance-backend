@@ -47,6 +47,28 @@ builder.Services.AddScoped<
     IBillConversionService,
     BillConversionService>();
 
+builder.Services.AddHttpClient<
+    IBillAccountingApiService,
+    BillAccountingApiService>(httpClient =>
+    {
+        httpClient.BaseAddress = new Uri(
+            builder.Configuration["Services:AccountingService:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "AccountingService BaseUrl is missing from appsettings.json."));
+        httpClient.Timeout = TimeSpan.FromSeconds(15);
+    });
+
+builder.Services.AddHttpClient<
+    IBillExchangeRateService,
+    BillExchangeRateService>(httpClient =>
+    {
+        httpClient.BaseAddress = new Uri(
+            builder.Configuration["Services:ExchangeRateService:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "ExchangeRateService BaseUrl is missing from appsettings.json."));
+        httpClient.Timeout = TimeSpan.FromSeconds(15);
+    });
+
 // React frontend
 builder.Services.AddCors(options =>
 {
@@ -82,6 +104,22 @@ else
 }
 
 app.UseCors("ReactPolicy");
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (OperationCanceledException)
+        when (context.RequestAborted.IsCancellationRequested)
+    {
+        if (!context.Response.HasStarted)
+        {
+            context.Response.StatusCode = 499;
+        }
+    }
+});
 
 app.MapControllers();
 

@@ -31,6 +31,11 @@ namespace SalesInvoiceService.API.DTOs
         [MaxLength(200)]
         public string Reference { get; set; } = string.Empty;
 
+        [System.Text.Json.Serialization.JsonConverter(
+            typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+        public SalesInvoiceService.API.Models.SalesInvoiceTaxTreatment?
+            TaxTreatment { get; set; }
+
         // Optional override; otherwise use the client's address.
         [MaxLength(1000)]
         public string? BillingAddress { get; set; }

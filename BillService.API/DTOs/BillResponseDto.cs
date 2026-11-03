@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using BillService.API.Models;
 
 namespace BillService.API.DTOs
@@ -28,6 +29,8 @@ namespace BillService.API.DTOs
         public decimal SubTotal { get; set; }
         public decimal DiscountTotal { get; set; }
         public decimal TaxTotal { get; set; }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public BillTaxTreatment? TaxTreatment { get; set; }
         public decimal GrandTotal { get; set; }
         public BillStatus Status { get; set; }
         public DateTime CreatedDate { get; set; }

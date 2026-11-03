@@ -63,7 +63,7 @@ namespace BillService.API.Repositories
                 throw new InvalidOperationException("A linked bill must retain the purchase order vendor, branch and currency.");
             foreach (var name in new[] {"VendorInvoiceNumber","VendorId","VendorName","CompanyName","BillingAddress","ShippingAddress","BillDate",
                 "DueDate","Reference","PaymentTerms","Notes","AdditionalTerms","Branch","Currency",
-                "CurrencyDecimalPlaces","SubTotal","DiscountTotal","TaxTotal","GrandTotal"})
+                "CurrencyDecimalPlaces","SubTotal","DiscountTotal","TaxTotal","TaxTreatment","GrandTotal"})
                 _context.Entry(stored).Property(name).CurrentValue = _context.Entry(bill).Property(name).CurrentValue;
             stored.ModifiedDate = DateTime.UtcNow;
             _context.Entry(stored).Property(row => row.RowVersion).OriginalValue = rowVersion;

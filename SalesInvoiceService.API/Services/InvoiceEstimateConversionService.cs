@@ -107,6 +107,7 @@ namespace SalesInvoiceService.API.Services
                 Branch = source.Branch,
                 Notes = source.Notes,
                 AdditionalTerms = source.AdditionalTerms,
+                TaxTreatment = dto.TaxTreatment,
                 Items = source.Items.OrderBy(item => item.LineNumber).Select(item => new SalesInvoiceItem
                 {
                     ServiceName = item.ServiceName,
@@ -163,6 +164,7 @@ namespace SalesInvoiceService.API.Services
         {
             if (invoice.SourceEstimateInvoiceDate != dto.InvoiceDate || invoice.SourceEstimateDueDate != dto.DueDate ||
                 !string.Equals(invoice.PreferredPaymentMode, dto.PreferredPaymentMode?.Trim() ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
+                invoice.TaxTreatment != dto.TaxTreatment ||
                 invoice.SourceEstimateRowVersion == null || !invoice.SourceEstimateRowVersion.SequenceEqual(dto.RowVersion))
                 throw new InvalidOperationException("This estimate already has an invoice from a different conversion request. Open the existing invoice.");
 

@@ -2,6 +2,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace BillService.API.Models
 {
+    public enum BillTaxTreatment
+    {
+        NoTax,
+        UaeVat,
+        IndiaCgstSgst,
+        IndiaIgst
+    }
+
     public class Bill
     {
         public int Id { get; set; }
@@ -28,6 +36,7 @@ namespace BillService.API.Models
         public decimal SubTotal { get; set; }
         public decimal DiscountTotal { get; set; }
         public decimal TaxTotal { get; set; }
+        public BillTaxTreatment? TaxTreatment { get; set; }
         public decimal GrandTotal { get; set; }
         public BillStatus Status { get; set; } = BillStatus.Draft;
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;

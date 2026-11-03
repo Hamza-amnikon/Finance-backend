@@ -83,15 +83,39 @@ namespace BankingService.API.Services
                 company => company.Id,
                 company => company.Name);
 
+            var accountingAccounts =
+                await _repository.GetAccountingAccountsAsync(
+                    accounts
+                        .Where(account =>
+                            account.AccountingAccountId.HasValue)
+                        .Select(account =>
+                            account.AccountingAccountId!.Value),
+                    cancellationToken);
+
+            var accountingAccountsById =
+                accountingAccounts.ToDictionary(
+                    account => account.Id);
+
             var data = accounts.Select(account =>
             {
                 companyNames.TryGetValue(
                     account.CompanyId,
                     out var companyName);
 
+                BankingAccountingAccountLookup?
+                    accountingAccount = null;
+
+                if (account.AccountingAccountId.HasValue)
+                {
+                    accountingAccountsById.TryGetValue(
+                        account.AccountingAccountId.Value,
+                        out accountingAccount);
+                }
+
                 return ToResponse(
                     account,
-                    companyName ?? "");
+                    companyName ?? "",
+                    accountingAccount);
             }).ToList();
 
             return new BankAccountListDto
@@ -120,9 +144,18 @@ namespace BankingService.API.Services
                 account.CompanyId,
                 cancellationToken);
 
+            var accountingAccount =
+                account.AccountingAccountId.HasValue
+                    ? await _repository.GetAccountingAccountAsync(
+                        account.AccountingAccountId.Value,
+                        account.CompanyId,
+                        cancellationToken)
+                    : null;
+
             return ToResponse(
                 account,
-                company?.Name ?? "");
+                company?.Name ?? "",
+                accountingAccount);
         }
 
         public async Task<BankAccountResponseDto> CreateAsync(
@@ -145,6 +178,12 @@ namespace BankingService.API.Services
                 throw new ValidationException(
                     "Select an existing company.");
             }
+
+            var accountingAccount =
+                await ValidateAccountingAccountAsync(
+                    dto.AccountingAccountId,
+                    dto.CompanyId,
+                    cancellationToken);
 
             var currency = await _repository.GetCurrencyAsync(
                 currencyCode,
@@ -183,9 +222,25 @@ namespace BankingService.API.Services
                     "This bank account already exists for the company and currency.");
             }
 
+            var ledgerAlreadyLinked = await _repository.Query()
+                .AnyAsync(
+                    account =>
+                        account.CompanyId == dto.CompanyId &&
+                        account.AccountingAccountId ==
+                            dto.AccountingAccountId,
+                    cancellationToken);
+
+            if (ledgerAlreadyLinked)
+            {
+                throw new ValidationException(
+                    "This accounting ledger is already linked to another bank account.");
+            }
+
             var account = new BankAccount
             {
                 CompanyId = company.Id,
+                AccountingAccountId =
+                    accountingAccount.Id,
                 Name = name,
                 BankName = bankName,
                 AccountNumber = accountNumber,
@@ -209,7 +264,8 @@ namespace BankingService.API.Services
 
             return ToResponse(
                 account,
-                company.Name);
+                company.Name,
+                accountingAccount);
         }
 
         public async Task<BankAccountResponseDto?> UpdateAsync(
@@ -234,6 +290,29 @@ namespace BankingService.API.Services
                     "This bank account has changed. Reload it before saving.");
             }
 
+            var accountingAccount =
+                await ValidateAccountingAccountAsync(
+                    dto.AccountingAccountId,
+                    account.CompanyId,
+                    cancellationToken);
+
+            var ledgerAlreadyLinked = await _repository.Query()
+                .AnyAsync(
+                    row =>
+                        row.Id != account.Id &&
+                        row.CompanyId == account.CompanyId &&
+                        row.AccountingAccountId ==
+                            dto.AccountingAccountId,
+                    cancellationToken);
+
+            if (ledgerAlreadyLinked)
+            {
+                throw new ValidationException(
+                    "This accounting ledger is already linked to another bank account.");
+            }
+
+            account.AccountingAccountId =
+                accountingAccount.Id;
             account.Name = dto.Name.Trim();
             account.BankName = dto.BankName.Trim();
             account.IsActive = dto.IsActive;
@@ -248,7 +327,8 @@ namespace BankingService.API.Services
 
             return ToResponse(
                 account,
-                company?.Name ?? "");
+                company?.Name ?? "",
+                accountingAccount);
         }
 
         public async Task<BankAccountResponseDto?> ConfigureOpeningBalanceAsync(
@@ -302,9 +382,18 @@ namespace BankingService.API.Services
                 account.CompanyId,
                 cancellationToken);
 
+            var accountingAccount =
+                account.AccountingAccountId.HasValue
+                    ? await _repository.GetAccountingAccountAsync(
+                        account.AccountingAccountId.Value,
+                        account.CompanyId,
+                        cancellationToken)
+                    : null;
+
             return ToResponse(
                 account,
-                company?.Name ?? "");
+                company?.Name ?? "",
+                accountingAccount);
         }
 
         public async Task<BankAccountBalanceDto?> GetBalanceAsync(
@@ -431,15 +520,80 @@ namespace BankingService.API.Services
             }
         }
 
+        private async Task<BankingAccountingAccountLookup>
+            ValidateAccountingAccountAsync(
+                int accountingAccountId,
+                int companyId,
+                CancellationToken cancellationToken)
+        {
+            var accountingAccount =
+                await _repository.GetAccountingAccountAsync(
+                    accountingAccountId,
+                    companyId,
+                    cancellationToken);
+
+            if (accountingAccount == null)
+            {
+                throw new ValidationException(
+                    "Select an accounting ledger from the same company.");
+            }
+
+            if (
+                !accountingAccount.IsActive ||
+                !accountingAccount.IsPostingAccount ||
+                accountingAccount.IsControlAccount ||
+                accountingAccount.IsSystemAccount ||
+                !string.Equals(
+                    accountingAccount.Type,
+                    "Asset",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ValidationException(
+                    "Select an active non-control Asset posting account.");
+            }
+
+            if (!accountingAccount.ParentAccountId.HasValue)
+            {
+                throw new ValidationException(
+                    "Select a posting account under the Bank Accounts group.");
+            }
+
+            var parentAccount =
+                await _repository.GetAccountingAccountAsync(
+                    accountingAccount.ParentAccountId.Value,
+                    companyId,
+                    cancellationToken);
+
+            if (
+                parentAccount == null ||
+                !string.Equals(
+                    parentAccount.SystemKey,
+                    "BANK_ACCOUNTS",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ValidationException(
+                    "Select a posting account under the Bank Accounts group.");
+            }
+
+            return accountingAccount;
+        }
+
         private static BankAccountResponseDto ToResponse(
             BankAccount account,
-            string companyName)
+            string companyName,
+            BankingAccountingAccountLookup? accountingAccount)
         {
             return new BankAccountResponseDto
             {
                 Id = account.Id,
                 CompanyId = account.CompanyId,
                 CompanyName = companyName,
+                AccountingAccountId =
+                    account.AccountingAccountId,
+                AccountingAccountCode =
+                    accountingAccount?.Code ?? "",
+                AccountingAccountName =
+                    accountingAccount?.Name ?? "",
                 Name = account.Name,
                 BankName = account.BankName,
                 LastFour = account.LastFour,

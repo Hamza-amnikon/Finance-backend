@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using BillService.API.Models;
 
 namespace BillService.API.DTOs
@@ -11,6 +12,8 @@ namespace BillService.API.DTOs
         public DateOnly? DueDate { get; set; }
         [Required, MaxLength(20)] public string Branch { get; set; } = "";
         [Required, RegularExpression("^[A-Za-z]{3}$")] public string Currency { get; set; } = "";
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public BillTaxTreatment? TaxTreatment { get; set; }
         [MaxLength(1000)] public string? BillingAddress { get; set; }
         [MaxLength(1000)] public string ShippingAddress { get; set; } = "";
         [MaxLength(200)] public string Reference { get; set; } = "";

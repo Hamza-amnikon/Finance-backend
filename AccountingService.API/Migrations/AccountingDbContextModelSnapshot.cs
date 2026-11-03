@@ -140,6 +140,196 @@ namespace AccountingService.API.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AccountingService.API.Models.JournalEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Branch")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateOnly>("EntryDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("EntryNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("ExchangeRate")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Narration")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("PostedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("ReversalOfJournalEntryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReversedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("SourceDocumentId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SourceDocumentNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("TotalCredit")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<decimal>("TotalDebit")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId", "EntryNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ReversalOfJournalEntryId", "CompanyId");
+
+                    b.HasIndex("CompanyId", "EntryDate", "Status");
+
+                    b.HasIndex("CompanyId", "Source", "SourceDocumentId")
+                        .IsUnique()
+                        .HasFilter("[SourceDocumentId] IS NOT NULL");
+
+                    b.ToTable("JournalEntries", "accounting", t =>
+                        {
+                            t.HasCheckConstraint("CK_JournalEntries_EntryNumber", "LEN(LTRIM(RTRIM([EntryNumber]))) > 0");
+
+                            t.HasCheckConstraint("CK_JournalEntries_ExchangeRate", "[ExchangeRate] > 0");
+
+                            t.HasCheckConstraint("CK_JournalEntries_PostedBalance", "[Status] = N'Draft' OR [TotalDebit] = [TotalCredit]");
+
+                            t.HasCheckConstraint("CK_JournalEntries_Reversal", "[ReversalOfJournalEntryId] IS NULL OR [ReversalOfJournalEntryId] <> [Id]");
+
+                            t.HasCheckConstraint("CK_JournalEntries_Totals", "[TotalDebit] >= 0 AND [TotalCredit] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("AccountingService.API.Models.JournalEntryLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("BaseCreditAmount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<decimal>("BaseDebitAmount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CostCenter")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CounterpartyId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CounterpartyType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("CreditAmount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<decimal>("DebitAmount")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("JournalEntryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId", "CompanyId");
+
+                    b.HasIndex("CompanyId", "AccountId");
+
+                    b.HasIndex("JournalEntryId", "CompanyId");
+
+                    b.HasIndex("JournalEntryId", "LineNumber")
+                        .IsUnique();
+
+                    b.ToTable("JournalEntryLines", "accounting", t =>
+                        {
+                            t.HasCheckConstraint("CK_JournalEntryLines_Amount", "([DebitAmount] > 0 AND [CreditAmount] = 0) OR ([CreditAmount] > 0 AND [DebitAmount] = 0)");
+
+                            t.HasCheckConstraint("CK_JournalEntryLines_BaseAmount", "([BaseDebitAmount] > 0 AND [BaseCreditAmount] = 0) OR ([BaseCreditAmount] > 0 AND [BaseDebitAmount] = 0)");
+
+                            t.HasCheckConstraint("CK_JournalEntryLines_LineNumber", "[LineNumber] > 0");
+                        });
+                });
+
             modelBuilder.Entity("AccountingService.API.Models.Account", b =>
                 {
                     b.HasOne("AccountingService.API.Models.AccountingCompanyLookup", "Company")
@@ -159,6 +349,46 @@ namespace AccountingService.API.Migrations
                     b.Navigation("ParentAccount");
                 });
 
+            modelBuilder.Entity("AccountingService.API.Models.JournalEntry", b =>
+                {
+                    b.HasOne("AccountingService.API.Models.AccountingCompanyLookup", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AccountingService.API.Models.JournalEntry", "ReversalOfJournalEntry")
+                        .WithMany("ReversalEntries")
+                        .HasForeignKey("ReversalOfJournalEntryId", "CompanyId")
+                        .HasPrincipalKey("Id", "CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Company");
+
+                    b.Navigation("ReversalOfJournalEntry");
+                });
+
+            modelBuilder.Entity("AccountingService.API.Models.JournalEntryLine", b =>
+                {
+                    b.HasOne("AccountingService.API.Models.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId", "CompanyId")
+                        .HasPrincipalKey("Id", "CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AccountingService.API.Models.JournalEntry", "JournalEntry")
+                        .WithMany("Lines")
+                        .HasForeignKey("JournalEntryId", "CompanyId")
+                        .HasPrincipalKey("Id", "CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("JournalEntry");
+                });
+
             modelBuilder.Entity("AccountingService.API.Models.Account", b =>
                 {
                     b.Navigation("ChildAccounts");
@@ -167,6 +397,13 @@ namespace AccountingService.API.Migrations
             modelBuilder.Entity("AccountingService.API.Models.AccountingCompanyLookup", b =>
                 {
                     b.Navigation("Accounts");
+                });
+
+            modelBuilder.Entity("AccountingService.API.Models.JournalEntry", b =>
+                {
+                    b.Navigation("Lines");
+
+                    b.Navigation("ReversalEntries");
                 });
 #pragma warning restore 612, 618
         }

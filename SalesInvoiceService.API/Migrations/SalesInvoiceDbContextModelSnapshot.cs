@@ -30,6 +30,9 @@ namespace SalesInvoiceService.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("AccountingCompanyId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Address")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -518,6 +521,10 @@ namespace SalesInvoiceService.API.Migrations
                     b.Property<decimal>("TaxTotal")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("TaxTreatment")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("VoidReason")
                         .IsRequired()

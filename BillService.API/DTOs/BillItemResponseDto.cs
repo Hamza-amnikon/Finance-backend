@@ -8,6 +8,7 @@ namespace BillService.API.DTOs
         public int Id { get; set; }
         public int LineNumber { get; set; }
         public string ItemName { get; set; } = "";
+        public string AccountCode { get; set; } = "";
         public string Description { get; set; } = "";
         public BillUnit Unit { get; set; }
         public decimal Quantity { get; set; }

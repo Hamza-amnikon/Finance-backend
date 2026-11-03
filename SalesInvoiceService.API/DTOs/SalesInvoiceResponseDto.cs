@@ -50,6 +50,11 @@ namespace SalesInvoiceService.API.DTOs
 
         public decimal TaxTotal { get; set; }
 
+        [System.Text.Json.Serialization.JsonConverter(
+            typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+        public SalesInvoiceTaxTreatment?
+            TaxTreatment { get; set; }
+
         public decimal GrandTotal { get; set; }
 
         public SalesInvoiceStatus Status { get; set; }

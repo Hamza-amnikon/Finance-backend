@@ -8,6 +8,12 @@
 
         public string CompanyName { get; set; } = "";
 
+        public int? AccountingAccountId { get; set; }
+
+        public string AccountingAccountCode { get; set; } = "";
+
+        public string AccountingAccountName { get; set; } = "";
+
         public string Name { get; set; } = "";
 
         public string BankName { get; set; } = "";

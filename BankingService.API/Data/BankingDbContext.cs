@@ -20,6 +20,9 @@ namespace BankingService.API.Data
         public DbSet<BankingCurrencyLookup> Currencies =>
             Set<BankingCurrencyLookup>();
 
+        public DbSet<BankingAccountingAccountLookup> AccountingAccounts =>
+            Set<BankingAccountingAccountLookup>();
+
         public DbSet<BankTransaction> BankTransactions =>
             Set<BankTransaction>();
 
@@ -77,6 +80,36 @@ namespace BankingService.API.Data
                     .IsRowVersion();
 
                 entity.HasIndex(account => account.CompanyId);
+
+                entity.HasIndex(account => new
+                {
+                    account.CompanyId,
+                    account.AccountingAccountId
+                })
+                    .IsUnique()
+                    .HasFilter("[AccountingAccountId] IS NOT NULL");
+            });
+
+            modelBuilder.Entity<BankingAccountingAccountLookup>(entity =>
+            {
+                entity.ToTable(
+                    "Accounts",
+                    "accounting",
+                    table => table.ExcludeFromMigrations());
+
+                entity.HasKey(account => account.Id);
+
+                entity.Property(account => account.Code)
+                    .HasMaxLength(30);
+
+                entity.Property(account => account.Name)
+                    .HasMaxLength(160);
+
+                entity.Property(account => account.Type)
+                    .HasMaxLength(20);
+
+                entity.Property(account => account.SystemKey)
+                    .HasMaxLength(80);
             });
 
             modelBuilder.Entity<BankingCompanyLookup>(entity =>
