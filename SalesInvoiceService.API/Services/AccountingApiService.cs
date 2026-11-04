@@ -70,6 +70,39 @@ namespace SalesInvoiceService.API.Services
                     "AccountingService returned an empty response.");
         }
 
+        public async Task<SalesCreditNoteAccountingResultDto>
+            PostSalesCreditNoteAsync(
+                SalesCreditNoteAccountingPostingDto posting,
+                CancellationToken cancellationToken)
+        {
+            using var response =
+                await _httpClient.PostAsJsonAsync(
+                    "api/accounting-postings/sales-credit-notes",
+                    posting,
+                    cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error =
+                    await ReadErrorAsync(
+                        response,
+                        cancellationToken);
+
+                throw new HttpRequestException(
+                    error,
+                    null,
+                    response.StatusCode);
+            }
+
+            return await response.Content
+                .ReadFromJsonAsync<
+                    SalesCreditNoteAccountingResultDto>(
+                    cancellationToken:
+                        cancellationToken)
+                ?? throw new HttpRequestException(
+                    "AccountingService returned an empty response.");
+        }
+
         private static async Task<string> ReadErrorAsync(
             HttpResponseMessage response,
             CancellationToken cancellationToken)

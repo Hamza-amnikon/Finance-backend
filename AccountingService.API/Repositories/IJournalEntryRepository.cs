@@ -26,6 +26,10 @@ namespace AccountingService.API.Repositories
             int companyId,
             CancellationToken cancellationToken);
 
+        Task<AccountingCompanyLookup?> GetCompanyAsync(
+            int companyId,
+            CancellationToken cancellationToken);
+
         Task<IReadOnlyList<Account>> GetAccountsAsync(
             int companyId,
             IEnumerable<int> accountIds,

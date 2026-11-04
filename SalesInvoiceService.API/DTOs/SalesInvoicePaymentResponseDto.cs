@@ -30,6 +30,18 @@
 
         public string Notes { get; set; } = string.Empty;
 
+        public int? BankAccountId { get; set; }
+
+        public string BankAccountName { get; set; } = string.Empty;
+
+        public string BankCurrency { get; set; } = string.Empty;
+
+        public decimal? BankAmount { get; set; }
+
+        public decimal BankChargeAmount { get; set; }
+
+        public decimal? SettlementExchangeRate { get; set; }
+
         public DateTime CreatedDate { get; set; }
     }
 }

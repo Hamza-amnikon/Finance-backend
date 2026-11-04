@@ -13,5 +13,10 @@ namespace SalesInvoiceService.API.Services
             PostSalesInvoiceAsync(
                 SalesInvoiceAccountingPostingDto posting,
                 CancellationToken cancellationToken);
+
+        Task<SalesCreditNoteAccountingResultDto>
+            PostSalesCreditNoteAsync(
+                SalesCreditNoteAccountingPostingDto posting,
+                CancellationToken cancellationToken);
     }
 }

@@ -647,8 +647,8 @@ namespace AccountingService.API.Services
                     "4000",
                     true,
                     false,
-                    null,
-                    "Income outside normal business sales"),
+                    "FOREIGN_EXCHANGE_GAIN",
+                    "Realized foreign exchange gains and other income"),
 
                 new(
                     "5000",
@@ -735,8 +735,19 @@ namespace AccountingService.API.Services
                     "5200",
                     true,
                     false,
-                    null,
-                    "Bank fees and transaction charges")
+                    "BANK_CHARGES",
+                    "Bank fees and transaction charges"),
+
+                new(
+                    "5260",
+                    "Foreign Exchange Loss",
+                    AccountType.Expense,
+                    AccountNormalBalance.Debit,
+                    "5200",
+                    true,
+                    false,
+                    "FOREIGN_EXCHANGE_LOSS",
+                    "Realized foreign exchange losses")
             ];
         }
 

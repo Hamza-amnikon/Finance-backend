@@ -11,6 +11,8 @@ namespace SalesInvoiceService.API.Models
 
         public decimal? BankAmount { get; set; }
 
+        public decimal BankChargeAmount { get; set; }
+
         [MaxLength(160)]
         public string? BankAccountName { get; set; }
 

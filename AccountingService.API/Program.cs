@@ -80,8 +80,20 @@ builder.Services.AddScoped<
     SalesInvoicePostingService>();
 
 builder.Services.AddScoped<
+    ISalesCreditNotePostingService,
+    SalesCreditNotePostingService>();
+
+builder.Services.AddScoped<
     IPurchaseBillPostingService,
     PurchaseBillPostingService>();
+
+builder.Services.AddScoped<
+    IPaymentReceivedPostingService,
+    PaymentReceivedPostingService>();
+
+builder.Services.AddScoped<
+    IPaymentMadePostingService,
+    PaymentMadePostingService>();
 
 builder.Services.AddCors(options =>
 {

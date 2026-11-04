@@ -51,6 +51,8 @@ namespace SalesInvoiceService.API.Services
             var paymentModeName = Clean(dto.PaymentMode);
             var reference = Clean(dto.Reference);
             var notes = Clean(dto.Notes);
+            var bankCurrency = Clean(dto.BankCurrency)
+                .ToUpperInvariant();
 
             if (string.IsNullOrWhiteSpace(reference))
             {
@@ -72,7 +74,15 @@ namespace SalesInvoiceService.API.Services
                         paymentModeName,
                         StringComparison.OrdinalIgnoreCase) ||
                     existing.Reference != reference ||
-                    existing.Notes != notes)
+                    existing.Notes != notes ||
+                    existing.BankAccountId != dto.BankAccountId ||
+                    existing.BankAmount != dto.BankAmount ||
+                    existing.BankChargeAmount !=
+                        dto.BankChargeAmount ||
+                    !string.Equals(
+                        existing.BankCurrency,
+                        bankCurrency,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException(
                         "This request ID was already used for different payment details.");
@@ -141,7 +151,20 @@ namespace SalesInvoiceService.API.Services
                 Currency = invoice.Currency,
                 PaymentMode = paymentMode.Name,
                 Reference = reference,
-                Notes = notes
+                Notes = notes,
+                SettlementType =
+                    dto.BankAccountId.HasValue
+                        ? "Bank"
+                        : null,
+                BankAccountId = dto.BankAccountId,
+                BankAmount = dto.BankAmount,
+                BankCurrency =
+                    string.IsNullOrWhiteSpace(
+                        bankCurrency)
+                        ? null
+                        : bankCurrency,
+                BankChargeAmount =
+                    dto.BankChargeAmount
             };
 
             // The repository checks the latest balance under a database lock.
@@ -209,6 +232,13 @@ namespace SalesInvoiceService.API.Services
                     salesInvoiceId,
                     cancellationToken);
 
+            var (appliedCreditAmount,
+                transferredCreditAmount) =
+                await _paymentRepository
+                    .GetCreditApplicationsAsync(
+                        salesInvoiceId,
+                        cancellationToken);
+
             if (paidAmount < 0 || paidAmount > invoice.GrandTotal)
             {
                 throw new InvalidOperationException(
@@ -226,10 +256,19 @@ namespace SalesInvoiceService.API.Services
                 invoice.GrandTotal - creditedAmount;
 
             var balanceDue =
-                Math.Max(0m, adjustedTotal - paidAmount);
+                Math.Max(
+                    0m,
+                    adjustedTotal -
+                    paidAmount -
+                    appliedCreditAmount);
 
             var creditBalance =
-                Math.Max(0m, paidAmount - adjustedTotal);
+                Math.Max(
+                    0m,
+                    paidAmount +
+                    appliedCreditAmount -
+                    adjustedTotal -
+                    transferredCreditAmount);
 
             var paymentStatus = creditBalance > 0
                 ? "Credit Balance"
@@ -237,7 +276,7 @@ namespace SalesInvoiceService.API.Services
                     ? "Credited"
                     : balanceDue == 0
                         ? "Paid"
-                        : paidAmount > 0
+                        : paidAmount + appliedCreditAmount > 0
                             ? "Partially Paid"
                             : "Unpaid";
 
@@ -248,6 +287,10 @@ namespace SalesInvoiceService.API.Services
                 Currency = invoice.Currency,
                 InvoiceTotal = invoice.GrandTotal,
                 CreditedAmount = creditedAmount,
+                AppliedCreditAmount =
+                    appliedCreditAmount,
+                TransferredCreditAmount =
+                    transferredCreditAmount,
                 AdjustedInvoiceTotal = adjustedTotal,
                 CreditBalance = creditBalance,
                 PaidAmount = paidAmount,
@@ -279,6 +322,28 @@ namespace SalesInvoiceService.API.Services
                 PaymentMode = payment.PaymentMode,
                 Reference = payment.Reference,
                 Notes = payment.Notes,
+                BankAccountId = payment.BankAccountId,
+                BankAccountName =
+                    payment.BankAccountName ??
+                    string.Empty,
+                BankCurrency =
+                    payment.BankCurrency ??
+                    string.Empty,
+                BankAmount = payment.BankAmount,
+                BankChargeAmount =
+                    payment.BankChargeAmount,
+                SettlementExchangeRate =
+                    payment.BankAmount.HasValue &&
+                    payment.Amount > 0
+                        ? decimal.Round(
+                            (
+                                payment.BankAmount.Value +
+                                payment.BankChargeAmount
+                            ) /
+                            payment.Amount,
+                            8,
+                            MidpointRounding.AwayFromZero)
+                        : null,
                 CreatedDate = payment.CreatedDate
             };
         }

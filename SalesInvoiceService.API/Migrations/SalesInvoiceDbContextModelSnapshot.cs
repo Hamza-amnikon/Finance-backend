@@ -182,6 +182,60 @@ namespace SalesInvoiceService.API.Migrations
                     b.ToTable("CurrencyMasters", "sales");
                 });
 
+            modelBuilder.Entity("SalesInvoiceService.API.Models.CustomerCreditApplication", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime>("AppliedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Branch")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("ClientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SourceInvoiceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TargetInvoiceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("SourceInvoiceId", "AppliedAtUtc");
+
+                    b.HasIndex("TargetInvoiceId", "AppliedAtUtc");
+
+                    b.ToTable("CustomerCreditApplications", "sales", t =>
+                        {
+                            t.HasCheckConstraint("CK_CustomerCreditApplications_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_CustomerCreditApplications_Invoices", "[SourceInvoiceId] <> [TargetInvoiceId]");
+                        });
+                });
+
             modelBuilder.Entity("SalesInvoiceService.API.Models.InvoiceNumberCounter", b =>
                 {
                     b.Property<string>("PeriodKey")
@@ -642,6 +696,10 @@ namespace SalesInvoiceService.API.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal>("BankChargeAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
                     b.Property<string>("BankCurrency")
                         .HasMaxLength(3)
                         .HasColumnType("nvarchar(3)");
@@ -697,6 +755,25 @@ namespace SalesInvoiceService.API.Migrations
                     b.HasIndex("SalesInvoiceId", "PaymentDate");
 
                     b.ToTable("SalesInvoicePayments", "sales");
+                });
+
+            modelBuilder.Entity("SalesInvoiceService.API.Models.CustomerCreditApplication", b =>
+                {
+                    b.HasOne("SalesInvoiceService.API.Models.SalesInvoice", "SourceInvoice")
+                        .WithMany()
+                        .HasForeignKey("SourceInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SalesInvoiceService.API.Models.SalesInvoice", "TargetInvoice")
+                        .WithMany()
+                        .HasForeignKey("TargetInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SourceInvoice");
+
+                    b.Navigation("TargetInvoice");
                 });
 
             modelBuilder.Entity("SalesInvoiceService.API.Models.SalesCreditNote", b =>

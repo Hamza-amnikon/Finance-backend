@@ -17,6 +17,12 @@ namespace SalesInvoiceService.API.Repositories
             CancellationToken cancellationToken);
 
         Task<(
+            decimal Applied,
+            decimal Transferred)> GetCreditApplicationsAsync(
+            int salesInvoiceId,
+            CancellationToken cancellationToken);
+
+        Task<(
             List<SalesInvoicePayment> Items,
             int Total)> GetPagedAsync(
                 int page,

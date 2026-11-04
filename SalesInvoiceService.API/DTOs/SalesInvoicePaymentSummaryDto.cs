@@ -19,10 +19,16 @@
 
         public decimal PaidAmount { get; set; }
 
+        // Customer credit received from another invoice.
+        public decimal AppliedCreditAmount { get; set; }
+
+        // Unused credit moved to another invoice.
+        public decimal TransferredCreditAmount { get; set; }
+
         // Amount the client still needs to pay.
         public decimal BalanceDue { get; set; }
 
-        // Excess payment remaining after credits are applied.
+        // Customer credit still available on this invoice.
         public decimal CreditBalance { get; set; }
 
         public string PaymentStatus { get; set; } = string.Empty;

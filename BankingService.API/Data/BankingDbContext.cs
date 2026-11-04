@@ -56,10 +56,21 @@ namespace BankingService.API.Data
                 entity.ToTable("PaymentBankingLinks", "banking");
                 entity.HasKey(row => row.Id);
                 entity.Property(row => row.Amount).HasPrecision(18, 4);
+                entity.Property(row => row.AccountingState).HasMaxLength(20);
+                entity.Property(row => row.AccountingMessage).HasMaxLength(1000);
                 entity.HasIndex(row => new { row.Source, row.SourcePaymentId }).IsUnique();
                 entity.HasIndex(row => new { row.State, row.NextAttemptAtUtc });
-                entity.HasOne<BankTransaction>().WithMany().HasForeignKey(row => row.BankTransactionId).OnDelete(DeleteBehavior.Restrict);
-                entity.HasOne<BankTransaction>().WithMany().HasForeignKey(row => row.ReversalTransactionId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne<BankTransaction>()
+                    .WithMany()
+                    .HasForeignKey(row =>
+                        row.BankTransactionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<BankTransaction>()
+                    .WithMany()
+                    .HasForeignKey(row =>
+                        row.ReversalTransactionId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<BankAccount>(entity =>

@@ -14,6 +14,7 @@ namespace AccountingService.API.Models
         Manual,
         OpeningBalance,
         SalesInvoice,
+        SalesCreditNote,
         PaymentReceived,
         PurchaseBill,
         PaymentMade,

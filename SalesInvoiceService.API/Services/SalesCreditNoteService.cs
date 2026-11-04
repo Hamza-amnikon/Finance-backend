@@ -10,15 +10,21 @@ namespace SalesInvoiceService.API.Services
         private readonly ISalesCreditNoteRepository _repository;
         private readonly ISalesCreditNoteCalculator _calculator;
         private readonly ICurrencyRepository _currencyRepository;
+        private readonly IBranchService _branchService;
+        private readonly IAccountingApiService _accountingApiService;
 
         public SalesCreditNoteService(
             ISalesCreditNoteRepository repository,
             ISalesCreditNoteCalculator calculator,
-            ICurrencyRepository currencyRepository)
+            ICurrencyRepository currencyRepository,
+            IBranchService branchService,
+            IAccountingApiService accountingApiService)
         {
             _repository = repository;
             _calculator = calculator;
             _currencyRepository = currencyRepository;
+            _branchService = branchService;
+            _accountingApiService = accountingApiService;
         }
 
         public async Task<SalesCreditNoteResponseDto> PreviewAsync(
@@ -155,9 +161,165 @@ namespace SalesInvoiceService.API.Services
                 dto.RowVersion,
                 cancellationToken);
 
+            if (issued != null)
+            {
+                await PostToAccountingAsync(
+                    issued,
+                    cancellationToken);
+            }
+
             return issued == null
                 ? null
                 : ToResponse(issued);
+        }
+
+        private async Task PostToAccountingAsync(
+            SalesCreditNote creditNote,
+            CancellationToken cancellationToken)
+        {
+            var invoice = creditNote.SalesInvoice
+                ?? throw new InvalidOperationException(
+                    "Credit note invoice details were not loaded.");
+
+            var branch =
+                await _branchService.GetByNameAsync(
+                    invoice.Branch,
+                    cancellationToken)
+                ?? throw new InvalidOperationException(
+                    "The invoice branch no longer exists.");
+
+            if (!branch.AccountingCompanyId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "Link the invoice branch to an accounting company before issuing the credit note.");
+            }
+
+            var company =
+                await _accountingApiService.GetCompanyAsync(
+                    branch.AccountingCompanyId.Value,
+                    cancellationToken)
+                ?? throw new InvalidOperationException(
+                    "The linked accounting company does not exist.");
+
+            var creditNoteNumber =
+                Clean(creditNote.CreditNoteNumber);
+
+            if (creditNoteNumber.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "The issued credit note number is missing.");
+            }
+
+            var invoiceNumber =
+                Clean(invoice.InvoiceNumber);
+
+            if (invoiceNumber.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "The source invoice number is missing.");
+            }
+
+            var posting =
+                new SalesCreditNoteAccountingPostingDto
+                {
+                    CompanyId = company.Id,
+                    CreditNoteId = creditNote.Id,
+                    CreditNoteNumber = creditNoteNumber,
+                    CreditNoteDate = creditNote.CreditNoteDate,
+                    InvoiceId = invoice.Id,
+                    InvoiceNumber = invoiceNumber,
+                    Branch = invoice.Branch,
+                    Currency = creditNote.Currency,
+                    CustomerId = invoice.ClientId,
+                    CustomerName = invoice.ClientName,
+                    NetAmount =
+                        creditNote.SubTotal -
+                        creditNote.DiscountTotal,
+                    TotalAmount = creditNote.GrandTotal,
+                    Taxes = BuildTaxPostings(
+                        invoice.TaxTreatment,
+                        creditNote.TaxTotal)
+                };
+
+            await _accountingApiService
+                .PostSalesCreditNoteAsync(
+                    posting,
+                    cancellationToken);
+        }
+
+        private static List<SalesCreditNoteAccountingTaxDto>
+            BuildTaxPostings(
+                SalesInvoiceTaxTreatment? taxTreatment,
+                decimal taxTotal)
+        {
+            if (taxTotal == 0)
+            {
+                return new();
+            }
+
+            if (!taxTreatment.HasValue ||
+                taxTreatment ==
+                    SalesInvoiceTaxTreatment.NoTax)
+            {
+                throw new InvalidOperationException(
+                    "The source invoice tax treatment is unavailable.");
+            }
+
+            if (taxTreatment ==
+                SalesInvoiceTaxTreatment.UaeVat)
+            {
+                return new()
+                {
+                    CreateTaxPosting(
+                        "OUTPUT_VAT",
+                        "Output VAT reversed by sales credit note",
+                        taxTotal)
+                };
+            }
+
+            if (taxTreatment ==
+                SalesInvoiceTaxTreatment.IndiaIgst)
+            {
+                return new()
+                {
+                    CreateTaxPosting(
+                        "OUTPUT_IGST",
+                        "Output IGST reversed by sales credit note",
+                        taxTotal)
+                };
+            }
+
+            var cgst = decimal.Round(
+                taxTotal / 2m,
+                4,
+                MidpointRounding.AwayFromZero);
+
+            return new()
+            {
+                CreateTaxPosting(
+                    "OUTPUT_CGST",
+                    "Output CGST reversed by sales credit note",
+                    cgst),
+
+                CreateTaxPosting(
+                    "OUTPUT_SGST",
+                    "Output SGST reversed by sales credit note",
+                    taxTotal - cgst)
+            };
+        }
+
+        private static SalesCreditNoteAccountingTaxDto
+            CreateTaxPosting(
+                string systemKey,
+                string description,
+                decimal amount)
+        {
+            return new SalesCreditNoteAccountingTaxDto
+            {
+                SystemKey = systemKey,
+                Description = description,
+                Amount = amount
+            };
         }
 
         private static SalesCreditNote CreateModel(

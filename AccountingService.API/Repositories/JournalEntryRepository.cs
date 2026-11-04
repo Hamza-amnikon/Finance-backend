@@ -162,6 +162,18 @@ namespace AccountingService.API.Repositories
                     cancellationToken);
         }
 
+        public Task<AccountingCompanyLookup?> GetCompanyAsync(
+            int companyId,
+            CancellationToken cancellationToken)
+        {
+            return _context.Companies
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    company =>
+                        company.Id == companyId,
+                    cancellationToken);
+        }
+
         public async Task<IReadOnlyList<Account>>
             GetAccountsAsync(
                 int companyId,

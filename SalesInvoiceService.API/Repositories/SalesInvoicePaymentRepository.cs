@@ -59,6 +59,37 @@ namespace SalesInvoiceService.API.Repositories
         }
 
         public async Task<(
+            decimal Applied,
+            decimal Transferred)> GetCreditApplicationsAsync(
+            int salesInvoiceId,
+            CancellationToken cancellationToken)
+        {
+            var applied = await _context
+                .CustomerCreditApplications
+                .AsNoTracking()
+                .Where(application =>
+                    application.TargetInvoiceId ==
+                        salesInvoiceId)
+                .SumAsync(
+                    application =>
+                        (decimal?)application.Amount,
+                    cancellationToken) ?? 0m;
+
+            var transferred = await _context
+                .CustomerCreditApplications
+                .AsNoTracking()
+                .Where(application =>
+                    application.SourceInvoiceId ==
+                        salesInvoiceId)
+                .SumAsync(
+                    application =>
+                        (decimal?)application.Amount,
+                    cancellationToken) ?? 0m;
+
+            return (applied, transferred);
+        }
+
+        public async Task<(
             List<SalesInvoicePayment> Items,
             int Total)> GetPagedAsync(
                 int page,
@@ -211,7 +242,11 @@ namespace SalesInvoiceService.API.Repositories
             // Payments for this invoice must wait for this lock.
             var invoice = await _context.SalesInvoices
                 .FromSqlInterpolated(
-                    $"SELECT * FROM [sales].[SalesInvoices] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {payment.SalesInvoiceId}")
+                    $"""
+                    SELECT *
+                    FROM [sales].[SalesInvoices] WITH (UPDLOCK, HOLDLOCK)
+                    WHERE [Id] = {payment.SalesInvoiceId}
+                    """)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (invoice == null)
@@ -224,6 +259,13 @@ namespace SalesInvoiceService.API.Repositories
             payment.PaymentMode = Clean(payment.PaymentMode);
             payment.Reference = Clean(payment.Reference);
             payment.Notes = Clean(payment.Notes);
+            payment.BankCurrency =
+                string.IsNullOrWhiteSpace(
+                    payment.BankCurrency)
+                    ? null
+                    : payment.BankCurrency
+                        .Trim()
+                        .ToUpperInvariant();
 
             var existing = await GetByRequestIdAsync(
                 payment.RequestId,
@@ -255,6 +297,16 @@ namespace SalesInvoiceService.API.Repositories
                 invoice.Id,
                 cancellationToken);
 
+            var appliedCreditAmount = await _context
+                .CustomerCreditApplications
+                .Where(application =>
+                    application.TargetInvoiceId ==
+                        invoice.Id)
+                .SumAsync(
+                    application =>
+                        (decimal?)application.Amount,
+                    cancellationToken) ?? 0m;
+
             if (creditedAmount < 0 ||
                 creditedAmount > invoice.GrandTotal)
             {
@@ -263,7 +315,10 @@ namespace SalesInvoiceService.API.Repositories
             }
 
             var balanceDue =
-                invoice.GrandTotal - creditedAmount - paidAmount;
+                invoice.GrandTotal -
+                creditedAmount -
+                paidAmount -
+                appliedCreditAmount;
 
             if (balanceDue <= 0)
             {
@@ -326,7 +381,15 @@ namespace SalesInvoiceService.API.Repositories
                     incoming.PaymentMode,
                     StringComparison.OrdinalIgnoreCase) ||
                 existing.Reference != incoming.Reference ||
-                existing.Notes != incoming.Notes)
+                existing.Notes != incoming.Notes ||
+                existing.BankAccountId != incoming.BankAccountId ||
+                existing.BankAmount != incoming.BankAmount ||
+                existing.BankChargeAmount !=
+                    incoming.BankChargeAmount ||
+                !string.Equals(
+                    existing.BankCurrency,
+                    incoming.BankCurrency,
+                    StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException(
                     "This request ID was already used for different payment details.");

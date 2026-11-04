@@ -25,6 +25,14 @@ namespace BankingService.API.Models
         public int? BankTransactionId { get; set; }
         public int? ReversalTransactionId { get; set; }
 
+        public int? AccountingJournalEntryId { get; set; }
+
+        [MaxLength(20)]
+        public string AccountingState { get; set; } = "Pending";
+
+        [MaxLength(1000)]
+        public string AccountingMessage { get; set; } = "";
+
         [MaxLength(20)]
         public string State { get; set; } = "Pending";
 
@@ -49,10 +57,16 @@ namespace BankingService.API.Models
         public Guid RequestId { get; set; }
         public string PaymentNumber { get; set; } = "";
         public string PartyName { get; set; } = "";
+        public Guid? PartyId { get; set; }
         public string Branch { get; set; } = "";
         public string Currency { get; set; } = "";
         public decimal Amount { get; set; }
+        public int? BillId { get; set; }
+        public int? SalesInvoiceId { get; set; }
         public int? BankAccountId { get; set; }
+        public decimal? BankAmount { get; set; }
+        public decimal BankChargeAmount { get; set; }
+        public string BankCurrency { get; set; } = "";
         public int CompanyId { get; set; }
         public string PaymentMode { get; set; } = "";
         public string Reference { get; set; } = "";

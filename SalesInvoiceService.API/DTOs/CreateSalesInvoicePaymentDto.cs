@@ -26,6 +26,24 @@ namespace SalesInvoiceService.API.DTOs
         [MaxLength(2000)]
         public string Notes { get; set; } = string.Empty;
 
+        [Range(1, int.MaxValue)]
+        public int? BankAccountId { get; set; }
+
+        [RegularExpression("^[A-Za-z]{3}$")]
+        public string? BankCurrency { get; set; }
+
+        [Range(
+            typeof(decimal),
+            "0.0001",
+            "99999999999999.9999")]
+        public decimal? BankAmount { get; set; }
+
+        [Range(
+            typeof(decimal),
+            "0",
+            "99999999999999.9999")]
+        public decimal BankChargeAmount { get; set; }
+
         public IEnumerable<ValidationResult> Validate(
             ValidationContext validationContext)
         {
@@ -55,6 +73,36 @@ namespace SalesInvoiceService.API.DTOs
                 yield return new ValidationResult(
                     "Enter a payment reference.",
                     new[] { nameof(Reference) });
+            }
+
+            var hasBankSettlement =
+                BankAccountId.HasValue ||
+                BankAmount.HasValue ||
+                !string.IsNullOrWhiteSpace(BankCurrency) ||
+                BankChargeAmount > 0;
+
+            if (hasBankSettlement &&
+                !BankAccountId.HasValue)
+            {
+                yield return new ValidationResult(
+                    "Select the receiving bank account.",
+                    new[] { nameof(BankAccountId) });
+            }
+
+            if (hasBankSettlement &&
+                !BankAmount.HasValue)
+            {
+                yield return new ValidationResult(
+                    "Enter the actual amount credited by the bank.",
+                    new[] { nameof(BankAmount) });
+            }
+
+            if (hasBankSettlement &&
+                string.IsNullOrWhiteSpace(BankCurrency))
+            {
+                yield return new ValidationResult(
+                    "The receiving bank currency is required.",
+                    new[] { nameof(BankCurrency) });
             }
         }
     }

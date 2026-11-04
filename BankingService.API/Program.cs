@@ -35,6 +35,19 @@ builder.Services.AddHttpClient<
         client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
     });
 
+builder.Services.AddHttpClient<
+    IPaymentAccountingApiService,
+    PaymentAccountingApiService>(httpClient =>
+    {
+        var baseUrl = builder.Configuration[
+            "Services:AccountingService:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "AccountingService BaseUrl is missing from appsettings.json.");
+
+        httpClient.BaseAddress = new Uri(baseUrl);
+        httpClient.Timeout = TimeSpan.FromSeconds(15);
+    });
+
 var connectionString = builder.Configuration
     .GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException(

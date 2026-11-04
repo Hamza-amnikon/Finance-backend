@@ -78,6 +78,14 @@ builder.Services.AddScoped<
     ISalesCreditNoteService,
     SalesCreditNoteService>();
 
+builder.Services.AddScoped<
+    ICustomerCreditService,
+    CustomerCreditService>();
+
+builder.Services.AddScoped<
+    ICustomerStatementService,
+    CustomerStatementService>();
+
 builder.Services.AddHttpClient<
     IClientApiService,
     ClientApiService>(httpClient =>

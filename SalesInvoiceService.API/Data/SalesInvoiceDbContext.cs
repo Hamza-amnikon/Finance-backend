@@ -32,6 +32,9 @@ namespace SalesInvoiceService.API.Data
         public DbSet<SalesCreditNote> SalesCreditNotes =>
             Set<SalesCreditNote>();
 
+        public DbSet<CustomerCreditApplication> CustomerCreditApplications =>
+            Set<CustomerCreditApplication>();
+
         public DbSet<SalesCreditNoteItem> SalesCreditNoteItems =>
             Set<SalesCreditNoteItem>();
 
@@ -139,6 +142,8 @@ namespace SalesInvoiceService.API.Data
             modelBuilder.Entity<SalesInvoicePayment>(entity =>
             {
                 entity.Property(row => row.BankAmount).HasPrecision(18, 4);
+                entity.Property(row => row.BankChargeAmount)
+                    .HasPrecision(18, 4);
                 entity.HasIndex(row => row.BankTransactionId).IsUnique()
                     .HasFilter("[BankTransactionId] IS NOT NULL");
                 entity.ToTable("SalesInvoicePayments", "sales");
@@ -306,6 +311,74 @@ namespace SalesInvoiceService.API.Data
                 entity.HasOne<SalesInvoiceItem>()
                     .WithMany()
                     .HasForeignKey(x => x.SalesInvoiceItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CustomerCreditApplication>(entity =>
+            {
+                entity.ToTable(
+                    "CustomerCreditApplications",
+                    "sales",
+                    table =>
+                    {
+                        table.HasCheckConstraint(
+                            "CK_CustomerCreditApplications_Amount",
+                            "[Amount] > 0");
+
+                        table.HasCheckConstraint(
+                            "CK_CustomerCreditApplications_Invoices",
+                            "[SourceInvoiceId] <> [TargetInvoiceId]");
+                    });
+
+                entity.HasKey(application =>
+                    application.Id);
+
+                entity.Property(application =>
+                    application.Id)
+                    .UseIdentityColumn();
+
+                entity.HasIndex(application =>
+                    application.RequestId)
+                    .IsUnique();
+
+                entity.HasIndex(application => new
+                {
+                    application.SourceInvoiceId,
+                    application.AppliedAtUtc
+                });
+
+                entity.HasIndex(application => new
+                {
+                    application.TargetInvoiceId,
+                    application.AppliedAtUtc
+                });
+
+                entity.Property(application =>
+                    application.Amount)
+                    .HasPrecision(18, 4);
+
+                entity.Property(application =>
+                    application.Branch)
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(application =>
+                    application.Currency)
+                    .HasMaxLength(3)
+                    .IsRequired();
+
+                entity.HasOne(application =>
+                    application.SourceInvoice)
+                    .WithMany()
+                    .HasForeignKey(application =>
+                        application.SourceInvoiceId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(application =>
+                    application.TargetInvoice)
+                    .WithMany()
+                    .HasForeignKey(application =>
+                        application.TargetInvoiceId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
