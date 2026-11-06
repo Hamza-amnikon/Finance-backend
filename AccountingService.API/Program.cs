@@ -76,6 +76,14 @@ builder.Services.AddScoped<
     TrialBalanceService>();
 
 builder.Services.AddScoped<
+    IFinancialReportService,
+    FinancialReportService>();
+
+builder.Services.AddScoped<
+    ITaxReportService,
+    TaxReportService>();
+
+builder.Services.AddScoped<
     ISalesInvoicePostingService,
     SalesInvoicePostingService>();
 

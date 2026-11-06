@@ -1,0 +1,455 @@
+{
+  "clients": {
+    "CUS-001": "60af54b2-29f4-47f4-8fa1-60d54d434383",
+    "CUS-002": "5b295dec-db2f-4ba8-8a12-2b3df20abc86",
+    "CUS-003": "a76bfd3e-9213-43c6-a852-957baa5470a3",
+    "CUS-004": "d2c37a04-724f-4a3c-b3bd-1508740b9869",
+    "CUS-005": "1a4970fd-05b5-4c39-acc8-bbc72fa5d6b3"
+  },
+  "vendors": {
+    "SUP-001": "2d7d63ab-413e-4092-9d8c-d6ca5a861683",
+    "SUP-002": "0c801150-0792-488d-8457-ec8b0fe3ccf3",
+    "SUP-003": "3a1ed957-f7e7-4fb1-9a7c-56f80c9b0f46"
+  },
+  "invoices": {
+    "INV-2026-001": {
+      "id": 2014,
+      "number": "2026/004/001",
+      "status": "Issued"
+    },
+    "INV-2026-002": {
+      "id": 2015,
+      "number": "2026/004/002",
+      "status": "Issued"
+    },
+    "INV-2026-003": {
+      "id": 2016,
+      "number": "2026/004/003",
+      "status": "Issued"
+    },
+    "INV-2026-004": {
+      "id": 2017,
+      "number": "2026/005/001",
+      "status": "Issued"
+    },
+    "INV-2026-005": {
+      "id": 2018,
+      "number": "2026/005/002",
+      "status": "Issued"
+    },
+    "INV-2026-006": {
+      "id": 2019,
+      "number": "2026/006/001",
+      "status": "Issued"
+    },
+    "INV-2026-007": {
+      "id": 2020,
+      "number": "2026/006/002",
+      "status": "Issued"
+    },
+    "INV-2026-008": {
+      "id": 2021,
+      "number": "2026/006/003",
+      "status": "Issued"
+    },
+    "INV-2026-009": {
+      "id": 2022,
+      "number": "2026/007/001",
+      "status": "Issued"
+    },
+    "INV-2026-010": {
+      "id": 2023,
+      "number": "2026/007/002",
+      "status": "Issued"
+    },
+    "INV-2026-011": {
+      "id": 2024,
+      "number": "2026/008/001",
+      "status": "Issued"
+    },
+    "INV-2026-012": {
+      "id": 2025,
+      "number": "2026/008/002",
+      "status": "Issued"
+    },
+    "INV-2026-013": {
+      "id": 2026,
+      "number": "2026/008/003",
+      "status": "Issued"
+    },
+    "INV-2026-014": {
+      "id": 2027,
+      "number": "2026/009/001",
+      "status": "Issued"
+    },
+    "INV-2026-015": {
+      "id": 2028,
+      "number": "2026/009/002",
+      "status": "Issued"
+    }
+  },
+  "expense_accounts": {
+    "5270": 124,
+    "5280": 125,
+    "5290": 126
+  },
+  "bills": {
+    "BILL-2026-001": {
+      "id": 1011,
+      "number": "BILL/2026/004/001",
+      "status": "Issued"
+    },
+    "BILL-2026-002": {
+      "id": 1012,
+      "number": "BILL/2026/004/002",
+      "status": "Issued"
+    },
+    "BILL-2026-003": {
+      "id": 1013,
+      "number": "BILL/2026/004/003",
+      "status": "Issued"
+    },
+    "BILL-2026-004": {
+      "id": 1014,
+      "number": "BILL/2026/005/001",
+      "status": "Issued"
+    },
+    "BILL-2026-005": {
+      "id": 1015,
+      "number": "BILL/2026/005/002",
+      "status": "Issued"
+    },
+    "BILL-2026-006": {
+      "id": 1016,
+      "number": "BILL/2026/005/003",
+      "status": "Issued"
+    },
+    "BILL-2026-007": {
+      "id": 1017,
+      "number": "BILL/2026/006/001",
+      "status": "Issued"
+    },
+    "BILL-2026-008": {
+      "id": 1018,
+      "number": "BILL/2026/006/002",
+      "status": "Issued"
+    },
+    "BILL-2026-009": {
+      "id": 1019,
+      "number": "BILL/2026/006/003",
+      "status": "Issued"
+    },
+    "BILL-2026-010": {
+      "id": 1020,
+      "number": "BILL/2026/007/001",
+      "status": "Issued"
+    },
+    "BILL-2026-011": {
+      "id": 1021,
+      "number": "BILL/2026/007/002",
+      "status": "Issued"
+    },
+    "BILL-2026-012": {
+      "id": 1022,
+      "number": "BILL/2026/007/003",
+      "status": "Issued"
+    },
+    "BILL-2026-013": {
+      "id": 1023,
+      "number": "BILL/2026/008/001",
+      "status": "Issued"
+    },
+    "BILL-2026-014": {
+      "id": 1024,
+      "number": "BILL/2026/008/002",
+      "status": "Issued"
+    },
+    "BILL-2026-015": {
+      "id": 1025,
+      "number": "BILL/2026/008/003",
+      "status": "Issued"
+    },
+    "BILL-2026-016": {
+      "id": 1026,
+      "number": "BILL/2026/009/001",
+      "status": "Issued"
+    },
+    "BILL-2026-017": {
+      "id": 1027,
+      "number": "BILL/2026/009/002",
+      "status": "Issued"
+    },
+    "BILL-2026-018": {
+      "id": 1028,
+      "number": "BILL/2026/009/003",
+      "status": "Issued"
+    }
+  },
+  "receipts": {
+    "RCT-001": 2011,
+    "RCT-002": 2012,
+    "RCT-003": 2013,
+    "RCT-004": 2014,
+    "RCT-005": 2015,
+    "RCT-006": 2016,
+    "RCT-007": 2017,
+    "RCT-008": 2018,
+    "RCT-009": 2019,
+    "RCT-010": 2020,
+    "RCT-011": 2021,
+    "RCT-012": 2022,
+    "RCT-013": 2023,
+    "RCT-014": 2024,
+    "RCT-015": 2025,
+    "RCT-016": 2026,
+    "RCT-018": 2027,
+    "RCT-017": 2028
+  },
+  "supplier_payments": {
+    "PAY-001": 1008,
+    "PAY-002": 1009,
+    "PAY-003": 1010,
+    "PAY-004": 1011,
+    "PAY-005": 1012,
+    "PAY-006": 1013,
+    "PAY-007": 1014,
+    "PAY-008": 1015,
+    "PAY-009": 1016,
+    "PAY-010": 1017,
+    "PAY-011": 1018,
+    "PAY-012": 1019,
+    "PAY-013": 1020,
+    "PAY-014": 1021,
+    "PAY-015": 1022,
+    "PAY-016": 1023
+  },
+  "bank_adjustments": {
+    "CW-001": {
+      "id": 58,
+      "status": "Posted"
+    },
+    "CW-002": {
+      "id": 59,
+      "status": "Posted"
+    },
+    "FEE-001": {
+      "id": 60,
+      "status": "Posted"
+    },
+    "CW-003": {
+      "id": 61,
+      "status": "Posted"
+    },
+    "CW-004": {
+      "id": 62,
+      "status": "Posted"
+    },
+    "FEE-002": {
+      "id": 63,
+      "status": "Posted"
+    },
+    "CW-005": {
+      "id": 64,
+      "status": "Posted"
+    },
+    "CW-006": {
+      "id": 65,
+      "status": "Posted"
+    },
+    "FEE-003": {
+      "id": 66,
+      "status": "Posted"
+    },
+    "CW-007": {
+      "id": 67,
+      "status": "Posted"
+    },
+    "CW-008": {
+      "id": 68,
+      "status": "Posted"
+    },
+    "FEE-004": {
+      "id": 69,
+      "status": "Posted"
+    },
+    "CW-009": {
+      "id": 70,
+      "status": "Posted"
+    },
+    "CW-010": {
+      "id": 71,
+      "status": "Posted"
+    },
+    "FEE-005": {
+      "id": 72,
+      "status": "Posted"
+    },
+    "CW-011": {
+      "id": 73,
+      "status": "Posted"
+    },
+    "CW-012": {
+      "id": 74,
+      "status": "Posted"
+    },
+    "FEE-006": {
+      "id": 75,
+      "status": "Posted"
+    }
+  },
+  "opening_equity_account": 127,
+  "manual_journals": {
+    "OPEN-001": {
+      "id": 1078,
+      "status": "Posted"
+    },
+    "OPEN-002": {
+      "id": 1079,
+      "status": "Posted"
+    },
+    "CW-001": {
+      "id": 1080,
+      "status": "Posted"
+    },
+    "CW-002": {
+      "id": 1081,
+      "status": "Posted"
+    },
+    "FEE-001": {
+      "id": 1082,
+      "status": "Posted"
+    },
+    "CW-003": {
+      "id": 1083,
+      "status": "Posted"
+    },
+    "CW-004": {
+      "id": 1084,
+      "status": "Posted"
+    },
+    "FEE-002": {
+      "id": 1085,
+      "status": "Posted"
+    },
+    "CW-005": {
+      "id": 1086,
+      "status": "Posted"
+    },
+    "CW-006": {
+      "id": 1087,
+      "status": "Posted"
+    },
+    "FEE-003": {
+      "id": 1088,
+      "status": "Posted"
+    },
+    "CW-007": {
+      "id": 1089,
+      "status": "Posted"
+    },
+    "CW-008": {
+      "id": 1090,
+      "status": "Posted"
+    },
+    "FEE-004": {
+      "id": 1091,
+      "status": "Posted"
+    },
+    "CW-009": {
+      "id": 1092,
+      "status": "Posted"
+    },
+    "CW-010": {
+      "id": 1093,
+      "status": "Posted"
+    },
+    "FEE-005": {
+      "id": 1094,
+      "status": "Posted"
+    },
+    "CW-011": {
+      "id": 1095,
+      "status": "Posted"
+    },
+    "CW-012": {
+      "id": 1096,
+      "status": "Posted"
+    },
+    "FEE-006": {
+      "id": 1097,
+      "status": "Posted"
+    },
+    "PC-001": {
+      "id": 1098,
+      "status": "Posted"
+    },
+    "PC-002": {
+      "id": 1099,
+      "status": "Posted"
+    },
+    "PC-003": {
+      "id": 1100,
+      "status": "Posted"
+    },
+    "PC-004": {
+      "id": 1101,
+      "status": "Posted"
+    },
+    "PC-005": {
+      "id": 1102,
+      "status": "Posted"
+    },
+    "PC-006": {
+      "id": 1103,
+      "status": "Posted"
+    },
+    "PC-007": {
+      "id": 1104,
+      "status": "Posted"
+    },
+    "PC-008": {
+      "id": 1105,
+      "status": "Posted"
+    },
+    "PC-009": {
+      "id": 1106,
+      "status": "Posted"
+    },
+    "PC-010": {
+      "id": 1107,
+      "status": "Posted"
+    },
+    "PC-011": {
+      "id": 1108,
+      "status": "Posted"
+    },
+    "PC-012": {
+      "id": 1109,
+      "status": "Posted"
+    },
+    "PC-013": {
+      "id": 1110,
+      "status": "Posted"
+    },
+    "PC-014": {
+      "id": 1111,
+      "status": "Posted"
+    },
+    "PC-015": {
+      "id": 1112,
+      "status": "Posted"
+    },
+    "PC-016": {
+      "id": 1113,
+      "status": "Posted"
+    },
+    "PC-017": {
+      "id": 1114,
+      "status": "Posted"
+    },
+    "PC-018": {
+      "id": 1115,
+      "status": "Posted"
+    }
+  }
+}

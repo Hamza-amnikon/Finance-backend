@@ -57,6 +57,11 @@ namespace VendorService.API.Controllers
             {
                 return Ok(await load());
             }
+            catch (OperationCanceledException)
+                when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                return new StatusCodeResult(499);
+            }
             catch (SqlException exception)
             {
                 _logger.LogError(exception, "Unable to read the shared country master table.");

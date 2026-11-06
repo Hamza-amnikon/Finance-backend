@@ -187,7 +187,13 @@ namespace PaymentMadeService.API.Services
                 PaymentModeId = mode.Id,
                 PaymentMode = mode.Name,
                 Reference = dto.Reference?.Trim() ?? "",
-                Notes = dto.Notes?.Trim() ?? ""
+                Notes = dto.Notes?.Trim() ?? "",
+                SettlementType = dto.BankAccountId.HasValue
+                    ? "Bank"
+                    : null,
+                BankAccountId = dto.BankAccountId,
+                BankAmount = dto.BankAmount,
+                BankCurrency = dto.BankCurrency?.Trim().ToUpperInvariant()
             };
 
             PaymentMade saved;

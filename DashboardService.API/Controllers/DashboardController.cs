@@ -47,6 +47,11 @@ namespace DashboardService.API.Controllers
             {
                 return BadRequest(new { message = exception.Message });
             }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
             catch (SqlException exception)
             {
                 return DatabaseUnavailable(exception);
@@ -64,6 +69,11 @@ namespace DashboardService.API.Controllers
                     cancellationToken);
 
                 return Ok(activity);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
             }
             catch (SqlException exception)
             {
