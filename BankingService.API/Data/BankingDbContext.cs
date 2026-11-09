@@ -1,9 +1,10 @@
+using SparkFinance.Auditing;
 using BankingService.API.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace BankingService.API.Data
 {
-    public class BankingDbContext : DbContext
+    public class BankingDbContext : AuditedDbContext
     {
         public BankingDbContext(
             DbContextOptions<BankingDbContext> options)

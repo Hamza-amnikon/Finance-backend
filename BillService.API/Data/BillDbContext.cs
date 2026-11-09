@@ -1,9 +1,10 @@
+using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using BillService.API.Models;
 
 namespace BillService.API.Data
 {
-    public class BillDbContext : DbContext
+    public class BillDbContext : AuditedDbContext
     {
         public BillDbContext(
             DbContextOptions<BillDbContext> options)

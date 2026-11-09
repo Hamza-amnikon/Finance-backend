@@ -140,6 +140,75 @@ namespace AccountingService.API.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AccountingService.API.Models.AuditEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ActorKind")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("AfterJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("AtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("BeforeJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Branch")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtUtc");
+
+                    b.HasIndex("Branch", "AtUtc");
+
+                    b.HasIndex("EntityType", "EntityId");
+
+                    b.ToTable("Events", "audit");
+                });
+
             modelBuilder.Entity("AccountingService.API.Models.JournalEntry", b =>
                 {
                     b.Property<int>("Id")

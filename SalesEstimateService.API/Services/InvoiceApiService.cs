@@ -7,7 +7,6 @@ namespace SalesEstimateService.API.Services
     public class InvoiceApiService : IInvoiceApiService
     {
         private readonly HttpClient _httpClient;
-
         public InvoiceApiService(HttpClient httpClient)
         {
             _httpClient = httpClient;
@@ -16,19 +15,15 @@ namespace SalesEstimateService.API.Services
         public async Task<ConvertedInvoiceDto> CreateFromEstimateAsync(
             int estimateId,
             ConvertSalesEstimateDto dto,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken
+        )
         {
-            using var response = await _httpClient.PostAsJsonAsync("api/sales-invoices/from-estimate", new
-            {
-                estimateId,
-                dto.RowVersion,
-                dto.InvoiceDate,
-                dto.DueDate,
-                dto.PreferredPaymentMode
-            }, cancellationToken);
-
-            if (response.StatusCode == HttpStatusCode.BadRequest ||
-                response.StatusCode == HttpStatusCode.Conflict)
+            using var response = await _httpClient.PostAsJsonAsync(
+                "api/sales-invoices/from-estimate",
+                new { estimateId, dto.RowVersion, dto.InvoiceDate, dto.DueDate, dto.PreferredPaymentMode },
+                cancellationToken
+            );
+            if (response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.Conflict)
             {
                 var message = "Conversion was rejected. Reload the estimate and review its details.";
                 try
@@ -37,11 +32,12 @@ namespace SalesEstimateService.API.Services
                     if (body.TryGetProperty("message", out var value) && value.ValueKind == JsonValueKind.String)
                         message = value.GetString() ?? message;
                 }
-                catch (JsonException) { }
+                catch (JsonException)
+                {
+                }
 
                 if (response.StatusCode == HttpStatusCode.Conflict)
                     throw new InvalidOperationException(message);
-
                 throw new ArgumentException(message);
             }
 
@@ -49,25 +45,26 @@ namespace SalesEstimateService.API.Services
             return await ReadAsync(response, cancellationToken);
         }
 
-        public async Task<ConvertedInvoiceDto?> GetByIdAsync(int id, CancellationToken cancellationToken)
+        public async Task<ConvertedInvoiceDto?> GetByIdAsync(
+            int id,
+            CancellationToken cancellationToken
+        )
         {
             using var response = await _httpClient.GetAsync($"api/sales-invoices/{id}", cancellationToken);
-
             if (response.StatusCode == HttpStatusCode.NotFound)
                 return null;
-
             response.EnsureSuccessStatusCode();
             return await ReadAsync(response, cancellationToken);
         }
 
         private static async Task<ConvertedInvoiceDto> ReadAsync(
             HttpResponseMessage response,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken
+        )
         {
             try
             {
-                return await response.Content.ReadFromJsonAsync<ConvertedInvoiceDto>(cancellationToken: cancellationToken)
-                    ?? throw new HttpRequestException("Invoice service returned an empty conversion response.");
+                return await response.Content.ReadFromJsonAsync<ConvertedInvoiceDto>(cancellationToken: cancellationToken) ?? throw new HttpRequestException("Invoice service returned an empty conversion response.");
             }
             catch (JsonException exception)
             {

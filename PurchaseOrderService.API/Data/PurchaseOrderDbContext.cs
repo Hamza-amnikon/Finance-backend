@@ -1,9 +1,10 @@
+using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using PurchaseOrderService.API.Models;
 
 namespace PurchaseOrderService.API.Data
 {
-    public class PurchaseOrderDbContext : DbContext
+    public class PurchaseOrderDbContext : AuditedDbContext
     {
         public PurchaseOrderDbContext(
             DbContextOptions<PurchaseOrderDbContext> options)

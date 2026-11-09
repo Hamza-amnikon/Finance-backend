@@ -4,6 +4,7 @@ using VendorService.API.Repositories;
 using VendorService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

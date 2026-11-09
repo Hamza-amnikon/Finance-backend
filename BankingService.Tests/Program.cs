@@ -18,24 +18,19 @@ var connection = new SqlConnectionStringBuilder
 };
 var options = new DbContextOptionsBuilder<BankingDbContext>().UseSqlServer(connection.ConnectionString).Options;
 var clock = new CheckClock();
-var settings = Options.Create(new PaymentBankingOptions
-{
-    Enabled = true,
-    CashModes = ["Cash"],
-    DraftModes = ["Cheque"],
-    PostedModes = ["NEFT", "RTGS"],
-    Routes = [
-        new() { Branches = ["Dubai"], Currency = "AED", BankAccountName = "Dubai test bank", TimeZoneId = "Arabian Standard Time" },
-        new() { Branches = ["Turbhe", "India", "Mumbai"], Currency = "INR", BankAccountName = "India test bank", TimeZoneId = "India Standard Time" }
-    ]
-});
+var settings = Options.Create(new PaymentBankingOptions { Enabled = true, CashModes = ["Cash"], DraftModes = ["Cheque"], PostedModes = ["NEFT", "RTGS"], Routes = [new() { Branches = ["Dubai"], Currency = "AED", BankAccountName = "Dubai test bank", TimeZoneId = "Arabian Standard Time" }, new() { Branches = ["Turbhe", "India", "Mumbai"], Currency = "INR", BankAccountName = "India test bank", TimeZoneId = "India Standard Time" }] });
 int checks = 0;
-void Check(bool condition, string name)
+void Check(
+    bool condition,
+    string name
+)
 {
-    if (!condition) throw new Exception("FAILED: " + name);
+    if (!condition)
+        throw new Exception("FAILED: " + name);
     Console.WriteLine("PASS: " + name);
     checks++;
 }
+
 var matchingDate = new DateOnly(2026, 10, 22);
 BankStatementLine Statement(string reference = "REF-100") => new()
 {
@@ -53,28 +48,44 @@ BankTransaction MatchingEntry(int id = 1) => new()
     Amount = 10m
 };
 var exactLine = Statement(" ref-100 ");
-Check(BankStatementAutoMatcher.Match([exactLine], [MatchingEntry()]) == 1 && exactLine.MatchedBankTransactionId == 1,
-    "Exact unique reference/date/direction/amount matches automatically");
-Check(BankStatementAutoMatcher.Match([Statement()], [MatchingEntry(), MatchingEntry(2)]) == 0,
-    "Duplicate bank candidates remain unmatched");
-Check(BankStatementAutoMatcher.Match([Statement(), Statement()], [MatchingEntry()]) == 0,
-    "Competing statement lines cannot consume the same transaction");
-Check(BankStatementAutoMatcher.Match([Statement("")], [MatchingEntry()]) == 0,
-    "Missing references remain available for manual review");
+Check(
+    BankStatementAutoMatcher.Match([exactLine], [MatchingEntry()]) == 1 && exactLine.MatchedBankTransactionId == 1,
+    "Exact unique reference/date/direction/amount matches automatically"
+);
+Check(
+    BankStatementAutoMatcher.Match([Statement()], [MatchingEntry(), MatchingEntry(2)]) == 0,
+    "Duplicate bank candidates remain unmatched"
+);
+Check(
+    BankStatementAutoMatcher.Match([Statement(), Statement()], [MatchingEntry()]) == 0,
+    "Competing statement lines cannot consume the same transaction"
+);
+Check(
+    BankStatementAutoMatcher.Match([Statement("")], [MatchingEntry()]) == 0,
+    "Missing references remain available for manual review"
+);
 var differentDate = MatchingEntry();
 differentDate.TransactionDate = matchingDate.AddDays(-1);
-Check(BankStatementAutoMatcher.Match([Statement()], [differentDate]) == 0,
-    "Different clearing dates require manual review");
+Check(
+    BankStatementAutoMatcher.Match([Statement()], [differentDate]) == 0,
+    "Different clearing dates require manual review"
+);
 var differentAmount = MatchingEntry();
 differentAmount.Amount = 100m;
-Check(BankStatementAutoMatcher.Match([Statement()], [differentAmount]) == 0,
-    "Partial payment amount is matched exactly");
+Check(
+    BankStatementAutoMatcher.Match([Statement()], [differentAmount]) == 0,
+    "Partial payment amount is matched exactly"
+);
 var differentDirection = MatchingEntry();
 differentDirection.Direction = BankTransactionDirection.MoneyIn;
-Check(BankStatementAutoMatcher.Match([Statement()], [differentDirection]) == 0,
-    "Opposite direction is never matched");
-Check(BankStatementAutoMatcher.Match([exactLine], [MatchingEntry()]) == 0 && exactLine.MatchedBankTransactionId == 1,
-    "Existing matches are preserved on retry");
+Check(
+    BankStatementAutoMatcher.Match([Statement()], [differentDirection]) == 0,
+    "Opposite direction is never matched"
+);
+Check(
+    BankStatementAutoMatcher.Match([exactLine], [MatchingEntry()]) == 0 && exactLine.MatchedBankTransactionId == 1,
+    "Existing matches are preserved on retry"
+);
 if (args.Contains("--matcher-only"))
 {
     Console.WriteLine($"{checks} automatic matching checks passed.");
@@ -86,7 +97,8 @@ var created = false;
 try
 {
     created = await context.Database.EnsureCreatedAsync();
-    if (!created) throw new Exception("Refusing to use an existing test database.");
+    if (!created)
+        throw new Exception("Refusing to use an existing test database.");
     await context.Database.ExecuteSqlRawAsync("IF SCHEMA_ID('expenses') IS NULL EXEC('CREATE SCHEMA expenses')");
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA purchases");
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA sales");
@@ -110,33 +122,62 @@ try
         INSERT INTO sales.SalesInvoices VALUES (1,'Customer','Dubai');
         """);
     context.PaymentBankingSettings.Add(new PaymentBankingSettings { Id = 1, SourceAfterUtc = clock.GetUtcNow().UtcDateTime.AddHours(-1) });
-    var dubai = new BankAccount { CompanyId = 10, Name = "Dubai test bank", Currency = "AED", CurrencyDecimalPlaces = 2, OpeningBalanceDate = new DateOnly(2026,10,1), OpeningBalance = 1000 };
-    var india = new BankAccount { CompanyId = 20, Name = "India test bank", Currency = "INR", CurrencyDecimalPlaces = 2, OpeningBalanceDate = new DateOnly(2026,10,1), OpeningBalance = 1000 };
-    context.BankAccounts.AddRange(dubai,india);
+    var dubai = new BankAccount
+    {
+        CompanyId = 10,
+        Name = "Dubai test bank",
+        Currency = "AED",
+        CurrencyDecimalPlaces = 2,
+        OpeningBalanceDate = new DateOnly(2026, 10, 1),
+        OpeningBalance = 1000
+    };
+    var india = new BankAccount
+    {
+        CompanyId = 20,
+        Name = "India test bank",
+        Currency = "INR",
+        CurrencyDecimalPlaces = 2,
+        OpeningBalanceDate = new DateOnly(2026, 10, 1),
+        OpeningBalance = 1000
+    };
+    context.BankAccounts.AddRange(dubai, india);
     await context.SaveChangesAsync();
     context.ChangeTracker.Clear();
     var service = new PaymentBankingService(context, settings, clock, NullLogger<PaymentBankingService>.Instance);
-
-    async Task Made(int id, string branch, string currency, decimal amount, string mode = "RTGS", DateTime? createdAt = null, DateOnly? date = null)
+    async Task Made(
+        int id,
+        string branch,
+        string currency,
+        decimal amount,
+        string mode = "RTGS",
+        DateTime? createdAt = null,
+        DateOnly? date = null
+    )
     {
         var request = Guid.NewGuid();
         var number = "PM-TEST-" + id;
         var createdDate = createdAt ?? clock.GetUtcNow().UtcDateTime;
-        var paymentDate = date ?? new DateOnly(2026,10,23);
+        var paymentDate = date ?? new DateOnly(2026, 10, 23);
         await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO purchases.PaymentsMade (Id,RequestId,PaymentNumber,VendorName,Branch,Currency,Amount,PaymentMode,Reference,PaymentDate,CreatedDate,Status) VALUES({id},{request},{number},'Vendor',{branch},{currency},{amount},{mode},'TEST',{paymentDate},{createdDate},'Recorded')");
     }
-    async Task<PaymentBankingLink> Link(string source, int id) => await context.PaymentBankingLinks.AsNoTracking().SingleAsync(row => row.Source == source && row.SourcePaymentId == id);
-    async Task<BankTransaction> Entry(string source,int id) => await context.BankTransactions.AsNoTracking().SingleAsync(row => row.Id == context.PaymentBankingLinks.Where(link => link.Source == source && link.SourcePaymentId == id).Select(link => link.BankTransactionId).Single());
 
-    await Made(1,"Turbhe","INR",10);
-    await Made(2,"Dubai","AED",25,"NEFT");
-    await Made(3,"Mumbai","INR",7);
-    await Made(4,"India","INR",6);
-    await Made(5,"Turbhe","INR",5,"Cash");
-    await Made(6,"Turbhe","INR",9,"Cheque");
-    await Made(7,"Dubai","USD",15);
-    await Made(8,"Unknown branch","INR",15);
-    await Made(9,"Turbhe","INR",100,createdAt:clock.GetUtcNow().UtcDateTime.AddDays(-1));
+    async Task<PaymentBankingLink> Link(
+        string source,
+        int id
+    ) => await context.PaymentBankingLinks.AsNoTracking().SingleAsync(row => row.Source == source && row.SourcePaymentId == id);
+    async Task<BankTransaction> Entry(
+        string source,
+        int id
+    ) => await context.BankTransactions.AsNoTracking().SingleAsync(row => row.Id == context.PaymentBankingLinks.Where(link => link.Source == source && link.SourcePaymentId == id).Select(link => link.BankTransactionId).Single());
+    await Made(1, "Turbhe", "INR", 10);
+    await Made(2, "Dubai", "AED", 25, "NEFT");
+    await Made(3, "Mumbai", "INR", 7);
+    await Made(4, "India", "INR", 6);
+    await Made(5, "Turbhe", "INR", 5, "Cash");
+    await Made(6, "Turbhe", "INR", 9, "Cheque");
+    await Made(7, "Dubai", "USD", 15);
+    await Made(8, "Unknown branch", "INR", 15);
+    await Made(9, "Turbhe", "INR", 100, createdAt: clock.GetUtcNow().UtcDateTime.AddDays(-1));
     var customerRequest = Guid.NewGuid();
     var now = clock.GetUtcNow().UtcDateTime;
     await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO sales.SalesInvoicePayments VALUES(1,1,{customerRequest},'2026-10-23',20,'AED','RTGS','TEST',{now},NULL)");
@@ -145,93 +186,132 @@ try
     var historicalExpenseRequest = Guid.NewGuid();
     await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO expenses.Expenses VALUES(2,{historicalExpenseRequest},{india.CompanyId},{india.Id},'Old office supplies','INR',4,'EXP-OLD','2026-10-20',{now.AddDays(-1)},NULL,'Recorded')");
     await service.RunOnceAsync(default);
-
-    var outEntry=await Entry("Made",1);
-    Check(outEntry.Amount==10 && outEntry.BankAccountId==india.Id && outEntry.Direction==BankTransactionDirection.MoneyOut && outEntry.Status=="Posted","Partial payment posts only 10 INR to Indian bank");
-    Check((await Entry("Made",2)).BankAccountId==dubai.Id && (await Entry("Made",2)).Currency=="AED","Dubai AED routes to Dubai bank");
-    Check((await Entry("Made",3)).BankAccountId==india.Id,"Mumbai alias routes to Indian bank");
-    Check((await Entry("Made",4)).BankAccountId==india.Id,"India alias routes to Indian bank");
-    var incoming=await Entry("Received",1);
-    Check(incoming.Amount==20 && incoming.BankAccountId==dubai.Id && incoming.Direction==BankTransactionDirection.MoneyIn,"Received payment creates matching Money In");
+    var outEntry = await Entry("Made", 1);
+    Check(
+        outEntry.Amount == 10 && outEntry.BankAccountId == india.Id && outEntry.Direction == BankTransactionDirection.MoneyOut && outEntry.Status == "Posted",
+        "Partial payment posts only 10 INR to Indian bank"
+    );
+    Check(
+        (await Entry("Made", 2)).BankAccountId == dubai.Id && (await Entry("Made", 2)).Currency == "AED",
+        "Dubai AED routes to Dubai bank"
+    );
+    Check((await Entry("Made", 3)).BankAccountId == india.Id, "Mumbai alias routes to Indian bank");
+    Check((await Entry("Made", 4)).BankAccountId == india.Id, "India alias routes to Indian bank");
+    var incoming = await Entry("Received", 1);
+    Check(
+        incoming.Amount == 20 && incoming.BankAccountId == dubai.Id && incoming.Direction == BankTransactionDirection.MoneyIn,
+        "Received payment creates matching Money In"
+    );
     var expenseEntry = await Entry("Expense", 1);
-    Check(expenseEntry.Amount == 15 && expenseEntry.BankAccountId == india.Id && expenseEntry.Direction == BankTransactionDirection.MoneyOut && expenseEntry.Status == "Posted",
-        "Recorded expense creates one posted Money Out transaction from its selected account");
-    Check(!await context.PaymentBankingLinks.AnyAsync(row => row.Source == "Expense" && row.SourcePaymentId == 2),
-        "Historical expenses are not backfilled");
-    Check((await Link("Made",5)).State=="NoBank" && (await Link("Made",5)).BankTransactionId==null,"Cash creates no bank transaction");
-    Check((await Entry("Made",6)).Status=="Draft" && (await Entry("Made",6)).PostedDate==null,"Cheque stays Draft and does not affect posted balance");
-    Check((await Link("Made",7)).State=="NeedsReview" && (await Link("Made",7)).BankTransactionId==null,"Currency mismatch never invents an exchange rate");
-    Check((await Link("Made",8)).State=="NeedsReview","Unknown branch never chooses an arbitrary bank");
-    Check(!await context.PaymentBankingLinks.AnyAsync(row=>row.Source=="Made" && row.SourcePaymentId==9),"Historical payments are not backfilled");
-    var count=await context.BankTransactions.CountAsync();
+    Check(
+        expenseEntry.Amount == 15 && expenseEntry.BankAccountId == india.Id && expenseEntry.Direction == BankTransactionDirection.MoneyOut && expenseEntry.Status == "Posted",
+        "Recorded expense creates one posted Money Out transaction from its selected account"
+    );
+    Check(
+        !await context.PaymentBankingLinks.AnyAsync(row => row.Source == "Expense" && row.SourcePaymentId == 2),
+        "Historical expenses are not backfilled"
+    );
+    Check(
+        (await Link("Made", 5)).State == "NoBank" && (await Link("Made", 5)).BankTransactionId == null,
+        "Cash creates no bank transaction"
+    );
+    Check(
+        (await Entry("Made", 6)).Status == "Draft" && (await Entry("Made", 6)).PostedDate == null,
+        "Cheque stays Draft and does not affect posted balance"
+    );
+    Check(
+        (await Link("Made", 7)).State == "NeedsReview" && (await Link("Made", 7)).BankTransactionId == null,
+        "Currency mismatch never invents an exchange rate"
+    );
+    Check((await Link("Made", 8)).State == "NeedsReview", "Unknown branch never chooses an arbitrary bank");
+    Check(
+        !await context.PaymentBankingLinks.AnyAsync(row => row.Source == "Made" && row.SourcePaymentId == 9),
+        "Historical payments are not backfilled"
+    );
+    var count = await context.BankTransactions.CountAsync();
     await service.RunOnceAsync(default);
-    Check(await context.BankTransactions.CountAsync()==count,"Repeated processing never duplicates bank entries");
-    var originalAmount=await context.Database.SqlQuery<decimal>($"SELECT Amount AS Value FROM purchases.PaymentsMade WHERE Id=1").SingleAsync();
-    Check(originalAmount==10,"Original payment amount remains unchanged");
-    var indiaNet=await context.BankTransactions.Where(row=>row.BankAccountId==india.Id && row.Status=="Posted").SumAsync(row=>row.Direction==BankTransactionDirection.MoneyIn ? row.Amount : -row.Amount);
-    Check(indiaNet==-38,"Bank deduction includes recorded expenses and excludes cash and uncleared cheque");
-
+    Check(
+        await context.BankTransactions.CountAsync() == count,
+        "Repeated processing never duplicates bank entries"
+    );
+    var originalAmount = await context.Database.SqlQuery<decimal>($"SELECT Amount AS Value FROM purchases.PaymentsMade WHERE Id=1").SingleAsync();
+    Check(originalAmount == 10, "Original payment amount remains unchanged");
+    var indiaNet = await context.BankTransactions.Where(row => row.BankAccountId == india.Id && row.Status == "Posted").SumAsync(row => row.Direction == BankTransactionDirection.MoneyIn ? row.Amount : -row.Amount);
+    Check(
+        indiaNet == -38,
+        "Bank deduction includes recorded expenses and excludes cash and uncleared cheque"
+    );
     // Close a period with no lines to exercise the automatic draft fallback.
-    context.BankReconciliations.Add(new BankReconciliation
-    {
-        RequestId=Guid.NewGuid(),BankAccountId=india.Id,CompanyId=india.CompanyId,
-        Currency="INR",CurrencyDecimalPlaces=2,PeriodStart=new DateOnly(2026,10,1),PeriodEnd=new DateOnly(2026,10,22),
-        Status="Completed",CompletedDate=now
-    });
+    context.BankReconciliations.Add(new BankReconciliation { RequestId = Guid.NewGuid(), BankAccountId = india.Id, CompanyId = india.CompanyId, Currency = "INR", CurrencyDecimalPlaces = 2, PeriodStart = new DateOnly(2026, 10, 1), PeriodEnd = new DateOnly(2026, 10, 22), Status = "Completed", CompletedDate = now });
     await context.SaveChangesAsync();
     context.ChangeTracker.Clear();
     var closedExpenseRequest = Guid.NewGuid();
     await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO expenses.Expenses VALUES(3,{closedExpenseRequest},{india.CompanyId},{india.Id},'Closed period expense','INR',5,'EXP-CLOSED','2026-10-22',{now},NULL,'Recorded')");
-    await Made(10,"Turbhe","INR",11,date:new DateOnly(2026,10,22));
+    await Made(10, "Turbhe", "INR", 11, date: new DateOnly(2026, 10, 22));
     await service.RunOnceAsync(default);
-    Check((await Entry("Made",10)).Status=="Draft","Closed period creates Draft without blocking original payment");
-    Check((await Entry("Made",10)).TransactionDate==new DateOnly(2026,10,22),"Original payment date is never moved to another day");
-    Check((await Entry("Expense",3)).Status == "Draft", "Expense in a completed reconciliation is kept as Draft for review");
-
+    Check(
+        (await Entry("Made", 10)).Status == "Draft",
+        "Closed period creates Draft without blocking original payment"
+    );
+    Check(
+        (await Entry("Made", 10)).TransactionDate == new DateOnly(2026, 10, 22),
+        "Original payment date is never moved to another day"
+    );
+    Check(
+        (await Entry("Expense", 3)).Status == "Draft",
+        "Expense in a completed reconciliation is kept as Draft for review"
+    );
     await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE purchases.PaymentsMade SET Status='Voided',VoidedDate={now} WHERE Id=1");
     await service.RunOnceAsync(default);
-    var reversed=await Link("Made",1);
-    var reverseEntry=await context.BankTransactions.AsNoTracking().SingleAsync(row=>row.Id==reversed.ReversalTransactionId);
-    Check(reverseEntry.Direction==BankTransactionDirection.MoneyIn && reverseEntry.Amount==10 && reverseEntry.ReversalOfTransactionId==outEntry.Id,"Vendor void adds one matching reversal");
-    Check((await context.BankTransactions.AsNoTracking().SingleAsync(row=>row.Id==outEntry.Id)).Status=="Posted","Original bank history is preserved");
-    var reverseCount=await context.BankTransactions.CountAsync();
+    var reversed = await Link("Made", 1);
+    var reverseEntry = await context.BankTransactions.AsNoTracking().SingleAsync(row => row.Id == reversed.ReversalTransactionId);
+    Check(
+        reverseEntry.Direction == BankTransactionDirection.MoneyIn && reverseEntry.Amount == 10 && reverseEntry.ReversalOfTransactionId == outEntry.Id,
+        "Vendor void adds one matching reversal"
+    );
+    Check(
+        (await context.BankTransactions.AsNoTracking().SingleAsync(row => row.Id == outEntry.Id)).Status == "Posted",
+        "Original bank history is preserved"
+    );
+    var reverseCount = await context.BankTransactions.CountAsync();
     await service.RunOnceAsync(default);
-    Check(await context.BankTransactions.CountAsync()==reverseCount,"Repeated void processing does not reverse twice");
+    Check(
+        await context.BankTransactions.CountAsync() == reverseCount,
+        "Repeated void processing does not reverse twice"
+    );
     await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE expenses.Expenses SET Status='Voided',ModifiedDate={now} WHERE Id=1");
     await service.RunOnceAsync(default);
     var voidedExpense = await Link("Expense", 1);
-    var expenseReversal = await context.BankTransactions.AsNoTracking()
-        .SingleAsync(row => row.Id == voidedExpense.ReversalTransactionId);
-    Check(expenseReversal.Direction == BankTransactionDirection.MoneyIn &&
-        expenseReversal.Amount == expenseEntry.Amount &&
-        expenseReversal.ReversalOfTransactionId == expenseEntry.Id,
-        "Voiding a recorded expense creates one matching reversal transaction");
+    var expenseReversal = await context.BankTransactions.AsNoTracking().SingleAsync(row => row.Id == voidedExpense.ReversalTransactionId);
+    Check(
+        expenseReversal.Direction == BankTransactionDirection.MoneyIn && expenseReversal.Amount == expenseEntry.Amount && expenseReversal.ReversalOfTransactionId == expenseEntry.Id,
+        "Voiding a recorded expense creates one matching reversal transaction"
+    );
     await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE purchases.PaymentsMade SET Status='Voided',VoidedDate={now} WHERE Id=6");
     await service.RunOnceAsync(default);
-    Check((await Entry("Made",6)).Status=="Cancelled","Voiding an uncleared cheque cancels its draft");
-
+    Check((await Entry("Made", 6)).Status == "Cancelled", "Voiding an uncleared cheque cancels its draft");
     // Fixing a route retries the same payment instead of recreating its source record.
     settings.Value.Routes[1].Branches.Add("Unknown branch");
-    await service.ProcessAsync("Made",8,default);
+    await service.ProcessAsync("Made", 8, default);
     context.ChangeTracker.Clear();
-    Check((await Link("Made",8)).State=="Posted","Missing route can be repaired and safely retried");
+    Check((await Link("Made", 8)).State == "Posted", "Missing route can be repaired and safely retried");
     Console.WriteLine($"{checks} branch payment banking checks passed. No existing Finance data modified.");
 }
 finally
 {
     SqlConnection.ClearAllPools();
-    if(created && database.StartsWith("FinanceBranchBankingChecks_") && database.Length=="FinanceBranchBankingChecks_".Length+32)
+    if (created && database.StartsWith("FinanceBranchBankingChecks_") && database.Length == "FinanceBranchBankingChecks_".Length + 32)
     {
-        connection.InitialCatalog="master";
+        connection.InitialCatalog = "master";
         await using var master = new SqlConnection(connection.ConnectionString);
         await master.OpenAsync();
-        await using var command=master.CreateCommand();
-        command.CommandText=$"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{database}]";
+        await using var command = master.CreateCommand();
+        command.CommandText = $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{database}]";
         await command.ExecuteNonQueryAsync();
     }
 }
 
 class CheckClock : TimeProvider
 {
-    public override DateTimeOffset GetUtcNow()=>new DateTimeOffset(2026,10,23,12,0,0,TimeSpan.Zero);
+    public override DateTimeOffset GetUtcNow() => new DateTimeOffset(2026, 10, 23, 12, 0, 0, TimeSpan.Zero);
 }

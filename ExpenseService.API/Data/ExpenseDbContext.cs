@@ -1,9 +1,10 @@
+using SparkFinance.Auditing;
 using ExpenseService.API.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseService.API.Data
 {
-    public class ExpenseDbContext : DbContext
+    public class ExpenseDbContext : AuditedDbContext
     {
         public ExpenseDbContext(
             DbContextOptions<ExpenseDbContext> options)
@@ -18,6 +19,9 @@ namespace ExpenseService.API.Data
         public DbSet<Expense> Expenses => Set<Expense>();
 
         public DbSet<Receipt> Receipts => Set<Receipt>();
+        public DbSet<ExpenseClaim> ExpenseClaims => Set<ExpenseClaim>();
+        public DbSet<ExpenseClaimReceipt> ExpenseClaimReceipts => Set<ExpenseClaimReceipt>();
+        public DbSet<ExpenseClaimHistory> ExpenseClaimHistory => Set<ExpenseClaimHistory>();
 
         public DbSet<ExpenseCountryLookup> Countries => Set<ExpenseCountryLookup>();
 
@@ -27,6 +31,22 @@ namespace ExpenseService.API.Data
             ModelBuilder builder)
         {
             builder.HasDefaultSchema("expenses");
+            builder.Entity<ExpenseClaim>(entity =>
+            {
+                entity.ToTable("ExpenseClaims", table =>
+                {
+                    table.HasCheckConstraint("CK_ExpenseClaim_Amount", "[Amount] > 0");
+                    table.HasCheckConstraint("CK_ExpenseClaim_Status", "[Status] IN ('Draft','Submitted','Approved','Rejected','Paid','Cancelled')");
+                });
+                entity.HasIndex(row => row.RequestId).IsUnique();
+                entity.HasIndex(row => new { row.CompanyId, row.Reference }).IsUnique();
+                entity.Property(row => row.Amount).HasPrecision(18, 2);
+                entity.Property(row => row.ExchangeRate).HasPrecision(18, 8);
+                entity.Property(row => row.RowVersion).IsRowVersion();
+                entity.HasOne<Company>().WithMany().HasForeignKey(row => row.CompanyId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(row => row.Receipts).WithOne().HasForeignKey(row => row.ExpenseClaimId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(row => row.History).WithOne().HasForeignKey(row => row.ExpenseClaimId).OnDelete(DeleteBehavior.Cascade);
+            });
 
             builder.Entity<ExpenseCountryLookup>()
                 .HasNoKey()

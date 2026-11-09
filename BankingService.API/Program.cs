@@ -4,6 +4,7 @@ using BankingService.API.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

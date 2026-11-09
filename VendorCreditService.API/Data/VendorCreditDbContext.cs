@@ -1,10 +1,11 @@
+using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection.Emit;
 using VendorCreditService.API.Models;
 
 namespace VendorCreditService.API.Data
 {
-    public class VendorCreditDbContext : DbContext
+    public class VendorCreditDbContext : AuditedDbContext
     {
         public VendorCreditDbContext(
             DbContextOptions<VendorCreditDbContext> options)

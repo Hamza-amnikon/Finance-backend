@@ -338,6 +338,12 @@ namespace BankingService.API.Services
                     "The bank amount or charge has more decimal places than the selected bank account supports.");
             }
 
+            var auditBeforeJson = await _context.Database.SqlQuery<string>($"""
+                SELECT (SELECT p.Id, i.Branch, p.Currency, p.SettlementType, p.BankAccountId, p.BankAmount, p.BankChargeAmount, p.BankCurrency
+                    FROM sales.SalesInvoicePayments p INNER JOIN sales.SalesInvoices i ON i.Id = p.SalesInvoiceId WHERE p.Id = {paymentId}
+                    FOR JSON PATH, INCLUDE_NULL_VALUES, WITHOUT_ARRAY_WRAPPER) AS Value
+                """).SingleAsync(cancellationToken);
+            var auditBefore = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(auditBeforeJson)!;
             await _context.Database.ExecuteSqlInterpolatedAsync($"""
                 UPDATE [sales].[SalesInvoicePayments]
                 SET [SettlementType] = 'Bank',
@@ -348,6 +354,12 @@ namespace BankingService.API.Services
                     [BankCurrency] = {account.Currency}
                 WHERE [Id] = {paymentId}
                 """, cancellationToken);
+            var auditAfter = new Dictionary<string, object?>(auditBefore)
+            {
+                ["SettlementType"] = "Bank", ["BankAccountId"] = account.Id, ["BankAmount"] = dto.BankAmount,
+                ["BankChargeAmount"] = dto.BankChargeAmount, ["BankCurrency"] = account.Currency
+            };
+            await SparkFinance.Auditing.FinanceAudit.WriteAsync(_context, "SalesInvoicePayment", paymentId.ToString(), "Updated", auditBefore, auditAfter, cancellationToken);
 
             if (link != null)
             {

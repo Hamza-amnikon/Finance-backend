@@ -1,9 +1,10 @@
+using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using PaymentMadeService.API.Models;
 
 namespace PaymentMadeService.API.Data
 {
-    public class PaymentMadeDbContext : DbContext
+    public class PaymentMadeDbContext : AuditedDbContext
     {
         public PaymentMadeDbContext(
             DbContextOptions<PaymentMadeDbContext> options)

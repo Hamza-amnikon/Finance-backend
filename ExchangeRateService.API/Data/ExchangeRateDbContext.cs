@@ -1,9 +1,10 @@
+using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using ExchangeRateService.API.Models;
 
 namespace ExchangeRateService.API.Data
 {
-    public class ExchangeRateDbContext : DbContext
+    public class ExchangeRateDbContext : AuditedDbContext
     {
         public ExchangeRateDbContext(
             DbContextOptions<ExchangeRateDbContext> options)

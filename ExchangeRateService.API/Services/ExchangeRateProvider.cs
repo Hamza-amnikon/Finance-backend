@@ -83,13 +83,17 @@ namespace ExchangeRateService.API.Services
                 response.StatusCode == HttpStatusCode.UnprocessableEntity)
             {
                 throw new HttpRequestException(
-                    "No reference rate is available for these currencies and this date.");
+                    "No reference rate is available for these currencies and this date.",
+                    null,
+                    response.StatusCode);
             }
 
             if (!response.IsSuccessStatusCode)
             {
                 throw new HttpRequestException(
-                    "The exchange-rate provider is unavailable. Retry shortly.");
+                    "The exchange-rate provider is unavailable. Retry shortly.",
+                    null,
+                    response.StatusCode);
             }
 
             ProviderRate? providerRate;
@@ -111,7 +115,7 @@ namespace ExchangeRateService.API.Services
                 providerRate == null ||
                 providerRate.Rate <= 0 ||
                 providerRate.Date == default ||
-                providerRate.Date > rateDate.AddDays(1) ||
+                providerRate.Date > rateDate ||
                 !string.Equals(providerRate.Base, baseCurrency, StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(providerRate.Quote, quoteCurrency, StringComparison.OrdinalIgnoreCase))
             {

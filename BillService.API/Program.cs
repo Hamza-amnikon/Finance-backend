@@ -4,6 +4,7 @@ using BillService.API.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
 
 // Controllers and API documentation
 builder.Services.AddControllers();

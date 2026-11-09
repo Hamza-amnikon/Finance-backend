@@ -39,6 +39,9 @@ namespace ExpenseService.API.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("nvarchar(3)");
 
+                    b.Property<int>("CurrencyDecimalPlaces")
+                        .HasColumnType("int");
+
                     b.Property<string>("LastFour")
                         .IsRequired()
                         .HasMaxLength(4)
@@ -54,7 +57,10 @@ namespace ExpenseService.API.Migrations
                     b.HasIndex("CompanyId", "Name")
                         .IsUnique();
 
-                    b.ToTable("BankAccounts", "expenses");
+                    b.ToTable("BankAccounts", "expenses", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
                 });
 
             modelBuilder.Entity("ExpenseService.API.Models.Company", b =>
@@ -202,6 +208,216 @@ namespace ExpenseService.API.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ExpenseService.API.Models.ExpenseClaim", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly?>("ApprovedDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Branch")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("DecisionReason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Employee")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("ExchangeRate")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.Property<int?>("ExpenseAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("PaidBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly?>("PaidDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("PayableAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PaymentAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateOnly?>("RateDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ReportingCurrency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("CompanyId", "Reference")
+                        .IsUnique();
+
+                    b.ToTable("ExpenseClaims", "expenses", t =>
+                        {
+                            t.HasCheckConstraint("CK_ExpenseClaim_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_ExpenseClaim_Status", "[Status] IN ('Draft','Submitted','Approved','Rejected','Paid','Cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("ExpenseService.API.Models.ExpenseClaimHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ExpenseClaimId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpenseClaimId");
+
+                    b.ToTable("ExpenseClaimHistory", "expenses");
+                });
+
+            modelBuilder.Entity("ExpenseService.API.Models.ExpenseClaimReceipt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("ExpenseClaimId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpenseClaimId");
+
+                    b.ToTable("ExpenseClaimReceipts", "expenses");
+                });
+
             modelBuilder.Entity("ExpenseService.API.Models.ExpenseCountryLookup", b =>
                 {
                     b.Property<string>("CountryName")
@@ -296,6 +512,33 @@ namespace ExpenseService.API.Migrations
                     b.Navigation("Company");
                 });
 
+            modelBuilder.Entity("ExpenseService.API.Models.ExpenseClaim", b =>
+                {
+                    b.HasOne("ExpenseService.API.Models.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ExpenseService.API.Models.ExpenseClaimHistory", b =>
+                {
+                    b.HasOne("ExpenseService.API.Models.ExpenseClaim", null)
+                        .WithMany("History")
+                        .HasForeignKey("ExpenseClaimId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ExpenseService.API.Models.ExpenseClaimReceipt", b =>
+                {
+                    b.HasOne("ExpenseService.API.Models.ExpenseClaim", null)
+                        .WithMany("Receipts")
+                        .HasForeignKey("ExpenseClaimId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ExpenseService.API.Models.Receipt", b =>
                 {
                     b.HasOne("ExpenseService.API.Models.Expense", "Expense")
@@ -310,6 +553,13 @@ namespace ExpenseService.API.Migrations
             modelBuilder.Entity("ExpenseService.API.Models.Expense", b =>
                 {
                     b.Navigation("Receipt");
+                });
+
+            modelBuilder.Entity("ExpenseService.API.Models.ExpenseClaim", b =>
+                {
+                    b.Navigation("History");
+
+                    b.Navigation("Receipts");
                 });
 #pragma warning restore 612, 618
         }

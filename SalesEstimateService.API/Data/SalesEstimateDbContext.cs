@@ -1,9 +1,10 @@
+using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using SalesEstimateService.API.Models;
 
 namespace SalesEstimateService.API.Data
 {
-    public class SalesEstimateDbContext : DbContext
+    public class SalesEstimateDbContext : AuditedDbContext
     {
         public SalesEstimateDbContext(
             DbContextOptions<SalesEstimateDbContext> options)

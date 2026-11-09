@@ -1,9 +1,10 @@
-﻿using ClientService.API.Models;
+using SparkFinance.Auditing;
+using ClientService.API.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClientService.API.Data
 {
-    public class ClientDbContext : DbContext
+    public class ClientDbContext : AuditedDbContext
     {
         public ClientDbContext(
             DbContextOptions<ClientDbContext> options)

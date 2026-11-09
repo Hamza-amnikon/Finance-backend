@@ -1,15 +1,18 @@
+using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.Models;
 
 namespace SalesInvoiceService.API.Data
 {
-    public class SalesInvoiceDbContext : DbContext
+    public class SalesInvoiceDbContext : AuditedDbContext
     {
         public SalesInvoiceDbContext(
             DbContextOptions<SalesInvoiceDbContext> options)
             : base(options)
         {
         }
+
+        public DbSet<OrganizationProfile> OrganizationProfiles => Set<OrganizationProfile>();
 
         public DbSet<SalesInvoice> SalesInvoices =>
             Set<SalesInvoice>();

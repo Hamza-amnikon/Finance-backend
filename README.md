@@ -51,3 +51,9 @@ rates for Dashboard, Banking and Expenses. Include it as a startup project using
 its `https` profile (7441/7442). See [setup and verification](ExchangeRateService.API/README.md).
 The default daily check is 19:30 India time (14:00 UTC), with hourly retries.
 Daily checks require the API to be running; no external scheduler is installed.
+
+## Organization profiles
+
+Organization profiles use `SalesInvoiceService.API` through `/api/organization-profiles` for paginated lists, detail, create and update. Apply `SalesInvoiceService.API/Database/AddOrganizationProfiles.sql` to an existing deployment before enabling the page; the script only creates the table if absent. Restart the API after deploying the controller and restart Vite after changing proxy configuration.
+
+The profile uses active currencies from `sales.CurrencyMasters`. An unchanged saved currency is preserved when it later becomes inactive. Profiles store general contact information and do not modify accounting companies, branch invoice details, or their tax registration numbers.

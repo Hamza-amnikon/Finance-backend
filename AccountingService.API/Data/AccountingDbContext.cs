@@ -1,9 +1,10 @@
-﻿using AccountingService.API.Models;
+using SparkFinance.Auditing;
+using AccountingService.API.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace AccountingService.API.Data
 {
-    public class AccountingDbContext : DbContext
+    public class AccountingDbContext : AuditedDbContext
     {
         public AccountingDbContext(
             DbContextOptions<AccountingDbContext> options)
@@ -22,11 +23,28 @@ namespace AccountingService.API.Data
 
         public DbSet<JournalEntryLine> JournalEntryLines =>
             Set<JournalEntryLine>();
+        public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<AuditEvent>(entity =>
+            {
+                entity.ToTable("Events", "audit");
+                entity.HasKey(row => row.Id);
+                entity.Property(row => row.Service).HasMaxLength(100);
+                entity.Property(row => row.EntityType).HasMaxLength(100);
+                entity.Property(row => row.EntityId).HasMaxLength(200);
+                entity.Property(row => row.Action).HasMaxLength(40);
+                entity.Property(row => row.Actor).HasMaxLength(200);
+                entity.Property(row => row.ActorKind).HasMaxLength(50);
+                entity.Property(row => row.Branch).HasMaxLength(100);
+                entity.Property(row => row.CorrelationId).HasMaxLength(100);
+                entity.HasIndex(row => row.AtUtc);
+                entity.HasIndex(row => new { row.EntityType, row.EntityId });
+                entity.HasIndex(row => new { row.Branch, row.AtUtc });
+            });
 
             modelBuilder.HasDefaultSchema(
                 "accounting");

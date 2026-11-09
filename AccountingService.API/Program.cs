@@ -5,6 +5,8 @@ using AccountingService.API.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IReconciliationReportService, ReconciliationReportService>();
 
 builder.Services
     .AddControllers()

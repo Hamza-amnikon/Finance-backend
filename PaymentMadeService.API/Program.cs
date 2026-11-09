@@ -4,6 +4,7 @@ using PaymentMadeService.API.Repositories;
 using PaymentMadeService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

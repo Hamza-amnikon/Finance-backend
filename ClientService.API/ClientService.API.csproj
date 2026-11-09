@@ -24,4 +24,7 @@
     <Folder Include="Data\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Shared\Auditing\FinanceAudit.cs" Link="Shared\FinanceAudit.cs" />
+  </ItemGroup>
 </Project>

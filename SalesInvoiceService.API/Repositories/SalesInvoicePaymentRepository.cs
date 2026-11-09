@@ -286,6 +286,28 @@ namespace SalesInvoiceService.API.Repositories
                     "Payments can only be recorded against issued invoices.");
             }
 
+            if (payment.BankAccountId.HasValue)
+            {
+                var bankCurrency = await _context.Database
+                    .SqlQuery<string>($"SELECT [Currency] AS [Value] FROM [expenses].[BankAccounts] WHERE [Id] = {payment.BankAccountId.Value}")
+                    .SingleOrDefaultAsync(cancellationToken);
+
+                if (string.IsNullOrWhiteSpace(bankCurrency) ||
+                    !string.Equals(bankCurrency.Trim(), payment.BankCurrency, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException(
+                        "Select a valid bank account and its matching currency.");
+                }
+
+                if (string.Equals(bankCurrency.Trim(), invoice.Currency.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                    (!payment.BankAmount.HasValue || payment.BankChargeAmount < 0 ||
+                        payment.BankAmount.Value + payment.BankChargeAmount != payment.Amount))
+                {
+                    throw new ArgumentException(
+                        "For the same currency, the bank amount plus bank charges must equal the payment amount.");
+                }
+            }
+
             var paidAmount = await _context.SalesInvoicePayments
                 .Where(entry =>
                     entry.SalesInvoiceId == invoice.Id)

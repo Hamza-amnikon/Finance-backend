@@ -4,6 +4,7 @@ using SalesEstimateService.API.Services;
 using SalesEstimateService.API.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

@@ -3,6 +3,7 @@ using DashboardService.API.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
