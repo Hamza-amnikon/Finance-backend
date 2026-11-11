@@ -13,6 +13,7 @@ namespace PurchaseOrderService.API.Services
 {
     public class PurchaseOrderService : IPurchaseOrderService
     {
+        private readonly PurchaseOrderTaxSettingsService _taxSettings;
         private readonly PurchaseOrderDbContext _context;
         private readonly IPurchaseOrderRepository _repository;
         private readonly IPurchaseOrderCalculator _calculator;
@@ -20,8 +21,10 @@ namespace PurchaseOrderService.API.Services
         public PurchaseOrderService(
             PurchaseOrderDbContext context,
             IPurchaseOrderRepository repository,
-            IPurchaseOrderCalculator calculator)
+            IPurchaseOrderCalculator calculator,
+            PurchaseOrderTaxSettingsService taxSettings)
         {
+            _taxSettings = taxSettings;
             _context = context;
             _repository = repository;
             _calculator = calculator;
@@ -192,6 +195,7 @@ namespace PurchaseOrderService.API.Services
             PurchaseOrder order,
             CancellationToken ct)
         {
+            await _taxSettings.ValidateDraftAsync(order, ct);
             var vendorActive = await _context.Vendors.AnyAsync(
                 row =>
                     row.Id == order.VendorId &&
@@ -365,12 +369,14 @@ namespace PurchaseOrderService.API.Services
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
                         DiscountEnabled = item.DiscountEnabled,
-                        DiscountAmount = item.DiscountAmount,
-                        TaxRate = item.TaxRate
+                        DiscountType = item.DiscountType,
+                        DiscountValue = item.DiscountValue,
+                        DiscountAmount = item.DiscountAmount
                     })
                     .ToList()
             };
 
+            await _taxSettings.ApplyAsync(order, dto.Items, ct);
             _calculator.Calculate(
                 order,
                 currency.DecimalPlaces);
@@ -433,6 +439,8 @@ namespace PurchaseOrderService.API.Services
                 SubTotal = order.SubTotal,
                 DiscountTotal = order.DiscountTotal,
                 TaxTotal = order.TaxTotal,
+                UsesTaxSettings = order.UsesTaxSettings,
+                TaxTreatment = order.TaxTreatment,
                 GrandTotal = order.GrandTotal,
                 Status = order.Status,
                 CreatedDate = order.CreatedDate,
@@ -453,8 +461,12 @@ namespace PurchaseOrderService.API.Services
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
                         DiscountEnabled = item.DiscountEnabled,
+                        DiscountType = item.DiscountType,
+                        DiscountValue = item.DiscountValue,
                         DiscountAmount = item.DiscountAmount,
                         TaxRate = item.TaxRate,
+                        TaxSettingId = item.TaxSettingId,
+                        TaxSettingSnapshotJson = item.TaxSettingSnapshotJson,
                         LineSubTotal = item.LineSubTotal,
                         TaxAmount = item.TaxAmount,
                         LineTotal = item.LineTotal

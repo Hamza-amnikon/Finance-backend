@@ -24,6 +24,13 @@ namespace PurchaseOrderService.API.Migrations
 
             modelBuilder.Entity("PurchaseOrderService.API.Models.PurchaseBranchLookup", b =>
                 {
+                    b.Property<int?>("AccountingCompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Id")
                         .HasColumnType("int");
 
@@ -176,6 +183,14 @@ namespace PurchaseOrderService.API.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("TaxTreatment")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("UsesTaxSettings")
+                        .HasColumnType("bit");
+
                     b.Property<Guid>("VendorId")
                         .HasColumnType("uniqueidentifier");
 
@@ -218,6 +233,17 @@ namespace PurchaseOrderService.API.Migrations
                     b.Property<bool>("DiscountEnabled")
                         .HasColumnType("bit");
 
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("Fixed");
+
+                    b.Property<decimal?>("DiscountValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
                     b.Property<string>("ItemName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -248,6 +274,13 @@ namespace PurchaseOrderService.API.Migrations
                     b.Property<decimal>("TaxRate")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("TaxSettingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TaxSettingSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Unit")
                         .IsRequired()

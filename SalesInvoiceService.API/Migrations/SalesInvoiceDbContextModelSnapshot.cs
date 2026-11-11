@@ -250,6 +250,52 @@ namespace SalesInvoiceService.API.Migrations
                     b.ToTable("InvoiceNumberCounters", "sales");
                 });
 
+            modelBuilder.Entity("SalesInvoiceService.API.Models.OrganizationProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(25)
+                        .HasColumnType("nvarchar(25)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OrganizationProfiles", "sales", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("SalesInvoiceService.API.Models.PaymentMode", b =>
                 {
                     b.Property<int>("Id")
@@ -580,6 +626,9 @@ namespace SalesInvoiceService.API.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<bool>("UsesTaxSettings")
+                        .HasColumnType("bit");
+
                     b.Property<string>("VoidReason")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -625,6 +674,17 @@ namespace SalesInvoiceService.API.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("Fixed");
+
+                    b.Property<decimal?>("DiscountValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
                     b.Property<int>("LineNumber")
                         .HasColumnType("int");
 
@@ -655,6 +715,13 @@ namespace SalesInvoiceService.API.Migrations
                     b.Property<decimal>("TaxRate")
                         .HasPrecision(7, 4)
                         .HasColumnType("decimal(7,4)");
+
+                    b.Property<int?>("TaxSettingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TaxSettingSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Unit")
                         .IsRequired()
@@ -742,6 +809,21 @@ namespace SalesInvoiceService.API.Migrations
                     b.Property<string>("SettlementType")
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Recorded");
+
+                    b.Property<string>("VoidReason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("VoidedDate")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 

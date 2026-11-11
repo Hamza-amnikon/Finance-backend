@@ -21,6 +21,14 @@ namespace SalesInvoiceService.API.Models
 
         public int? BankTransactionId { get; set; }
 
+        [MaxLength(20)]
+        public string Status { get; set; } = "Recorded";
+
+        public DateTime? VoidedDate { get; set; }
+
+        [MaxLength(1000)]
+        public string VoidReason { get; set; } = string.Empty;
+
         public int Id { get; set; }
 
         public int SalesInvoiceId { get; set; }

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.DTOs;
 using SalesInvoiceService.API.Models;
@@ -11,15 +11,18 @@ namespace SalesInvoiceService.API.Controllers
     public class SalesInvoicesController : ControllerBase
     {
         private readonly ICurrencyService _currencyService;
+        private readonly InvoiceTaxSettingsService _taxSettings;
         private readonly ISalesInvoiceCalculator _calculator;
         private readonly ISalesInvoiceService _invoiceService;
 
         public SalesInvoicesController(
             ICurrencyService currencyService,
             ISalesInvoiceCalculator calculator,
-            ISalesInvoiceService invoiceService)
+            ISalesInvoiceService invoiceService,
+            InvoiceTaxSettingsService taxSettings)
         {
             _currencyService = currencyService;
+            _taxSettings = taxSettings;
             _calculator = calculator;
             _invoiceService = invoiceService;
         }
@@ -107,15 +110,17 @@ namespace SalesInvoiceService.API.Controllers
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
                         DiscountEnabled = item.DiscountEnabled,
+                        DiscountType = item.DiscountType,
+                        DiscountValue = item.DiscountValue,
                         DiscountAmount = item.DiscountEnabled
                             ? item.DiscountAmount
-                            : 0m,
-                        TaxRate = item.TaxRate
+                            : 0m
                     }).ToList()
             };
 
             try
             {
+                await _taxSettings.ApplyAsync(invoice, dto.Items, cancellationToken);
                 _calculator.Calculate(
                     invoice,
                     currency.DecimalPlaces);

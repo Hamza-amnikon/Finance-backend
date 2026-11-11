@@ -14,7 +14,14 @@ namespace BillService.API.DTOs
         public decimal Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public bool DiscountEnabled { get; set; }
+        [System.ComponentModel.DataAnnotations.MaxLength(10)]
+        public string DiscountType { get; set; } = "Fixed";
+
+        public decimal? DiscountValue { get; set; }
+
         public decimal DiscountAmount { get; set; }
+        public int? TaxSettingId { get; set; }
+        public string TaxSettingSnapshotJson { get; set; } = "";
         public decimal TaxRate { get; set; }
         public decimal LineSubTotal { get; set; }
         public decimal TaxAmount { get; set; }

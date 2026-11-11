@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.DTOs;
 using SalesInvoiceService.API.Models;
@@ -9,6 +9,7 @@ namespace SalesInvoiceService.API.Services
     public class SalesInvoiceService : ISalesInvoiceService
     {
         private readonly ISalesInvoiceRepository _repository;
+        private readonly InvoiceTaxSettingsService _taxSettings;
         private readonly IClientApiService _clientApiService;
         private readonly ICurrencyService _currencyService;
         private readonly ISalesInvoiceCalculator _calculator;
@@ -26,9 +27,11 @@ namespace SalesInvoiceService.API.Services
             IPaymentModeService paymentModeService,
             IBranchService branchService,
             IAccountingApiService accountingApiService,
-            IInvoiceExchangeRateService exchangeRateService)
+            IInvoiceExchangeRateService exchangeRateService,
+            InvoiceTaxSettingsService taxSettings)
         {
             _repository = repository;
+            _taxSettings = taxSettings;
             _clientApiService = clientApiService;
             _currencyService = currencyService;
             _calculator = calculator;
@@ -148,12 +151,15 @@ namespace SalesInvoiceService.API.Services
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
                         DiscountEnabled = item.DiscountEnabled,
+                        DiscountType = item.DiscountType,
+                        DiscountValue = item.DiscountValue,
                         DiscountAmount = item.DiscountEnabled
                             ? item.DiscountAmount
-                            : 0m,
-                        TaxRate = item.TaxRate
+                            : 0m
                     }).ToList()
             };
+
+            await _taxSettings.ApplyAsync(invoice, dto.Items, cancellationToken);
 
             _calculator.Calculate(
                 invoice,
@@ -238,6 +244,8 @@ namespace SalesInvoiceService.API.Services
             {
                 throw new ArgumentException("Review the invoice date and due date before issuing.");
             }
+
+            await _taxSettings.ValidateDraftAsync(invoice, cancellationToken);
 
             var originalTotals = (invoice.SubTotal, invoice.DiscountTotal, invoice.TaxTotal, invoice.GrandTotal);
             _calculator.Calculate(invoice, currency.DecimalPlaces);
@@ -478,6 +486,7 @@ namespace SalesInvoiceService.API.Services
             return new SalesInvoiceResponseDto
             {
                 Id = invoice.Id,
+                UsesTaxSettings = invoice.UsesTaxSettings,
                 ClientId = invoice.ClientId,
                 SourceEstimateId = invoice.SourceEstimateId,
                 SourceEstimateNumber = invoice.SourceEstimateNumber,
@@ -527,10 +536,14 @@ namespace SalesInvoiceService.API.Services
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
                         DiscountEnabled = item.DiscountEnabled,
+                        DiscountType = item.DiscountType,
+                        DiscountValue = item.DiscountValue,
                         DiscountAmount = item.DiscountEnabled
                             ? item.DiscountAmount
                             : 0m,
                         TaxRate = item.TaxRate,
+                        TaxSettingId = item.TaxSettingId,
+                        TaxSettingSnapshotJson = item.TaxSettingSnapshotJson,
                         LineSubTotal = item.LineSubTotal,
                         TaxAmount = item.TaxAmount,
                         LineTotal = item.LineTotal

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace SalesInvoiceService.API.Models
 {
@@ -37,11 +37,20 @@ namespace SalesInvoiceService.API.Models
 
         public bool DiscountEnabled { get; set; } = true;
 
-        // Monetary discount, not a percentage.
+        [System.ComponentModel.DataAnnotations.MaxLength(10)]
+        public string DiscountType { get; set; } = "Fixed";
+
+        public decimal? DiscountValue { get; set; }
+
+        // Calculated monetary deduction retained for reporting and historical records.
         public decimal DiscountAmount { get; set; }
 
         // Percentage: 5 means 5%.
         public decimal TaxRate { get; set; }
+
+        public int? TaxSettingId { get; set; }
+
+        public string TaxSettingSnapshotJson { get; set; } = "";
 
         // Calculated by the backend.
         public decimal LineSubTotal { get; set; }

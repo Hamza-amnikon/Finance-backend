@@ -8,6 +8,8 @@ namespace SalesInvoiceService.API.DTOs
 
         public Guid ClientId { get; set; }
 
+        public bool UsesTaxSettings { get; set; }
+
         public int? SourceEstimateId { get; set; }
 
         public string? SourceEstimateNumber { get; set; }

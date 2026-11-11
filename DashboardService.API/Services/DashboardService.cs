@@ -48,7 +48,7 @@ namespace DashboardService.API.Services
                     (
                         SELECT SUM(Amount) AS Paid
                         FROM sales.SalesInvoicePayments
-                        WHERE SalesInvoiceId = i.Id
+                        WHERE Status = N'Recorded' AND SalesInvoiceId = i.Id
                     ) p
                     OUTER APPLY
                     (
@@ -78,7 +78,7 @@ namespace DashboardService.API.Services
                     SELECT N'received', p.Amount, p.Currency
                     FROM sales.SalesInvoicePayments p
                     INNER JOIN sales.SalesInvoices i ON i.Id = p.SalesInvoiceId
-                    WHERE p.PaymentDate BETWEEN @from AND @to
+                    WHERE p.Status = N'Recorded' AND p.PaymentDate BETWEEN @from AND @to
                         AND i.Status = N'Issued'
                         AND (@branch = N'' OR i.Branch = @branch)
                     UNION ALL
@@ -270,7 +270,7 @@ namespace DashboardService.API.Services
                         CAST(p.PaymentDate AS datetime2) AS At
                     FROM sales.SalesInvoicePayments p
                     INNER JOIN sales.SalesInvoices i ON i.Id = p.SalesInvoiceId
-                    WHERE i.Status = N'Issued'
+                    WHERE p.Status = N'Recorded' AND i.Status = N'Issued'
                     UNION ALL
                     SELECT CONCAT(N'expense-', e.Id), N'Expense',
                         CONCAT(e.Amount, N' ', e.Currency, N' · ', e.Category),

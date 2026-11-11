@@ -1,4 +1,4 @@
-﻿using SalesInvoiceService.API.Models;
+using SalesInvoiceService.API.Models;
 
 namespace SalesInvoiceService.API.DTOs
 {
@@ -20,9 +20,18 @@ namespace SalesInvoiceService.API.DTOs
 
         public bool DiscountEnabled { get; set; } = true;
 
+        [System.ComponentModel.DataAnnotations.MaxLength(10)]
+        public string DiscountType { get; set; } = "Fixed";
+
+        public decimal? DiscountValue { get; set; }
+
         public decimal DiscountAmount { get; set; }
 
         public decimal TaxRate { get; set; }
+
+        public int? TaxSettingId { get; set; }
+
+        public string TaxSettingSnapshotJson { get; set; } = "";
 
         public decimal LineSubTotal { get; set; }
 

@@ -1,0 +1,80 @@
+[
+  {
+    "Id": 2029,
+    "SalesInvoiceId": 2029,
+    "RequestId": "e3e35854-f766-43f9-9a8f-da7cdd6412b0",
+    "Amount": 85.0000,
+    "Currency": "USD",
+    "PaymentMode": "Cheque",
+    "Reference": "TEST-INVALID-001",
+    "BankAmount": 999.0000,
+    "BankChargeAmount": 0.0000,
+    "Status": "Recorded",
+    "CreatedDate": "2026-11-09T11:38:34.9517065"
+  },
+  {
+    "Id": 2030,
+    "SalesInvoiceId": 2029,
+    "RequestId": "6a425a96-f397-46b1-8f9c-74c61495b7ba",
+    "Amount": 85.0000,
+    "Currency": "USD",
+    "PaymentMode": "Cheque",
+    "Reference": "TEST-INVALID-002.",
+    "BankAmount": 999.0000,
+    "BankChargeAmount": 0.0000,
+    "Status": "Recorded",
+    "CreatedDate": "2026-11-09T11:40:40.3650986"
+  },
+  {
+    "Id": 2031,
+    "SalesInvoiceId": 2029,
+    "RequestId": "69be3283-13db-43c5-8d8b-add3843e7898",
+    "Amount": 85.0000,
+    "Currency": "USD",
+    "PaymentMode": "Cheque",
+    "Reference": "TEST-INVALID-003",
+    "BankAmount": 999.0000,
+    "BankChargeAmount": 0.0000,
+    "Status": "Recorded",
+    "CreatedDate": "2026-11-09T11:42:56.0178536"
+  },
+  {
+    "Id": 2032,
+    "SalesInvoiceId": 2029,
+    "RequestId": "31abb637-41c5-468c-a5b5-5e9ea45b31eb",
+    "Amount": 85.0000,
+    "Currency": "USD",
+    "PaymentMode": "Cheque",
+    "Reference": "TEST-INVALID-004",
+    "BankAmount": 80.0000,
+    "BankChargeAmount": 5.0000,
+    "Status": "Recorded",
+    "CreatedDate": "2026-11-09T11:48:53.3958848"
+  },
+  {
+    "Id": 2033,
+    "SalesInvoiceId": 2029,
+    "RequestId": "9b1881e0-a663-4d56-98fb-54cf6d246a90",
+    "Amount": 85.0000,
+    "Currency": "USD",
+    "PaymentMode": "Cheque",
+    "Reference": "TEST-INVALID-005",
+    "BankAmount": 80.0000,
+    "BankChargeAmount": 5.0000,
+    "Status": "Recorded",
+    "CreatedDate": "2026-11-09T11:50:52.7787113"
+  },
+  {
+    "Id": 2034,
+    "SalesInvoiceId": 2029,
+    "RequestId": "647f8810-0950-4773-8d10-161ad7515e54",
+    "Amount": 85.0000,
+    "Currency": "USD",
+    "PaymentMode": "Cheque",
+    "Reference": "TEST-INVALID-005",
+    "BankAmount": 80.0000,
+    "BankChargeAmount": 5.0000,
+    "Status": "Recorded",
+    "CreatedDate": "2026-11-09T11:56:42.346655"
+  }
+]

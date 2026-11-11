@@ -14,6 +14,8 @@ namespace SalesInvoiceService.API.DTOs
         public string Branch { get; set; } = string.Empty;
         public decimal SubTotal { get; set; }
         public decimal DiscountTotal { get; set; }
+        public bool UsesTaxSettings { get; set; }
+        public string TaxTreatment { get; set; } = "NoTax";
         public decimal TaxTotal { get; set; }
         public decimal GrandTotal { get; set; }
         // Estimate API status: Accepted = 2.

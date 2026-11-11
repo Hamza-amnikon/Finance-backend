@@ -40,7 +40,7 @@ namespace AccountingService.API.Controllers
                         i.GrandTotal - COALESCE(p.Paid, 0) - COALESCE(c.Credits, 0) - COALESCE(a.Applied, 0) AS Balance
                     FROM sales.SalesInvoices i
                     OUTER APPLY (SELECT SUM(Amount) AS Paid FROM sales.SalesInvoicePayments
-                        WHERE SalesInvoiceId = i.Id AND PaymentDate <= @asOf) p
+                        WHERE Status = N'Recorded' AND SalesInvoiceId = i.Id AND PaymentDate <= @asOf) p
                     OUTER APPLY (SELECT SUM(GrandTotal) AS Credits FROM sales.SalesCreditNotes
                         WHERE SalesInvoiceId = i.Id AND Status = N'Issued' AND CreditNoteDate <= @asOf) c
                     OUTER APPLY (SELECT SUM(Amount) AS Applied FROM sales.CustomerCreditApplications

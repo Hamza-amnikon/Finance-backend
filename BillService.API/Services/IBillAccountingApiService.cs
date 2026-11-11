@@ -8,6 +8,8 @@ namespace BillService.API.Services
             int companyId,
             CancellationToken cancellationToken);
 
+        Task<BillAccountingResultDto> ReverseBillAsync(int billId, CancellationToken cancellationToken);
+
         Task<BillAccountingResultDto> PostBillAsync(
             BillAccountingPostingDto posting,
             CancellationToken cancellationToken);

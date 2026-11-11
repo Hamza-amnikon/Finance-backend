@@ -43,7 +43,7 @@ try
         await new SqlCommand(
             """
             CREATE TABLE sales.SalesInvoices (Id int, InvoiceNumber nvarchar(50), ClientId uniqueidentifier, ClientName nvarchar(200), Branch nvarchar(100), Currency nvarchar(3), InvoiceDate date, DueDate date, GrandTotal decimal(18,2), Status nvarchar(20));
-            CREATE TABLE sales.SalesInvoicePayments (SalesInvoiceId int, Amount decimal(18,2), PaymentDate date);
+            CREATE TABLE sales.SalesInvoicePayments (SalesInvoiceId int, Amount decimal(18,2), PaymentDate date, Status nvarchar(20) NOT NULL DEFAULT 'Recorded');
             CREATE TABLE sales.SalesCreditNotes (SalesInvoiceId int, GrandTotal decimal(18,2), CreditNoteDate date, Status nvarchar(20));
             CREATE TABLE sales.CustomerCreditApplications (TargetInvoiceId int, Amount decimal(18,2), AppliedAtUtc datetime2);
             CREATE TABLE purchases.Bills (Id int, BillNumber nvarchar(50), VendorId uniqueidentifier, VendorName nvarchar(200), Branch nvarchar(100), Currency nvarchar(3), BillDate date, DueDate date, GrandTotal decimal(18,2), Status nvarchar(20));
@@ -55,7 +55,8 @@ try
                 (2,'INV-PAID',@party,'Customer','Branch A','INR','2026-10-01','2026-10-05',100,'Issued'),
                 (3,'INV-DRAFT',@party,'Customer','Branch A','INR','2026-10-01','2026-10-05',100,'Draft'),
                 (4,'INV-FUTURE',@party,'Customer','Branch A','INR','2026-11-01','2026-11-05',100,'Issued');
-            INSERT INTO sales.SalesInvoicePayments VALUES (1,100,'2026-10-10'),(1,200,'2026-11-01'),(2,100,'2026-10-01');
+            INSERT INTO sales.SalesInvoicePayments (SalesInvoiceId,Amount,PaymentDate,Status) VALUES(1,999999,'2026-10-10','Voided');
+            INSERT INTO sales.SalesInvoicePayments (SalesInvoiceId,Amount,PaymentDate) VALUES (1,100,'2026-10-10'),(1,200,'2026-11-01'),(2,100,'2026-10-01');
             INSERT INTO sales.SalesCreditNotes VALUES (1,50,'2026-10-15','Issued'),(1,500,'2026-10-15','Draft'),(1,30,'2026-11-02','Issued');
             INSERT INTO sales.CustomerCreditApplications VALUES (1,20,'2026-10-20'),(1,10,'2026-11-02');
             INSERT INTO purchases.Bills VALUES (1,'BILL-1',@party,'Vendor','Branch B','INR','2026-09-01',NULL,500,'Issued'),(2,'BILL-DRAFT',@party,'Vendor','Branch B','INR','2026-10-01',NULL,900,'Draft');

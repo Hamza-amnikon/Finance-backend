@@ -44,6 +44,8 @@ namespace BillService.API.Data
             });
             builder.Entity<BillItem>(entity =>
             {
+                entity.Property(row => row.DiscountValue).HasPrecision(18, 4);
+                entity.Property(row => row.DiscountType).HasMaxLength(10).HasDefaultValue("Fixed");
                 entity.ToTable("BillItems", "purchases");
                 entity.HasKey(row => row.Id);
                 entity.HasIndex(row => new { row.BillId, row.LineNumber }).IsUnique();

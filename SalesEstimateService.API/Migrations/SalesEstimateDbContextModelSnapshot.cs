@@ -146,6 +146,14 @@ namespace SalesEstimateService.API.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("TaxTreatment")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("UsesTaxSettings")
+                        .HasColumnType("bit");
+
                     b.Property<DateOnly>("ValidUntil")
                         .HasColumnType("date");
 
@@ -186,6 +194,17 @@ namespace SalesEstimateService.API.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("Fixed");
+
+                    b.Property<decimal?>("DiscountValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
                     b.Property<int>("LineNumber")
                         .HasColumnType("int");
 
@@ -216,6 +235,13 @@ namespace SalesEstimateService.API.Migrations
                     b.Property<decimal>("TaxRate")
                         .HasPrecision(7, 4)
                         .HasColumnType("decimal(7,4)");
+
+                    b.Property<int?>("TaxSettingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TaxSettingSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Unit")
                         .IsRequired()

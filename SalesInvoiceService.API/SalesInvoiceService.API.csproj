@@ -24,4 +24,7 @@
   <ItemGroup>
     <Compile Include="..\Shared\Auditing\FinanceAudit.cs" Link="Shared\FinanceAudit.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Discounts/LineDiscount.cs" Link="Shared/LineDiscount.cs" />
+  </ItemGroup>
 </Project>

@@ -10,6 +10,6 @@ namespace BillService.API.Services
         Task<BillResponseDto> PreviewAsync(BillFieldsDto dto, CancellationToken cancellationToken);
         Task<BillResponseDto> CreateAsync(CreateBillDto dto, CancellationToken cancellationToken);
         Task<BillResponseDto?> UpdateAsync(int id, UpdateBillDto dto, CancellationToken cancellationToken);
-        Task<BillResponseDto?> ChangeStatusAsync(int id, BillStatus status, byte[] rowVersion, CancellationToken cancellationToken);
+        Task<BillResponseDto?> ChangeStatusAsync(int id, BillStatus status, byte[] rowVersion, CancellationToken cancellationToken, BillActionDto? issueDetails = null);
     }
 }

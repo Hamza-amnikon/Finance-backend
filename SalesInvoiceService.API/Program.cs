@@ -7,6 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<InvoiceTaxSettingsService>();
+builder.Services.AddScoped<ReceivedPaymentVoidService>();
 builder.Services.AddOpenApi();
 
 var connectionString = builder.Configuration

@@ -32,7 +32,7 @@ try
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA expenses");
     await context.Database.ExecuteSqlRawAsync("""
         CREATE TABLE sales.SalesInvoices (Id int PRIMARY KEY, GrandTotal decimal(18,4), Currency nvarchar(3), Status nvarchar(20), InvoiceDate date, Branch nvarchar(20));
-        CREATE TABLE sales.SalesInvoicePayments (SalesInvoiceId int, Amount decimal(18,4), Currency nvarchar(3), PaymentDate date);
+        CREATE TABLE sales.SalesInvoicePayments (SalesInvoiceId int, Amount decimal(18,4), Currency nvarchar(3), PaymentDate date, Status nvarchar(20) NOT NULL DEFAULT 'Recorded');
         CREATE TABLE sales.SalesCreditNotes (SalesInvoiceId int, GrandTotal decimal(18,4), Currency nvarchar(3), Status nvarchar(20), CreditNoteDate date);
         CREATE TABLE purchases.Bills (Id int PRIMARY KEY, GrandTotal decimal(18,4), Currency nvarchar(3), Status nvarchar(20), BillDate date, Branch nvarchar(20));
         CREATE TABLE purchases.PaymentsMade (BillId int, Amount decimal(18,4), Currency nvarchar(3), Status nvarchar(20), PaymentDate date, Branch nvarchar(20));
@@ -51,7 +51,8 @@ try
           (6,800,'USD','Void','2026-10-10','Dubai'),
           (7,400,'INR','Issued','2026-10-10','Turbhe'),
           (8,100,'USD','Issued','2026-09-10','Dubai');
-        INSERT INTO sales.SalesInvoicePayments VALUES
+        INSERT INTO sales.SalesInvoicePayments (SalesInvoiceId,Amount,Currency,PaymentDate,Status) VALUES(1,999999,'AED','2026-10-10','Voided');
+        INSERT INTO sales.SalesInvoicePayments (SalesInvoiceId,Amount,Currency,PaymentDate) VALUES
           (1,600,'USD','2026-10-11'),(2,300,'USD','2026-10-11'),
           (2,200,'USD','2026-10-12'),(4,700,'USD','2026-10-11'),(7,100,'INR','2026-10-11');
         INSERT INTO sales.SalesCreditNotes VALUES

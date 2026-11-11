@@ -290,6 +290,8 @@ namespace SalesEstimateService.API.Repositories
             stored.SubTotal = estimate.SubTotal;
             stored.DiscountTotal = estimate.DiscountTotal;
             stored.TaxTotal = estimate.TaxTotal;
+            stored.UsesTaxSettings = estimate.UsesTaxSettings;
+            stored.TaxTreatment = estimate.TaxTreatment;
             stored.GrandTotal = estimate.GrandTotal;
             stored.Notes = estimate.Notes;
             stored.AdditionalTerms = estimate.AdditionalTerms;

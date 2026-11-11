@@ -14,6 +14,7 @@ namespace BillService.API.Services
     public class BillService : IBillService
     {
         private readonly BillDbContext _context;
+        private readonly BillTaxSettingsService _taxSettings;
         private readonly IBillRepository _repository;
         private readonly IBillCalculator _calculator;
         private readonly IBillAccountingApiService _accountingApiService;
@@ -23,10 +24,12 @@ namespace BillService.API.Services
             IBillRepository repository,
             IBillCalculator calculator,
             IBillAccountingApiService accountingApiService,
-            IBillExchangeRateService exchangeRateService
+            IBillExchangeRateService exchangeRateService,
+            BillTaxSettingsService taxSettings
         )
         {
             _context = db;
+            _taxSettings = taxSettings;
             _repository = repository;
             _calculator = calculator;
             _accountingApiService = accountingApiService;
@@ -110,14 +113,44 @@ namespace BillService.API.Services
             int id,
             BillStatus status,
             byte[] rowVersion,
-            CancellationToken cancellationToken
+            CancellationToken cancellationToken,
+            BillActionDto? issueDetails = null
         )
         {
             if (rowVersion == null || rowVersion.Length != 8)
                 throw new ArgumentException("A valid row version is required.");
-            var saved = await _repository.ChangeStatusAsync(id, status, rowVersion, ValidateIssueAsync, cancellationToken);
+            var saved = await _repository.ChangeStatusAsync(
+                id,
+                status,
+                rowVersion,
+                async (bill, token) =>
+                {
+                    // These fields are saved with issue under the existing draft lock.
+                    if (issueDetails?.VendorInvoiceNumber != null)
+                    {
+                        var invoiceNumber = issueDetails.VendorInvoiceNumber.Trim();
+                        if (invoiceNumber.Length > 200)
+                        {
+                            throw new ArgumentException("Vendor invoice number cannot exceed 200 characters.");
+                        }
+                        bill.VendorInvoiceNumber = invoiceNumber;
+                    }
+                    if (issueDetails?.DueDate != null)
+                    {
+                        bill.DueDate = issueDetails.DueDate;
+                    }
+                    await ValidateIssueAsync(bill, token);
+                },
+                cancellationToken);
             if (saved != null && status == BillStatus.Issued)
                 await PostToAccountingAsync(saved, cancellationToken);
+            if (saved != null && status == BillStatus.Cancelled && saved.AccountingReversalPending)
+            {
+                await _accountingApiService.ReverseBillAsync(saved.Id, cancellationToken);
+                await _context.Bills.Where(row => row.Id == saved.Id && row.Status == BillStatus.Cancelled)
+                    .ExecuteUpdateAsync(update => update.SetProperty(row => row.AccountingReversalPending, false), cancellationToken);
+                await _context.Entry(saved).ReloadAsync(cancellationToken);
+            }
             return saved == null ? null : ToResponse(saved);
         }
 
@@ -130,6 +163,10 @@ namespace BillService.API.Services
                 throw new ArgumentException("Enter the vendor invoice number before issuing the bill.");
             if (!bill.DueDate.HasValue)
                 throw new ArgumentException("Enter a due date before issuing the bill.");
+            if (bill.DueDate.Value < bill.BillDate)
+            {
+                throw new ArgumentException("Due date cannot precede the bill date.");
+            }
             if (bill.SourcePurchaseOrderId.HasValue)
             {
                 var sourceId = bill.SourcePurchaseOrderId.Value;
@@ -145,6 +182,7 @@ namespace BillService.API.Services
             var branch = await _context.Branches.AsNoTracking().SingleAsync(row => row.Name == bill.Branch && row.IsActive, cancellationToken);
             if (!branch.AccountingCompanyId.HasValue)
                 throw new InvalidOperationException("Link the bill branch to an accounting company before issuing.");
+            await _taxSettings.ValidateDraftAsync(bill, cancellationToken);
             bill.TaxTreatment = ResolveTaxTreatment(bill.TaxTreatment, branch.CountryCode, bill.TaxTotal);
             if (bill.Items.Any(item => string.IsNullOrWhiteSpace(item.AccountCode)))
                 throw new ArgumentException("Select an expense or asset account for every bill line before issuing.");
@@ -284,8 +322,21 @@ namespace BillService.API.Services
                 Currency = code,
                 TaxTreatment = dto.TaxTreatment,
                 CurrencyDecimalPlaces = currency.DecimalPlaces,
-                Items = dto.Items.Select(item => new BillItem { ItemName = item.ItemName.Trim(), AccountCode = item.AccountCode.Trim(), Description = Clean(item.Description), Unit = item.Unit, Quantity = item.Quantity, UnitPrice = item.UnitPrice, DiscountEnabled = item.DiscountEnabled, DiscountAmount = item.DiscountAmount, TaxRate = item.TaxRate }).ToList()
+                Items = dto.Items.Select(item => new BillItem
+                {
+                    ItemName = item.ItemName.Trim(),
+                    AccountCode = item.AccountCode.Trim(),
+                    Description = Clean(item.Description),
+                    Unit = item.Unit,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    DiscountEnabled = item.DiscountEnabled,
+                    DiscountType = item.DiscountType,
+                    DiscountValue = item.DiscountValue,
+                    DiscountAmount = item.DiscountAmount
+                }).ToList()
             };
+            await _taxSettings.ApplyAsync(bill, dto.Items, cancellationToken);
             _calculator.Calculate(bill, currency.DecimalPlaces);
             return bill;
         }
@@ -328,15 +379,37 @@ namespace BillService.API.Services
             SubTotal = bill.SubTotal,
             DiscountTotal = bill.DiscountTotal,
             TaxTotal = bill.TaxTotal,
+            UsesTaxSettings = bill.UsesTaxSettings,
             TaxTreatment = bill.TaxTreatment,
             GrandTotal = bill.GrandTotal,
             Status = bill.Status,
+            AccountingReversalPending = bill.AccountingReversalPending,
             CreatedDate = bill.CreatedDate,
             ModifiedDate = bill.ModifiedDate,
             IssuedDate = bill.IssuedDate,
             CancelledDate = bill.CancelledDate,
             RowVersion = bill.RowVersion,
-            Items = bill.Items.OrderBy(item => item.LineNumber).Select(item => new BillItemResponseDto { Id = item.Id, LineNumber = item.LineNumber, ItemName = item.ItemName, AccountCode = item.AccountCode, Description = item.Description, Unit = item.Unit, Quantity = item.Quantity, UnitPrice = item.UnitPrice, DiscountEnabled = item.DiscountEnabled, DiscountAmount = item.DiscountAmount, TaxRate = item.TaxRate, LineSubTotal = item.LineSubTotal, TaxAmount = item.TaxAmount, LineTotal = item.LineTotal }).ToList()
+            Items = bill.Items.OrderBy(item => item.LineNumber).Select(item => new BillItemResponseDto
+            {
+                Id = item.Id,
+                LineNumber = item.LineNumber,
+                ItemName = item.ItemName,
+                AccountCode = item.AccountCode,
+                Description = item.Description,
+                Unit = item.Unit,
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice,
+                DiscountEnabled = item.DiscountEnabled,
+                DiscountType = item.DiscountType,
+                DiscountValue = item.DiscountValue,
+                DiscountAmount = item.DiscountAmount,
+                TaxRate = item.TaxRate,
+                TaxSettingId = item.TaxSettingId,
+                TaxSettingSnapshotJson = item.TaxSettingSnapshotJson,
+                LineSubTotal = item.LineSubTotal,
+                TaxAmount = item.TaxAmount,
+                LineTotal = item.LineTotal
+            }).ToList()
         };
     }
 }

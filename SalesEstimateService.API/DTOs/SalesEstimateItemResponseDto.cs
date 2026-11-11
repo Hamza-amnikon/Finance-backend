@@ -1,4 +1,4 @@
-﻿using SalesEstimateService.API.Models;
+using SalesEstimateService.API.Models;
 
 namespace SalesEstimateService.API.DTOs
 {
@@ -20,7 +20,16 @@ namespace SalesEstimateService.API.DTOs
 
         public bool DiscountEnabled { get; set; } = false;
 
+        [System.ComponentModel.DataAnnotations.MaxLength(10)]
+        public string DiscountType { get; set; } = "Fixed";
+
+        public decimal? DiscountValue { get; set; }
+
         public decimal DiscountAmount { get; set; }
+
+        public int? TaxSettingId { get; set; }
+
+        public string TaxSettingSnapshotJson { get; set; } = "";
 
         public decimal TaxRate { get; set; }
 

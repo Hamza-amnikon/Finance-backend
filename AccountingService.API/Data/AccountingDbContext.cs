@@ -23,12 +23,28 @@ namespace AccountingService.API.Data
 
         public DbSet<JournalEntryLine> JournalEntryLines =>
             Set<JournalEntryLine>();
+        public DbSet<TaxConfigurationType> TaxTypes => Set<TaxConfigurationType>();
+        public DbSet<TaxConfigurationRate> TaxRates => Set<TaxConfigurationRate>();
+
         public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<TaxConfigurationType>(entity =>
+            {
+                entity.HasIndex(row => new { row.CountryCode, row.Code }).IsUnique();
+            });
+            modelBuilder.Entity<TaxConfigurationRate>(entity =>
+            {
+                entity.HasIndex(row => new { row.CompanyId, row.Code, row.EffectiveFrom }).IsUnique();
+                entity.HasOne<AccountingCompanyLookup>().WithMany().HasForeignKey(row => row.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne<TaxConfigurationType>().WithMany().HasForeignKey(row => row.TaxTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
             modelBuilder.Entity<AuditEvent>(entity =>
             {
                 entity.ToTable("Events", "audit");

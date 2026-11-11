@@ -45,7 +45,7 @@ namespace VendorCreditService.API.Controllers
                     page = query.Page,
                     pageSize = query.PageSize
                 });
-            });
+            }, cancellationToken);
         }
 
         [HttpGet("{id:int}")]
@@ -68,7 +68,7 @@ namespace VendorCreditService.API.Controllers
                 }
 
                 return Ok(credit);
-            });
+            }, cancellationToken);
         }
 
         [HttpPost("preview")]
@@ -83,7 +83,7 @@ namespace VendorCreditService.API.Controllers
                     cancellationToken);
 
                 return Ok(credit);
-            });
+            }, cancellationToken);
         }
 
         [HttpPost]
@@ -101,7 +101,7 @@ namespace VendorCreditService.API.Controllers
                     nameof(GetById),
                     new { id = credit.Id },
                     credit);
-            });
+            }, cancellationToken);
         }
 
         [HttpPut("{id:int}")]
@@ -126,7 +126,7 @@ namespace VendorCreditService.API.Controllers
                 }
 
                 return Ok(credit);
-            });
+            }, cancellationToken);
         }
 
         [HttpPost("{id:int}/issue")]
@@ -152,7 +152,7 @@ namespace VendorCreditService.API.Controllers
                 }
 
                 return Ok(credit);
-            });
+            }, cancellationToken);
         }
 
         [HttpPost("{id:int}/cancel")]
@@ -178,7 +178,7 @@ namespace VendorCreditService.API.Controllers
                 }
 
                 return Ok(credit);
-            });
+            }, cancellationToken);
         }
 
         [HttpGet("lookups/vendors")]
@@ -216,7 +216,7 @@ namespace VendorCreditService.API.Controllers
                         .ToListAsync(cancellationToken);
 
                 return Ok(new { data, total, page, pageSize });
-            });
+            }, cancellationToken);
         }
 
         [HttpGet("lookups/branches")]
@@ -232,7 +232,7 @@ namespace VendorCreditService.API.Controllers
                     .ToListAsync(cancellationToken);
 
                 return Ok(branches);
-            });
+            }, cancellationToken);
         }
 
         [HttpGet("lookups/currencies")]
@@ -248,7 +248,7 @@ namespace VendorCreditService.API.Controllers
                     .ToListAsync(cancellationToken);
 
                 return Ok(currencies);
-            });
+            }, cancellationToken);
         }
 
         [HttpGet("lookups/bills")]
@@ -314,15 +314,26 @@ namespace VendorCreditService.API.Controllers
                         .ToListAsync(cancellationToken);
 
                 return Ok(new { data, total, page, pageSize });
-            });
+            }, cancellationToken);
         }
 
         private async Task<IActionResult> HandleAsync(
-            Func<Task<IActionResult>> action)
+            Func<Task<IActionResult>> action,
+            CancellationToken cancellationToken)
         {
             try
             {
                 return await action();
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (SqlException exception)
+                when (cancellationToken.IsCancellationRequested && exception.Number == 0)
+            {
+                return StatusCode(499);
             }
             catch (ValidationException exception)
             {

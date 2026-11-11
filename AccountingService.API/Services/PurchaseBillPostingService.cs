@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using AccountingService.API.Data;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using AccountingService.API.DTOs;
@@ -19,11 +21,13 @@ namespace AccountingService.API.Services
                 "INPUT_IGST"
             };
 
+        private readonly AccountingDbContext _context;
         private readonly IJournalEntryRepository _repository;
 
-        public PurchaseBillPostingService(IJournalEntryRepository repository)
+        public PurchaseBillPostingService(IJournalEntryRepository repository, AccountingDbContext context)
         {
             _repository = repository;
+            _context = context;
         }
 
         public async Task<PurchaseBillPostingResponseDto> PostAsync(
@@ -31,6 +35,15 @@ namespace AccountingService.API.Services
             CancellationToken cancellationToken)
         {
             Validate(dto);
+            await using var transaction = await _context.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable, cancellationToken);
+            var billStatus = await _context.Database.SqlQuery<string>($"""
+                SELECT Status AS Value FROM purchases.Bills WITH (UPDLOCK,HOLDLOCK) WHERE Id = {dto.BillId}
+                """).SingleOrDefaultAsync(cancellationToken);
+            if (billStatus != "Issued")
+            {
+                throw new ValidationException("Only an issued purchase bill can be posted. Cancelled bills cannot be reposted.");
+            }
 
             var sourceDocumentId = dto.BillId.ToString(CultureInfo.InvariantCulture);
             var existing = await _repository.GetBySourceDocumentAsync(
@@ -41,6 +54,7 @@ namespace AccountingService.API.Services
 
             if (existing != null)
             {
+                await transaction.CommitAsync(cancellationToken);
                 return ToResponse(existing, true);
             }
 
@@ -200,6 +214,7 @@ namespace AccountingService.API.Services
             await _repository.AddAsync(journal, cancellationToken);
             await _repository.SaveChangesAsync(cancellationToken);
 
+            await transaction.CommitAsync(cancellationToken);
             return ToResponse(journal, false);
         }
 

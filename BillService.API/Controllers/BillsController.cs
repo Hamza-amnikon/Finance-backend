@@ -144,7 +144,8 @@ namespace BillService.API.Controllers
                     id,
                     BillStatus.Issued,
                     dto.RowVersion,
-                    cancellationToken);
+                    cancellationToken,
+                    dto);
 
                 if (bill == null)
                 {
@@ -362,7 +363,7 @@ namespace BillService.API.Controllers
                     {
                         message =
                             "A required finance service is unavailable. " +
-                            "The bill may already be issued; try issuing it again to complete the accounting posting."
+                            "The bill status may already be saved. Refresh it, then retry the same issue or cancellation action to complete accounting."
                     });
             }
             catch (OperationCanceledException)
@@ -373,7 +374,7 @@ namespace BillService.API.Controllers
                     new
                     {
                         message =
-                            "A required finance service took too long to respond. Try issuing the bill again."
+                            "A required finance service took too long to respond. Refresh the bill and retry the same issue or cancellation action."
                     });
             }
             catch (DbUpdateException exception)
@@ -456,7 +457,7 @@ namespace BillService.API.Controllers
                     {
                         message =
                             "A required finance service is unavailable. " +
-                            "The bill may already be issued; try issuing it again to complete the accounting posting."
+                            "The bill status may already be saved. Refresh it, then retry the same issue or cancellation action to complete accounting."
                     });
             }
             catch (OperationCanceledException)
@@ -467,7 +468,7 @@ namespace BillService.API.Controllers
                     new
                     {
                         message =
-                            "A required finance service took too long to respond. Try issuing the bill again."
+                            "A required finance service took too long to respond. Refresh the bill and retry the same issue or cancellation action."
                     });
             }
             catch (DbUpdateException exception)

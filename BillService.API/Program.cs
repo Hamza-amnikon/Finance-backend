@@ -35,6 +35,8 @@ builder.Services.AddScoped<
     IBillRepository,
     BillRepository>();
 
+builder.Services.AddScoped<BillTaxSettingsService>();
+
 // Bill services
 builder.Services.AddScoped<
     IBillService,
@@ -83,6 +85,8 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod();
     });
 });
+
+builder.Services.AddHostedService<BillReversalWorker>();
 
 var app = builder.Build();
 

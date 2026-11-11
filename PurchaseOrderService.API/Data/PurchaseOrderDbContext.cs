@@ -39,6 +39,7 @@ namespace PurchaseOrderService.API.Data
 
             builder.Entity<PurchaseOrder>(entity =>
             {
+                entity.Property(row => row.TaxTreatment).HasConversion<string>().HasMaxLength(30);
                 entity.ToTable("PurchaseOrders", "purchases");
 
                 entity.HasKey(row => row.Id);
@@ -79,6 +80,8 @@ namespace PurchaseOrderService.API.Data
 
             builder.Entity<PurchaseOrderItem>(entity =>
             {
+                entity.Property(row => row.DiscountValue).HasPrecision(18, 4);
+                entity.Property(row => row.DiscountType).HasMaxLength(10).HasDefaultValue("Fixed");
                 entity.ToTable("PurchaseOrderItems", "purchases");
 
                 entity.HasKey(row => row.Id);

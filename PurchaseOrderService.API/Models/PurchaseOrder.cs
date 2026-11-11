@@ -61,6 +61,11 @@ namespace PurchaseOrderService.API.Models
 
         public decimal DiscountTotal { get; set; }
 
+        public bool UsesTaxSettings { get; set; }
+
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+        public PurchaseOrderTaxTreatment TaxTreatment { get; set; }
+
         public decimal TaxTotal { get; set; }
 
         public decimal GrandTotal { get; set; }

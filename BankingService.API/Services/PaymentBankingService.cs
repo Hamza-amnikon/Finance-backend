@@ -56,7 +56,7 @@ namespace BankingService.API.Services
                 UNION ALL
                 SELECT TOP (100) 'Received' AS [Source], p.[Id]
                 FROM [sales].[SalesInvoicePayments] p
-                WHERE p.[CreatedDate] >= {since} AND p.[BankTransactionId] IS NULL
+                WHERE p.[Status] = 'Recorded' AND p.[CreatedDate] >= {since} AND p.[BankTransactionId] IS NULL
                 AND NOT EXISTS (
                     SELECT 1
                     FROM [banking].[PaymentBankingLinks] l
@@ -192,7 +192,7 @@ namespace BankingService.API.Services
                 COALESCE(p.[BankCurrency], '') AS [BankCurrency],
                 COALESCE(b.[AccountingCompanyId], 0) AS [CompanyId], p.[PaymentMode], p.[Reference],
                 p.[PaymentDate], p.[CreatedDate],
-                CAST(NULL AS datetime2) AS [VoidedDate], 'Recorded' AS [Status]
+                p.[VoidedDate], p.[Status]
                 FROM [sales].[SalesInvoicePayments] p WITH (UPDLOCK,HOLDLOCK)
                 JOIN [sales].[SalesInvoices] i ON i.[Id] = p.[SalesInvoiceId]
                 LEFT JOIN [sales].[BranchMasters] b ON b.[Name] = i.[Branch] AND b.[IsActive] = 1
@@ -291,6 +291,11 @@ namespace BankingService.API.Services
                             row.Source == "Received" &&
                             row.SourcePaymentId == paymentId,
                         cancellationToken);
+
+            if (payment.Status == "Voided")
+            {
+                throw new InvalidOperationException("A voided payment cannot be settled.");
+            }
 
             if (link?.BankTransactionId != null)
             {
@@ -715,6 +720,7 @@ namespace BankingService.API.Services
             if (
                 (payment.Source != "Received" &&
                  payment.Source != "Made") ||
+                payment.Status == "Voided" ||
                 link.AccountingJournalEntryId.HasValue ||
                 (link.State != "Posted" &&
                  link.State != "NoBank"))

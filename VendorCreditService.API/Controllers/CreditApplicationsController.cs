@@ -42,7 +42,7 @@ namespace VendorCreditService.API.Controllers
                     page,
                     pageSize
                 });
-            });
+            }, cancellationToken);
         }
 
         [HttpPost]
@@ -57,7 +57,7 @@ namespace VendorCreditService.API.Controllers
                     creditId, dto, cancellationToken);
 
                 return Ok(application);
-            });
+            }, cancellationToken);
         }
 
         [HttpPost("{applicationId:int}/void")]
@@ -81,14 +81,26 @@ namespace VendorCreditService.API.Controllers
                 }
 
                 return Ok(application);
-            });
+            }, cancellationToken);
         }
 
-        private async Task<IActionResult> HandleAsync(Func<Task<IActionResult>> action)
+        private async Task<IActionResult> HandleAsync(
+            Func<Task<IActionResult>> action,
+            CancellationToken cancellationToken)
         {
             try
             {
                 return await action();
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (SqlException exception)
+                when (cancellationToken.IsCancellationRequested && exception.Number == 0)
+            {
+                return StatusCode(499);
             }
             catch (ValidationException exception)
             {

@@ -22,6 +22,7 @@ namespace SalesInvoiceService.API.Repositories
             CancellationToken cancellationToken)
         {
             return await _context.SalesInvoicePayments
+                .IgnoreQueryFilters()
                 .AsNoTracking()
                 .Include(payment => payment.SalesInvoice)
                 .FirstOrDefaultAsync(
@@ -34,6 +35,7 @@ namespace SalesInvoiceService.API.Repositories
             CancellationToken cancellationToken)
         {
             return await _context.SalesInvoicePayments
+                .IgnoreQueryFilters()
                 .AsNoTracking()
                 .Include(payment => payment.SalesInvoice)
                 .Where(payment =>
@@ -118,6 +120,7 @@ namespace SalesInvoiceService.API.Repositories
             }
 
             var query = _context.SalesInvoicePayments
+                .IgnoreQueryFilters()
                 .AsNoTracking()
                 .AsQueryable();
 

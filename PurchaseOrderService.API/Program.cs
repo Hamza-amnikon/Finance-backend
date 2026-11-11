@@ -28,6 +28,8 @@ builder.Services.AddScoped<
     IPurchaseOrderService,
     PurchaseOrderService.API.Services.PurchaseOrderService>();
 
+builder.Services.AddScoped<PurchaseOrderTaxSettingsService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

@@ -37,10 +37,19 @@ namespace SalesEstimateService.API.Models
 
         public bool DiscountEnabled { get; set; } = false;
 
-        // Monetary discount, not a percentage.
+        [System.ComponentModel.DataAnnotations.MaxLength(10)]
+        public string DiscountType { get; set; } = "Fixed";
+
+        public decimal? DiscountValue { get; set; }
+
+        // Calculated monetary deduction retained for reporting and historical records.
         public decimal DiscountAmount { get; set; }
 
-        // Percentage: 5 means 5%.
+        public int? TaxSettingId { get; set; }
+
+        public string TaxSettingSnapshotJson { get; set; } = "";
+
+        // Recorded percentage: 5 means 5%.
         public decimal TaxRate { get; set; }
 
         // Calculated by the backend.

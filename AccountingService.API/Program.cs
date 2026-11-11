@@ -118,6 +118,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddScoped<PurchaseBillReversalService>();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();

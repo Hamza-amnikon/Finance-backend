@@ -161,6 +161,23 @@ try
             AfterJson = "{\"Amount\":85}"
         }
     };
+    context.AuditEvents.AddRange(new AuditEvent
+    {
+        EntityId = "activity-reordered", EntityType = "PaymentBankingLink", Action = "Updated",
+        ActorKind = "System", Service = "BankingService.API", AtUtc = DateTimeOffset.UtcNow,
+        BeforeJson = "{\"Amount\":85,\"Currency\":\"USD\"}",
+        AfterJson = "{\"Currency\":\"USD\",\"Amount\":85,\"Other fields changed (values excluded)\":\"UpdatedAtUtc\"}"
+    }, new AuditEvent
+    {
+        EntityId = "activity-invalid", EntityType = "PaymentBankingLink", Action = "Updated",
+        ActorKind = "System", Service = "BankingService.API", AtUtc = DateTimeOffset.UtcNow,
+        BeforeJson = "invalid JSON", AfterJson = null
+    }, new AuditEvent
+    {
+        EntityId = "activity-case", EntityType = "PaymentBankingLink", Action = "Updated",
+        ActorKind = "System", Service = "BankingService.API", AtUtc = DateTimeOffset.UtcNow,
+        BeforeJson = "{\"Currency\":\"usd\"}", AfterJson = "{\"Currency\":\"USD\"}"
+    });
     context.AuditEvents.AddRange(activityFixtures);
     await context.SaveChangesAsync();
     await FinanceAuditBranchChecks();
@@ -263,8 +280,9 @@ try
         "Record, action, branch and text filters combine correctly"
     );
     var technical = JsonNode.Parse(await client.GetStringAsync("/api/audit-history?activity=Technical"))!;
-    Check(technical["total"]!.GetValue<int>() == 1 &&
-        technical["data"]![0]!["entityId"]!.GetValue<string>() == "activity-retry",
+    Check(technical["total"]!.GetValue<int>() == 2 &&
+        technical["data"]!.AsArray().Any(row => row!["entityId"]!.GetValue<string>() == "activity-retry") &&
+        technical["data"]!.AsArray().Any(row => row!["entityId"]!.GetValue<string>() == "activity-reordered"),
         "Technical view only contains timestamp-only background synchronization updates");
     var business = JsonNode.Parse(await client.GetStringAsync("/api/audit-history?activity=Business&pageSize=100"))!;
     var businessIds = business["data"]!.AsArray().Select(row => row!["entityId"]!.GetValue<string>()).ToArray();
@@ -273,6 +291,8 @@ try
         "Business view retains amounts, unknown excluded changes and created payments");
     Check(!business["data"]!.AsArray().Any(row => row!["action"]!.GetValue<string>() == "Snapshot"),
         "Baseline snapshots stay separate from business changes");
+    Check(businessIds.Contains("activity-invalid") && businessIds.Contains("activity-case"),
+        "Invalid snapshots load safely and case-sensitive financial changes remain visible");
     var technicalCsv = await client.GetStringAsync("/api/audit-history/export?activity=Technical");
     Check(technicalCsv.Contains("activity-retry") && !technicalCsv.Contains("activity-money"),
         "Export uses the same activity classification as the list");

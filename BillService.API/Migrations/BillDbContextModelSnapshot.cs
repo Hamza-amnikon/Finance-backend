@@ -30,6 +30,9 @@ namespace BillService.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AccountingReversalPending")
+                        .HasColumnType("bit");
+
                     b.Property<string>("AdditionalTerms")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -146,6 +149,9 @@ namespace BillService.API.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<bool>("UsesTaxSettings")
+                        .HasColumnType("bit");
+
                     b.Property<Guid>("VendorId")
                         .HasColumnType("uniqueidentifier");
 
@@ -209,6 +215,17 @@ namespace BillService.API.Migrations
                     b.Property<bool>("DiscountEnabled")
                         .HasColumnType("bit");
 
+                    b.Property<string>("DiscountType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("Fixed");
+
+                    b.Property<decimal?>("DiscountValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
                     b.Property<string>("ItemName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -236,6 +253,13 @@ namespace BillService.API.Migrations
                     b.Property<decimal>("TaxRate")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<int?>("TaxSettingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TaxSettingSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Unit")
                         .IsRequired()

@@ -8,15 +8,18 @@ namespace BillService.API.Services
 {
     public class BillConversionService : IBillConversionService
     {
+        private readonly BillTaxSettingsService _taxSettings;
         private readonly BillDbContext _context;
         private readonly IBillService _billService;
         private readonly IBillCalculator _calculator;
         public BillConversionService(
             BillDbContext db,
             IBillService bills,
-            IBillCalculator calculator
+            IBillCalculator calculator,
+            BillTaxSettingsService taxSettings
         )
         {
+            _taxSettings = taxSettings;
             _context = db;
             _billService = bills;
             _calculator = calculator;
@@ -34,7 +37,7 @@ namespace BillService.API.Services
             var source = await _context.Database.SqlQuery<PurchaseOrderSnapshot>($"""
                 SELECT [Id],[Status],[RowVersion],[PurchaseOrderNumber],[VendorId],[VendorName],[CompanyName],
                     [BillingAddress],[ShippingAddress],[Branch],[Currency],[CurrencyDecimalPlaces],[PaymentTerms],
-                    [Reference],[Notes],[AdditionalTerms],[GrandTotal]
+                    [Reference],[Notes],[AdditionalTerms],[GrandTotal],[UsesTaxSettings],[TaxTreatment]
                 FROM [purchases].[PurchaseOrders] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {purchaseOrderId}
                 """).SingleOrDefaultAsync(cancellationToken);
             if (source == null)
@@ -53,7 +56,7 @@ namespace BillService.API.Services
             if (!source.RowVersion.SequenceEqual(rowVersion))
                 throw new DbUpdateConcurrencyException();
             var lines = await _context.Database.SqlQuery<PurchaseOrderItemSnapshot>($"""
-                SELECT [LineNumber],[ItemName],[Description],[Unit],[Quantity],[UnitPrice],[DiscountEnabled],[DiscountAmount],[TaxRate]
+                SELECT [LineNumber],[ItemName],[Description],[Unit],[Quantity],[UnitPrice],[DiscountEnabled],[DiscountAmount],[DiscountType],[DiscountValue],[TaxRate],[TaxSettingId],[TaxSettingSnapshotJson]
                 FROM [purchases].[PurchaseOrderItems] WHERE [PurchaseOrderId] = {purchaseOrderId}
                 """).OrderBy(row => row.LineNumber).ToListAsync(cancellationToken);
             var bill = new Bill
@@ -69,14 +72,42 @@ namespace BillService.API.Services
                 ShippingAddress = source.ShippingAddress,
                 Branch = source.Branch,
                 Currency = source.Currency,
+                UsesTaxSettings = source.UsesTaxSettings,
+                TaxTreatment = source.UsesTaxSettings ? Enum.Parse<BillTaxTreatment>(source.TaxTreatment) : null,
                 CurrencyDecimalPlaces = source.CurrencyDecimalPlaces,
                 PaymentTerms = source.PaymentTerms,
                 Reference = source.Reference,
                 Notes = source.Notes,
                 AdditionalTerms = source.AdditionalTerms,
                 BillDate = DateOnly.FromDateTime(DateTime.Today),
-                Items = lines.Select(line => new BillItem { ItemName = line.ItemName, Description = line.Description, Unit = Enum.Parse<BillUnit>(line.Unit), Quantity = line.Quantity, UnitPrice = line.UnitPrice, DiscountEnabled = line.DiscountEnabled, DiscountAmount = line.DiscountAmount, TaxRate = line.TaxRate }).ToList()
+                Items = lines.Select(line => new BillItem
+                {
+                    ItemName = line.ItemName,
+                    Description = line.Description,
+                    Unit = Enum.Parse<BillUnit>(line.Unit),
+                    Quantity = line.Quantity,
+                    UnitPrice = line.UnitPrice,
+                    DiscountEnabled = line.DiscountEnabled,
+                    DiscountType = line.DiscountType,
+                    DiscountValue = line.DiscountValue,
+                    DiscountAmount = line.DiscountAmount,
+                    TaxRate = line.TaxRate,
+                    TaxSettingId = line.TaxSettingId,
+                    TaxSettingSnapshotJson = line.TaxSettingSnapshotJson
+                }).ToList()
             };
+            try
+            {
+                await _taxSettings.ValidateDraftAsync(bill, cancellationToken);
+            }
+            catch (ArgumentException exception)
+            {
+                throw new ArgumentException(
+                    "The purchase order's saved tax setting cannot be used for the bill date. " +
+                    "Review its company, effective dates and current version. Create a direct bill " +
+                    "with a valid setting or issue a revised order. The source order is unchanged.",
+                    exception);
+            }
             _calculator.Calculate(bill, bill.CurrencyDecimalPlaces);
             if (bill.GrandTotal != source.GrandTotal)
                 throw new InvalidOperationException("The purchase order totals could not be reproduced. Review the purchase order before converting.");

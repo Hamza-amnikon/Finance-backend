@@ -25,6 +25,7 @@ namespace SalesEstimateService.API.Data
 
             modelBuilder.Entity<SalesEstimate>(entity =>
             {
+                entity.Property(row => row.TaxTreatment).HasConversion<string>().HasMaxLength(30);
                 entity.ToTable("SalesEstimates", "estimates");
 
                 entity.HasKey(x => x.Id);
@@ -79,6 +80,8 @@ namespace SalesEstimateService.API.Data
 
             modelBuilder.Entity<SalesEstimateItem>(entity =>
             {
+                entity.Property(row => row.DiscountValue).HasPrecision(18, 4);
+                entity.Property(row => row.DiscountType).HasMaxLength(10).HasDefaultValue("Fixed");
                 entity.ToTable("SalesEstimateItems", "estimates");
 
                 entity.HasKey(x => x.Id);

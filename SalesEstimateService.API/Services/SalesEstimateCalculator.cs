@@ -1,4 +1,4 @@
-﻿using SalesEstimateService.API.Models;
+using SalesEstimateService.API.Models;
 
 namespace SalesEstimateService.API.Services
 {
@@ -91,15 +91,13 @@ namespace SalesEstimateService.API.Services
 
                 ValidateDecimal(subTotal, "Line subtotal");
 
-                var discount = item.DiscountEnabled
-                    ? Round(item.DiscountAmount, currencyDecimalPlaces)
-                    : 0m;
-
-                if (discount > subTotal)
-                {
-                    throw new ArgumentException(
-                        "Discount cannot exceed the line subtotal.");
-                }
+                var discount = SparkFinance.Discounts.LineDiscount.Calculate(
+                    item.DiscountEnabled,
+                    item.DiscountType,
+                    item.DiscountValue,
+                    item.DiscountAmount,
+                    subTotal,
+                    currencyDecimalPlaces);
 
                 var taxableAmount = subTotal - discount;
 

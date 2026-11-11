@@ -35,9 +35,11 @@ namespace BillService.API.Models
         public int CurrencyDecimalPlaces { get; set; }
         public decimal SubTotal { get; set; }
         public decimal DiscountTotal { get; set; }
+        public bool UsesTaxSettings { get; set; }
         public decimal TaxTotal { get; set; }
         public BillTaxTreatment? TaxTreatment { get; set; }
         public decimal GrandTotal { get; set; }
+        public bool AccountingReversalPending { get; set; }
         public BillStatus Status { get; set; } = BillStatus.Draft;
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         public DateTime? ModifiedDate { get; set; }

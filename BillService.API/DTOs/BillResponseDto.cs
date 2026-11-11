@@ -28,10 +28,12 @@ namespace BillService.API.DTOs
         public int CurrencyDecimalPlaces { get; set; }
         public decimal SubTotal { get; set; }
         public decimal DiscountTotal { get; set; }
+        public bool UsesTaxSettings { get; set; }
         public decimal TaxTotal { get; set; }
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public BillTaxTreatment? TaxTreatment { get; set; }
         public decimal GrandTotal { get; set; }
+        public bool AccountingReversalPending { get; set; }
         public BillStatus Status { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? ModifiedDate { get; set; }

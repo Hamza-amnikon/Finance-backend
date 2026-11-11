@@ -140,14 +140,21 @@ namespace AccountingService.API.Controllers
             var savedBranches = await _context.Database
                 .SqlQueryRaw<string>("SELECT Name AS Value FROM sales.BranchMasters")
                 .ToListAsync(cancellationToken);
-            var recordedBranches = await rows.Where(row => row.Branch != null)
-                .Select(row => row.Branch!).Distinct().ToListAsync(cancellationToken);
+            var metadata = await rows.Select(row => new
+            {
+                row.Service,
+                row.EntityType,
+                row.Action,
+                row.Branch
+            }).Distinct().ToListAsync(cancellationToken);
+            var recordedBranches = metadata.Where(row => row.Branch != null)
+                .Select(row => row.Branch!);
 
             return Ok(new
             {
-                services = await rows.Select(row => row.Service).Distinct().Order().ToListAsync(cancellationToken),
-                entityTypes = await rows.Select(row => row.EntityType).Distinct().Order().ToListAsync(cancellationToken),
-                actions = await rows.Select(row => row.Action).Distinct().Order().ToListAsync(cancellationToken),
+                services = metadata.Select(row => row.Service).Distinct().Order().ToArray(),
+                entityTypes = metadata.Select(row => row.EntityType).Distinct().Order().ToArray(),
+                actions = metadata.Select(row => row.Action).Distinct().Order().ToArray(),
                 branches = savedBranches.Concat(recordedBranches)
                     .Where(branch => !string.IsNullOrWhiteSpace(branch))
                     .Distinct(StringComparer.OrdinalIgnoreCase).Order().ToArray()

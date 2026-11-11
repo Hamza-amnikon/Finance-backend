@@ -48,6 +48,9 @@ namespace SalesInvoiceService.API.Data
             ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<OrganizationProfile>().ToTable(
+                "OrganizationProfiles", "sales", table => table.ExcludeFromMigrations());
+
 
             modelBuilder.Entity<SalesInvoice>(entity =>
             {
@@ -99,6 +102,8 @@ namespace SalesInvoiceService.API.Data
 
             modelBuilder.Entity<SalesInvoiceItem>(entity =>
             {
+                entity.Property(row => row.DiscountValue).HasPrecision(18, 4);
+                entity.Property(row => row.DiscountType).HasMaxLength(10).HasDefaultValue("Fixed");
                 entity.ToTable("SalesInvoiceItems", "sales");
 
                 entity.HasKey(x => x.Id);
@@ -150,6 +155,9 @@ namespace SalesInvoiceService.API.Data
                 entity.HasIndex(row => row.BankTransactionId).IsUnique()
                     .HasFilter("[BankTransactionId] IS NOT NULL");
                 entity.ToTable("SalesInvoicePayments", "sales");
+                entity.Property(row => row.Status).HasDefaultValue("Recorded");
+                // Financial queries exclude voided receipts. History reads opt in explicitly.
+                entity.HasQueryFilter(row => row.Status == "Recorded");
 
                 entity.HasKey(x => x.Id);
 

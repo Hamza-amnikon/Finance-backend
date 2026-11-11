@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using SalesInvoiceService.API.Models;
 
 namespace SalesInvoiceService.API.DTOs
@@ -28,10 +28,18 @@ namespace SalesInvoiceService.API.DTOs
 
         public bool DiscountEnabled { get; set; } = true;
 
+        [System.ComponentModel.DataAnnotations.RegularExpression("^(Fixed|Percentage)$")]
+        public string DiscountType { get; set; } = "Fixed";
+
+        [System.ComponentModel.DataAnnotations.Range(typeof(decimal), "0", "99999999999999.9999")]
+        public decimal? DiscountValue { get; set; }
+
         [Range(typeof(decimal), "0", "99999999999999.9999")]
         public decimal DiscountAmount { get; set; }
 
-        [Range(typeof(decimal), "0", "100")]
-        public decimal TaxRate { get; set; }
+        [Range(1, int.MaxValue)]
+        public int? TaxSettingId { get; set; }
+
+        public string TaxSettingRowVersion { get; set; } = "";
     }
 }

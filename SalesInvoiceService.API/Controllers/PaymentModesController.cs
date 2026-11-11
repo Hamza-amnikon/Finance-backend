@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using SalesInvoiceService.API.Services;
 
 namespace SalesInvoiceService.API.Controllers
@@ -19,10 +20,24 @@ namespace SalesInvoiceService.API.Controllers
         public async Task<IActionResult> GetActive(
             CancellationToken cancellationToken)
         {
-            var paymentModes = await _service.GetActiveAsync(
-                cancellationToken);
+            try
+            {
+                var paymentModes = await _service.GetActiveAsync(
+                    cancellationToken);
 
-            return Ok(paymentModes);
+                return Ok(paymentModes);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (SqlException exception)
+                when (cancellationToken.IsCancellationRequested &&
+                      exception.Number == 0)
+            {
+                return StatusCode(499);
+            }
         }
     }
 }

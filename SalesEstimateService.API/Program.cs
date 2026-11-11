@@ -71,6 +71,8 @@ builder.Services.AddHttpClient<IInvoiceApiService, InvoiceApiService>(httpClient
     httpClient.Timeout = TimeSpan.FromSeconds(30);
 });
 
+builder.Services.AddScoped<SalesEstimateTaxSettingsService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

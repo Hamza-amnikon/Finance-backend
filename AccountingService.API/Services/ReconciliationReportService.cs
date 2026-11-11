@@ -49,7 +49,7 @@ namespace AccountingService.API.Services
                     UNION ALL
                     SELECT p.Id,N'Customer payment',CONCAT(N'Payment ',p.Id),p.Currency,p.Amount,N'PaymentReceived',CONVERT(nvarchar(100),p.Id)
                     FROM sales.SalesInvoicePayments p INNER JOIN sales.SalesInvoices i ON i.Id=p.SalesInvoiceId
-                    WHERE p.PaymentDate<=@asOf AND EXISTS(SELECT 1 FROM sales.BranchMasters b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
+                    WHERE p.Status=N'Recorded' AND p.PaymentDate<=@asOf AND EXISTS(SELECT 1 FROM sales.BranchMasters b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
                     UNION ALL
                     SELECT b.Id,N'Purchase bill',COALESCE(b.BillNumber,N''),b.Currency,b.GrandTotal,N'PurchaseBill',CONVERT(nvarchar(100),b.Id)
                     FROM purchases.Bills b WHERE b.Status=N'Issued' AND b.BillDate<=@asOf
@@ -102,7 +102,7 @@ namespace AccountingService.API.Services
             const string balanceSql = @"
                 SELECT N'Receivables' AS Kind,i.GrandTotal-COALESCE(p.Paid,0)-COALESCE(c.Credits,0)-COALESCE(a.Applied,0) AS Balance,j.ExchangeRate AS BookingRate
                 FROM sales.SalesInvoices i
-                OUTER APPLY(SELECT SUM(Amount) AS Paid FROM sales.SalesInvoicePayments WHERE SalesInvoiceId=i.Id AND PaymentDate<=@asOf)p
+                OUTER APPLY(SELECT SUM(Amount) AS Paid FROM sales.SalesInvoicePayments WHERE Status=N'Recorded' AND SalesInvoiceId=i.Id AND PaymentDate<=@asOf)p
                 OUTER APPLY(SELECT SUM(GrandTotal) AS Credits FROM sales.SalesCreditNotes WHERE SalesInvoiceId=i.Id AND Status=N'Issued' AND CreditNoteDate<=@asOf)c
                 OUTER APPLY(SELECT SUM(Amount) AS Applied FROM sales.CustomerCreditApplications WHERE TargetInvoiceId=i.Id AND AppliedAtUtc<@nextDay)a
                 OUTER APPLY(SELECT MAX(ExchangeRate) AS ExchangeRate FROM accounting.JournalEntries WHERE CompanyId=@company AND Source=N'SalesInvoice' AND SourceDocumentId=CONVERT(nvarchar(100),i.Id) AND Status IN(N'Posted',N'Reversed') AND EntryDate<=@asOf)j

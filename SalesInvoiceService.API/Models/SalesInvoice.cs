@@ -24,6 +24,8 @@ namespace SalesInvoiceService.API.Models
 
         public Guid ClientId { get; set; }
 
+        public bool UsesTaxSettings { get; set; }
+
         public int? SourceEstimateId { get; set; }
 
         [MaxLength(50)]

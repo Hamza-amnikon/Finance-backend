@@ -8,6 +8,7 @@ namespace SalesInvoiceService.API.Services
 {
     public class InvoiceEstimateConversionService : IInvoiceEstimateConversionService
     {
+        private readonly InvoiceTaxSettingsService _taxSettings;
         private readonly SalesInvoiceDbContext _context;
         private readonly IEstimateApiService _estimateApi;
         private readonly IClientApiService _clientApi;
@@ -21,8 +22,10 @@ namespace SalesInvoiceService.API.Services
             IClientApiService clientApi,
             ICurrencyService currencyService,
             ISalesInvoiceCalculator calculator,
-            IPaymentModeService paymentModeService)
+            IPaymentModeService paymentModeService,
+            InvoiceTaxSettingsService taxSettings)
         {
+            _taxSettings = taxSettings;
             _context = context;
             _estimateApi = estimateApi;
             _clientApi = clientApi;
@@ -107,7 +110,10 @@ namespace SalesInvoiceService.API.Services
                 Branch = source.Branch,
                 Notes = source.Notes,
                 AdditionalTerms = source.AdditionalTerms,
-                TaxTreatment = dto.TaxTreatment,
+                UsesTaxSettings = source.UsesTaxSettings,
+                TaxTreatment = source.UsesTaxSettings
+                    ? Enum.Parse<SalesInvoiceTaxTreatment>(source.TaxTreatment)
+                    : dto.TaxTreatment,
                 Items = source.Items.OrderBy(item => item.LineNumber).Select(item => new SalesInvoiceItem
                 {
                     ServiceName = item.ServiceName,
@@ -116,11 +122,27 @@ namespace SalesInvoiceService.API.Services
                     Quantity = item.Quantity,
                     UnitPrice = item.UnitPrice,
                     DiscountEnabled = item.DiscountEnabled,
+                    DiscountType = item.DiscountType,
+                    DiscountValue = item.DiscountValue,
                     DiscountAmount = item.DiscountEnabled ? item.DiscountAmount : 0m,
-                    TaxRate = item.TaxRate
+                    TaxRate = item.TaxRate,
+                    TaxSettingId = item.TaxSettingId,
+                    TaxSettingSnapshotJson = item.TaxSettingSnapshotJson
                 }).ToList()
             };
 
+            try
+            {
+                await _taxSettings.ValidateDraftAsync(invoice, cancellationToken);
+            }
+            catch (ArgumentException exception)
+            {
+                throw new ArgumentException(
+                    "The estimate's saved tax setting cannot be used for the invoice date. " +
+                    "Review its company, effective dates and current version. Create a direct invoice " +
+                    "with a valid setting or a revised estimate. The accepted estimate is unchanged.",
+                    exception);
+            }
             _calculator.Calculate(invoice, currency.DecimalPlaces);
 
             if (invoice.SubTotal != source.SubTotal || invoice.DiscountTotal != source.DiscountTotal ||
@@ -164,7 +186,7 @@ namespace SalesInvoiceService.API.Services
         {
             if (invoice.SourceEstimateInvoiceDate != dto.InvoiceDate || invoice.SourceEstimateDueDate != dto.DueDate ||
                 !string.Equals(invoice.PreferredPaymentMode, dto.PreferredPaymentMode?.Trim() ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
-                invoice.TaxTreatment != dto.TaxTreatment ||
+                (!invoice.UsesTaxSettings && invoice.TaxTreatment != dto.TaxTreatment) ||
                 invoice.SourceEstimateRowVersion == null || !invoice.SourceEstimateRowVersion.SequenceEqual(dto.RowVersion))
                 throw new InvalidOperationException("This estimate already has an invoice from a different conversion request. Open the existing invoice.");
 

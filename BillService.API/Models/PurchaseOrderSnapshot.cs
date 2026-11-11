@@ -19,6 +19,8 @@ namespace BillService.API.Models
         public string Reference { get; set; } = "";
         public string Notes { get; set; } = "";
         public string AdditionalTerms { get; set; } = "";
+        public bool UsesTaxSettings { get; set; }
+        public string TaxTreatment { get; set; } = "NoTax";
         public decimal GrandTotal { get; set; }
     }
 }

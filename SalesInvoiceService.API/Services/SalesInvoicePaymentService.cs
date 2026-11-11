@@ -225,7 +225,7 @@ namespace SalesInvoiceService.API.Services
                 salesInvoiceId,
                 cancellationToken);
 
-            var paidAmount = payments.Sum(payment => payment.Amount);
+            var paidAmount = payments.Where(payment => payment.Status == "Recorded").Sum(payment => payment.Amount);
 
             var creditedAmount =
                 await _paymentRepository.GetIssuedCreditAmountAsync(
@@ -307,6 +307,9 @@ namespace SalesInvoiceService.API.Services
         {
             return new SalesInvoicePaymentResponseDto
             {
+                Status = payment.Status,
+                VoidedDate = payment.VoidedDate,
+                VoidReason = payment.VoidReason,
                 Id = payment.Id,
                 SalesInvoiceId = payment.SalesInvoiceId,
                 RequestId = payment.RequestId,

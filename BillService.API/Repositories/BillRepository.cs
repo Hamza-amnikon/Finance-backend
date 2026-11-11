@@ -95,6 +95,7 @@ namespace BillService.API.Repositories
                 "DiscountTotal",
                 "TaxTotal",
                 "TaxTreatment",
+                "UsesTaxSettings",
                 "GrandTotal"
             }
 
@@ -168,6 +169,7 @@ namespace BillService.API.Repositories
                     throw new InvalidOperationException("Void active payments and credit applications before cancelling this bill.");
                 }
 
+                stored.AccountingReversalPending = stored.Status == BillStatus.Issued;
                 stored.CancelledDate = DateTime.UtcNow;
             }
             else

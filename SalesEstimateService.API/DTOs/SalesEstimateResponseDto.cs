@@ -32,6 +32,11 @@ namespace SalesEstimateService.API.DTOs
 
         public decimal DiscountTotal { get; set; }
 
+        public bool UsesTaxSettings { get; set; }
+
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+        public SalesEstimateTaxTreatment TaxTreatment { get; set; }
+
         public decimal TaxTotal { get; set; }
 
         public decimal GrandTotal { get; set; }

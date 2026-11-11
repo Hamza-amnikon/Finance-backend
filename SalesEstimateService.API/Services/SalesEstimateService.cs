@@ -8,6 +8,7 @@ namespace SalesEstimateService.API.Services
 {
     public class SalesEstimateService : ISalesEstimateService
     {
+        private readonly SalesEstimateTaxSettingsService _taxSettings;
         private readonly ISalesEstimateRepository _repository;
         private readonly IClientApiService _clientApiService;
         private readonly ICurrencyApiService _currencyApiService;
@@ -17,8 +18,10 @@ namespace SalesEstimateService.API.Services
             ISalesEstimateRepository repository,
             IClientApiService clientApiService,
             ICurrencyApiService currencyApiService,
-            ISalesEstimateCalculator calculator)
+            ISalesEstimateCalculator calculator,
+            SalesEstimateTaxSettingsService taxSettings)
         {
+            _taxSettings = taxSettings;
             _repository = repository;
             _clientApiService = clientApiService;
             _currencyApiService = currencyApiService;
@@ -174,6 +177,7 @@ namespace SalesEstimateService.API.Services
 
             if (target == SalesEstimateStatus.Sent)
             {
+                await _taxSettings.ValidateDraftAsync(estimate, cancellationToken);
                 // Recheck the client and totals without changing the saved draft.
                 var calculated = await BuildDraftAsync(new CreateSalesEstimateDto
                 {
@@ -196,10 +200,14 @@ namespace SalesEstimateService.API.Services
                             Quantity = item.Quantity,
                             UnitPrice = item.UnitPrice,
                             DiscountEnabled = item.DiscountEnabled,
+                            DiscountType = item.DiscountType,
+                            DiscountValue = item.DiscountValue,
                             DiscountAmount = item.DiscountAmount,
-                            TaxRate = item.TaxRate
+                            TaxSettingId = item.TaxSettingId,
+                            TaxSettingRowVersion = SavedTaxVersion(item.TaxSettingSnapshotJson)
                         }).ToList()
-                }, cancellationToken);
+                }, cancellationToken, estimate.UsesTaxSettings,
+                    estimate.Items.OrderBy(item => item.LineNumber).Select(item => item.TaxRate).ToList());
 
                 var linesMatch = estimate.Items.OrderBy(item => item.LineNumber)
                     .Zip(calculated.Items, (saved, result) =>
@@ -230,7 +238,9 @@ namespace SalesEstimateService.API.Services
 
         private async Task<SalesEstimate> BuildDraftAsync(
             CreateSalesEstimateDto dto,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool useSavedTaxSettings = true,
+            IReadOnlyList<decimal>? recordedTaxRates = null)
         {
             Validate(dto);
 
@@ -336,14 +346,36 @@ namespace SalesEstimateService.API.Services
                     Quantity = item.Quantity,
                     UnitPrice = item.UnitPrice,
                     DiscountEnabled = item.DiscountEnabled,
-                    DiscountAmount = item.DiscountEnabled ? item.DiscountAmount : 0m,
-                    TaxRate = item.TaxRate
+                    DiscountType = item.DiscountType,
+                    DiscountValue = item.DiscountValue,
+                    DiscountAmount = item.DiscountEnabled ? item.DiscountAmount : 0m
                 }).ToList()
             };
 
+            if (useSavedTaxSettings)
+            {
+                await _taxSettings.ApplyAsync(estimate, dto.Items, cancellationToken);
+            }
+            else if (recordedTaxRates != null)
+            {
+                for (var index = 0; index < estimate.Items.Count; index++)
+                {
+                    estimate.Items.ElementAt(index).TaxRate = recordedTaxRates[index];
+                }
+            }
             _calculator.Calculate(estimate, currency.DecimalPlaces);
 
             return estimate;
+        }
+
+        private static string SavedTaxVersion(string snapshot)
+        {
+            if (string.IsNullOrEmpty(snapshot))
+            {
+                return "";
+            }
+            using var json = System.Text.Json.JsonDocument.Parse(snapshot);
+            return json.RootElement.GetProperty("rowVersion").GetString() ?? "";
         }
 
         private static void Validate(object value)
@@ -388,6 +420,8 @@ namespace SalesEstimateService.API.Services
                 SubTotal = estimate.SubTotal,
                 DiscountTotal = estimate.DiscountTotal,
                 TaxTotal = estimate.TaxTotal,
+                UsesTaxSettings = estimate.UsesTaxSettings,
+                TaxTreatment = estimate.TaxTreatment,
                 GrandTotal = estimate.GrandTotal,
                 Status = estimate.Status,
                 Notes = estimate.Notes,
@@ -412,8 +446,12 @@ namespace SalesEstimateService.API.Services
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice,
                         DiscountEnabled = item.DiscountEnabled,
+                        DiscountType = item.DiscountType,
+                        DiscountValue = item.DiscountValue,
                         DiscountAmount = item.DiscountAmount,
                         TaxRate = item.TaxRate,
+                        TaxSettingId = item.TaxSettingId,
+                        TaxSettingSnapshotJson = item.TaxSettingSnapshotJson,
                         LineSubTotal = item.LineSubTotal,
                         TaxAmount = item.TaxAmount,
                         LineTotal = item.LineTotal,

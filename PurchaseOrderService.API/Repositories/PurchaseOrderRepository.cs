@@ -163,6 +163,8 @@ namespace PurchaseOrderService.API.Repositories
                 "SubTotal",
                 "DiscountTotal",
                 "TaxTotal",
+                "UsesTaxSettings",
+                "TaxTreatment",
                 "GrandTotal"
             })
             {

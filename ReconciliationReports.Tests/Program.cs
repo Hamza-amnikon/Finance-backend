@@ -66,8 +66,9 @@ try
         INSERT INTO sales.BranchMasters VALUES('Office A',1),('Office B',2);
         CREATE TABLE sales.SalesInvoices(Id int,InvoiceNumber nvarchar(50),Branch nvarchar(100),Currency nvarchar(3),GrandTotal decimal(18,4),Status nvarchar(20),InvoiceDate date);
         INSERT INTO sales.SalesInvoices VALUES(1,'INV-POSTED','Office A','AED',100,'Issued','2026-10-01'),(2,'INV-MISSING','Office A','AED',50,'Issued','2026-10-03'),(3,'INV-FUTURE','Office A','AED',9,'Issued','2026-12-01'),(4,'INV-OTHER','Office B','INR',9999,'Issued','2026-10-01'),(5,'INV-DRAFT','Office A','AED',10,'Draft','2026-10-01');
-        CREATE TABLE sales.SalesInvoicePayments(Id int,SalesInvoiceId int,Currency nvarchar(3),Amount decimal(18,4),PaymentDate date);
-        INSERT INTO sales.SalesInvoicePayments VALUES(1,1,'AED',20,'2026-10-02');
+        CREATE TABLE sales.SalesInvoicePayments(Id int,SalesInvoiceId int,Currency nvarchar(3),Amount decimal(18,4),PaymentDate date,Status nvarchar(20) NOT NULL DEFAULT 'Recorded');
+        INSERT INTO sales.SalesInvoicePayments (Id,SalesInvoiceId,Currency,Amount,PaymentDate,Status) VALUES(99,1,'AED',999999,'2026-10-02','Voided');
+        INSERT INTO sales.SalesInvoicePayments (Id,SalesInvoiceId,Currency,Amount,PaymentDate) VALUES(1,1,'AED',20,'2026-10-02');
         CREATE TABLE sales.SalesCreditNotes(Id int,SalesInvoiceId int,CreditNoteNumber nvarchar(50),Currency nvarchar(3),GrandTotal decimal(18,4),Status nvarchar(20),CreditNoteDate date);
         CREATE TABLE sales.CustomerCreditApplications(TargetInvoiceId int,Amount decimal(18,4),AppliedAtUtc datetime2);
         CREATE TABLE purchases.Bills(Id int,BillNumber nvarchar(50),Branch nvarchar(100),Currency nvarchar(3),GrandTotal decimal(18,4),Status nvarchar(20),BillDate date);

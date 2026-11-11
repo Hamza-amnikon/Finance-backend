@@ -56,6 +56,24 @@ namespace BillService.API.Services
                 ?? throw new HttpRequestException("AccountingService returned an empty response.");
         }
 
+        public async Task<BillAccountingResultDto> ReverseBillAsync(int billId, CancellationToken cancellationToken)
+        {
+            using var response = await _httpClient.PostAsync(
+                $"api/accounting-postings/purchase-bills/{billId}/reverse", null, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException("The bill is cancelled, but its accounting reversal is pending. Retry cancellation to complete it.",
+                    null, response.StatusCode);
+            }
+            var result = await response.Content.ReadFromJsonAsync<BillAccountingResultDto>(cancellationToken: cancellationToken)
+                ?? throw new HttpRequestException("Accounting returned no cancellation confirmation.");
+            if (result.Status != "Reversed" && result.Status != "NoPosting")
+            {
+                throw new HttpRequestException("Accounting did not confirm the bill cancellation reversal.");
+            }
+            return result;
+        }
+
         private sealed class BillAccountingErrorDto
         {
             public string? Message { get; set; }

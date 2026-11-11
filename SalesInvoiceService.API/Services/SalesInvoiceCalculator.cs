@@ -1,4 +1,4 @@
-﻿using SalesInvoiceService.API.Models;
+using SalesInvoiceService.API.Models;
 
 namespace SalesInvoiceService.API.Services
 {
@@ -82,15 +82,13 @@ namespace SalesInvoiceService.API.Services
 
                 ValidateDecimal(subTotal, "Line subtotal");
 
-                var discount = Round(
+                var discount = SparkFinance.Discounts.LineDiscount.Calculate(
+                    item.DiscountEnabled,
+                    item.DiscountType,
+                    item.DiscountValue,
                     item.DiscountAmount,
+                    subTotal,
                     currencyDecimalPlaces);
-
-                if (discount > subTotal)
-                {
-                    throw new ArgumentException(
-                        "Discount cannot exceed the line subtotal.");
-                }
 
                 var taxableAmount = subTotal - discount;
 

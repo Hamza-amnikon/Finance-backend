@@ -1,7 +1,13 @@
-﻿namespace SalesInvoiceService.API.DTOs
+namespace SalesInvoiceService.API.DTOs
 {
     public class SalesInvoicePaymentResponseDto
     {
+        public string Status { get; set; } = "Recorded";
+
+        public DateTime? VoidedDate { get; set; }
+
+        public string VoidReason { get; set; } = string.Empty;
+
         public int Id { get; set; }
 
         public int SalesInvoiceId { get; set; }

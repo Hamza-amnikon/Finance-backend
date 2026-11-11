@@ -1,6 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using ClientService.API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 
 namespace ClientService.API.Controllers
 {
@@ -17,39 +18,53 @@ namespace ClientService.API.Controllers
         }
 
         [HttpGet("countries")]
-        public async Task<IActionResult> GetCountries(
+        public Task<IActionResult> GetCountries(
             CancellationToken cancellationToken)
         {
-            var countries = await _service.GetCountriesAsync(
+            return HandleReadAsync(
+                () => _service.GetCountriesAsync(cancellationToken),
                 cancellationToken);
-
-            return Ok(countries);
         }
 
         [HttpGet("states")]
-        public async Task<IActionResult> GetStates(
+        public Task<IActionResult> GetStates(
             [FromQuery, Required, MaxLength(100)] string country,
             CancellationToken cancellationToken)
         {
-            var states = await _service.GetStatesAsync(
-                country,
+            return HandleReadAsync(
+                () => _service.GetStatesAsync(country, cancellationToken),
                 cancellationToken);
-
-            return Ok(states);
         }
 
         [HttpGet("cities")]
-        public async Task<IActionResult> GetCities(
+        public Task<IActionResult> GetCities(
             [FromQuery, Required, MaxLength(100)] string country,
             [FromQuery, MaxLength(100)] string? state,
             CancellationToken cancellationToken)
         {
-            var cities = await _service.GetCitiesAsync(
-                country,
-                state,
+            return HandleReadAsync(
+                () => _service.GetCitiesAsync(country, state, cancellationToken),
                 cancellationToken);
+        }
 
-            return Ok(cities);
+        private async Task<IActionResult> HandleReadAsync(
+            Func<Task<List<string>>> load,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return Ok(await load());
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (SqlException exception)
+                when (cancellationToken.IsCancellationRequested && exception.Number == 0)
+            {
+                return StatusCode(499);
+            }
         }
     }
 }
