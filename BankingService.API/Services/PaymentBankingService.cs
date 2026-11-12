@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.Data;
 using BankingService.API.Data;
 using BankingService.API.DTOs;
@@ -112,7 +113,8 @@ namespace BankingService.API.Services
                 {
                     await ProcessAsync(candidate.Source, candidate.Id, cancellationToken);
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                catch (Exception exception)
+                    when (RequestCancellation.IsCancellation(exception, cancellationToken))
                 {
                     throw;
                 }
@@ -361,8 +363,11 @@ namespace BankingService.API.Services
                 """, cancellationToken);
             var auditAfter = new Dictionary<string, object?>(auditBefore)
             {
-                ["SettlementType"] = "Bank", ["BankAccountId"] = account.Id, ["BankAmount"] = dto.BankAmount,
-                ["BankChargeAmount"] = dto.BankChargeAmount, ["BankCurrency"] = account.Currency
+                ["SettlementType"] = "Bank",
+                ["BankAccountId"] = account.Id,
+                ["BankAmount"] = dto.BankAmount,
+                ["BankChargeAmount"] = dto.BankChargeAmount,
+                ["BankCurrency"] = account.Currency
             };
             await SparkFinance.Auditing.FinanceAudit.WriteAsync(_context, "SalesInvoicePayment", paymentId.ToString(), "Updated", auditBefore, auditAfter, cancellationToken);
 
@@ -611,7 +616,11 @@ namespace BankingService.API.Services
             if (payment.Status != "Voided")
             {
                 link.State = entry.Status;
-                if (entry.Status != "Draft") link.Message = "";
+                if (entry.Status != "Draft")
+                {
+                    link.Message = "";
+                }
+
                 return;
             }
             if (entry.Status == "Draft")
@@ -641,7 +650,11 @@ namespace BankingService.API.Services
                     utc,
                     TimeZoneInfo.FindSystemTimeZoneById(
                         _options.Routes.Single(row => Contains(row.Branches, payment.Branch)).TimeZoneId)));
-            if (date < entry.TransactionDate) date = entry.TransactionDate;
+            if (date < entry.TransactionDate)
+            {
+                date = entry.TransactionDate;
+            }
+
             var closed = await IsClosedAsync(entry.BankAccountId, date, cancellationToken);
             var reversalNotes = payment.Source == "Expense"
                 ? "Source expense voided; Finance reversal only."
@@ -912,8 +925,8 @@ namespace BankingService.API.Services
 
                 link.AccountingMessage = "";
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 throw;
             }

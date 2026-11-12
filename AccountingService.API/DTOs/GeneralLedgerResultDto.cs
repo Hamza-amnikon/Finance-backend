@@ -46,11 +46,7 @@
         public string ClosingBalanceSide { get; set; }
             = string.Empty;
 
-        public IReadOnlyList<GeneralLedgerLineDto> Data
-        {
-            get;
-            set;
-        } = [];
+        public IReadOnlyList<GeneralLedgerLineDto> Data { get; set; } = [];
 
         public int Total { get; set; }
 

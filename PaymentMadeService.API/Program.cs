@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using Microsoft.EntityFrameworkCore;
 using PaymentMadeService.API.Data;
 using PaymentMadeService.API.Repositories;
@@ -42,21 +43,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
-app.Use(async (context, next) =>
-{
-    try
-    {
-        await next();
-    }
-    catch (OperationCanceledException)
-        when (context.RequestAborted.IsCancellationRequested)
-    {
-        if (!context.Response.HasStarted)
-        {
-            context.Response.StatusCode = 499;
-        }
-    }
-});
+app.UseFinanceRequestCancellation();
 
 app.MapControllers();
 app.Run();

@@ -174,7 +174,10 @@ namespace SparkFinance.Auditing
         )
         {
             if (!context.Database.IsSqlServer())
+            {
                 return;
+            }
+
             var http = new HttpContextAccessor().HttpContext;
             var identity = http?.User;
             var authenticated = identity?.Identity?.IsAuthenticated == true;
@@ -249,7 +252,10 @@ namespace SparkFinance.Auditing
             ChangeTracker.DetectChanges();
             var changes = ChangeTracker.Entries().Where(entry => entry.Metadata.GetSchema() != "audit" && entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).Select(entry => new { Entry = entry, State = entry.State, ExcludedChanges = entry.Properties.Where(property => property.IsModified && !property.Metadata.IsConcurrencyToken && !FinanceAudit.Fields.Contains(property.Metadata.Name)).Select(property => property.Metadata.Name).Order().ToArray(), Before = entry.State == EntityState.Added ? null : FinanceAudit.Snapshot(entry.OriginalValues) }).ToList();
             if (!changes.Any() || !Database.IsSqlServer())
+            {
                 return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            }
+
             var ownTransaction = Database.CurrentTransaction == null;
             await using var transaction = ownTransaction ? await Database.BeginTransactionAsync(cancellationToken) : null;
             try
@@ -259,30 +265,48 @@ namespace SparkFinance.Auditing
                 {
                     var after = change.State == EntityState.Deleted ? null : FinanceAudit.Snapshot(change.Entry.CurrentValues);
                     if (change.State == EntityState.Modified && change.ExcludedChanges.Length > 0)
+                    {
                         after!["Other fields changed (values excluded)"] = string.Join(", ", change.ExcludedChanges);
+                    }
+
                     if (change.State == EntityState.Modified && JsonSerializer.Serialize(change.Before) == JsonSerializer.Serialize(after))
+                    {
                         continue;
+                    }
+
                     var key = change.Entry.Metadata.FindPrimaryKey();
                     if (key == null)
+                    {
                         continue;
+                    }
+
                     var id = string.Join(
-                        "/",
-                        key.Properties.Select(property => change.Entry.Property(property.Name).CurrentValue?.ToString())
-                    );
+                                            "/",
+                                            key.Properties.Select(property => change.Entry.Property(property.Name).CurrentValue?.ToString())
+                                        );
                     var action = change.State == EntityState.Added ? "Created" : change.State == EntityState.Deleted ? "Deleted" : "Updated";
                     if (change.Before?.GetValueOrDefault("Status")?.ToString() != after?.GetValueOrDefault("Status")?.ToString() && change.State == EntityState.Modified)
+                    {
                         action = "Status changed";
+                    }
+
                     await FinanceAudit.WriteAsync(this, change.Entry.Metadata.ClrType.Name, id, action, change.Before, after, cancellationToken);
                 }
 
                 if (transaction != null)
+                {
                     await transaction.CommitAsync(cancellationToken);
+                }
+
                 return result;
             }
             catch
             {
                 if (transaction != null)
+                {
                     await transaction.RollbackAsync(CancellationToken.None);
+                }
+
                 throw;
             }
         }

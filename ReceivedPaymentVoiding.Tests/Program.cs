@@ -14,13 +14,20 @@ var created = false;
 var checks = 0;
 void Check(bool valid, string description)
 {
-    if (!valid) throw new Exception("FAIL: " + description);
+    if (!valid)
+    {
+        throw new Exception("FAIL: " + description);
+    }
+
     Console.WriteLine("PASS: " + description);
     checks++;
 }
 async Task Reject(Func<Task> action, string description)
 {
-    try { await action(); }
+    try
+    {
+        await action();
+    }
     catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
     {
         Check(true, description);
@@ -47,9 +54,17 @@ try
         {
             await File.WriteAllTextAsync(checkpoint, JsonSerializer.Serialize(records.Select(row => new
             {
-                row.Id, row.SalesInvoiceId, row.RequestId, row.Amount, row.Currency,
-                row.PaymentMode, row.Reference, row.BankAmount, row.BankChargeAmount,
-                row.Status, row.CreatedDate
+                row.Id,
+                row.SalesInvoiceId,
+                row.RequestId,
+                row.Amount,
+                row.Currency,
+                row.PaymentMode,
+                row.Reference,
+                row.BankAmount,
+                row.BankChargeAmount,
+                row.Status,
+                row.CreatedDate
             }), new JsonSerializerOptions { WriteIndented = true }));
         }
         // A single outer batch is not used: each service call is independently atomic and replay safe.
@@ -85,16 +100,25 @@ try
         await File.WriteAllTextAsync("artifacts/received-test-payments-2029-2034-after.json",
             JsonSerializer.Serialize(new
             {
-                PaymentIds = ids, Status = "Voided", CancelledDrafts = cancelledDrafts,
-                JournalCount = journalCount, PaymentRowCount = countBefore,
-                liveSummary.InvoiceTotal, liveSummary.PaidAmount, liveSummary.BalanceDue,
+                PaymentIds = ids,
+                Status = "Voided",
+                CancelledDrafts = cancelledDrafts,
+                JournalCount = journalCount,
+                PaymentRowCount = countBefore,
+                liveSummary.InvoiceTotal,
+                liveSummary.PaidAmount,
+                liveSummary.BalanceDue,
                 ReconciliationIssues = report.Checks.Where(row => row.Status == "Issue").Select(row => new { row.Title, row.Reference, row.Explanation })
             }, new JsonSerializerOptions { WriteIndented = true }));
         return;
     }
 
     created = await context.Database.EnsureCreatedAsync();
-    if (!created) throw new Exception("Refusing to reuse a test database.");
+    if (!created)
+    {
+        throw new Exception("Refusing to reuse a test database.");
+    }
+
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA banking");
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA accounting");
     await context.Database.ExecuteSqlRawAsync("""
@@ -109,9 +133,14 @@ try
         """);
     var invoice = new SalesInvoice
     {
-        ClientId = Guid.NewGuid(), ClientName = "Test", Currency = "USD", Branch = "Dubai",
-        Status = SalesInvoiceStatus.Issued, GrandTotal = 1000m,
-        InvoiceDate = new DateOnly(2026,11,9), DueDate = new DateOnly(2026,11,12)
+        ClientId = Guid.NewGuid(),
+        ClientName = "Test",
+        Currency = "USD",
+        Branch = "Dubai",
+        Status = SalesInvoiceStatus.Issued,
+        GrandTotal = 1000m,
+        InvoiceDate = new DateOnly(2026, 11, 9),
+        DueDate = new DateOnly(2026, 11, 12)
     };
     context.SalesInvoices.Add(invoice);
     await context.SaveChangesAsync();
@@ -119,9 +148,13 @@ try
     {
         context.SalesInvoicePayments.Add(new SalesInvoicePayment
         {
-            SalesInvoiceId = invoice.Id, RequestId = Guid.NewGuid(), Amount = 85m,
-            Currency = "USD", PaymentMode = "Cheque", Reference = "TEST-" + id,
-            PaymentDate = new DateOnly(2026,11,9)
+            SalesInvoiceId = invoice.Id,
+            RequestId = Guid.NewGuid(),
+            Amount = 85m,
+            Currency = "USD",
+            PaymentMode = "Cheque",
+            Reference = "TEST-" + id,
+            PaymentDate = new DateOnly(2026, 11, 9)
         });
     }
     await context.SaveChangesAsync();
@@ -161,5 +194,8 @@ try
 }
 finally
 {
-    if (created) await context.Database.EnsureDeletedAsync();
+    if (created)
+    {
+        await context.Database.EnsureDeletedAsync();
+    }
 }

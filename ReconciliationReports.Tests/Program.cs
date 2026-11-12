@@ -22,7 +22,10 @@ void Check(
 )
 {
     if (!condition)
+    {
         throw new Exception("FAIL: " + name);
+    }
+
     Console.WriteLine("PASS: " + name);
     checks++;
 }
@@ -55,9 +58,12 @@ try
     }
 
     )
+    {
         await new SqlCommand($"CREATE SCHEMA [{schema}]", sql).ExecuteNonQueryAsync();
+    }
+
     await new SqlCommand(
-        """
+            """
         CREATE TABLE expenses.Companies(Id int,Name nvarchar(160),Country nvarchar(2),Currency nvarchar(3));
         INSERT INTO expenses.Companies VALUES(1,'Company A','AE','AED'),(2,'Company B','IN','INR'),(3,'Empty company','AE','AED');
         CREATE TABLE sales.CurrencyMasters(CurrencyCode nvarchar(3),DecimalPlaces int);
@@ -113,8 +119,8 @@ try
         CREATE TABLE banking.BankStatementLines(Id int,BankReconciliationId int,MatchedBankTransactionId int);
         INSERT INTO banking.BankStatementLines VALUES(1,1,1);
         """,
-        sql
-    ).ExecuteNonQueryAsync();
+            sql
+        ).ExecuteNonQueryAsync();
     var start = new ProcessStartInfo("dotnet")
     {
         UseShellExecute = false,
@@ -138,8 +144,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.ErrorDataReceived += (
         _,
@@ -147,8 +155,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.Start();
     server.BeginOutputReadLine();
@@ -158,20 +168,25 @@ try
         BaseAddress = new Uri("http://127.0.0.1:5404"),
         Timeout = TimeSpan.FromSeconds(20)
     };
-    for (var attempt = 0;; attempt++)
+    for (var attempt = 0; ; attempt++)
     {
         try
         {
             using var ping = await client.GetAsync("/api/reconciliation-reports");
             if (ping.StatusCode == HttpStatusCode.BadRequest)
+            {
                 break;
+            }
         }
         catch (HttpRequestException)
         {
         }
 
         if (attempt >= 60 || server.HasExited)
+        {
             throw new Exception("Test server failed: " + output);
+        }
+
         await Task.Delay(200);
     }
 
@@ -183,7 +198,10 @@ try
         using var response = await client.GetAsync($"/api/reconciliation-reports?companyId={company}&asOf={date}");
         var text = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
+        {
             throw new Exception(text + output);
+        }
+
         return JsonNode.Parse(text)!["checks"]!.AsArray();
     }
 
@@ -201,7 +219,7 @@ try
         "Missing standalone expense and vendor-credit postings are exposed"
     );
     Check(
-        !rows.Any(row => row!["reference"]?.GetValue<string>()is "INV-FUTURE" or "INV-DRAFT" or "INV-OTHER" or "EXP-DRAFT"),
+        !rows.Any(row => row!["reference"]?.GetValue<string>() is "INV-FUTURE" or "INV-DRAFT" or "INV-OTHER" or "EXP-DRAFT"),
         "Future, draft and other-company source records are excluded"
     );
     Check(
@@ -263,10 +281,15 @@ finally
 
     server?.Dispose();
     if (!database.StartsWith("OrbitReconTests_", StringComparison.Ordinal) || database.Length != 48)
+    {
         throw new Exception("Unexpected test database name.");
+    }
+
     if (created)
+    {
         await new SqlCommand(
-            $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{database}];",
-            master
-        ).ExecuteNonQueryAsync();
+                $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{database}];",
+                master
+            ).ExecuteNonQueryAsync();
+    }
 }

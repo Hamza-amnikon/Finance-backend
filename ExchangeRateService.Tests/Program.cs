@@ -22,7 +22,10 @@ void Check(
 )
 {
     if (!condition)
+    {
         throw new Exception("FAILED: " + name);
+    }
+
     checks++;
     Console.WriteLine("PASS: " + name);
 }
@@ -31,7 +34,10 @@ try
 {
     created = await context.Database.EnsureCreatedAsync();
     if (!created)
+    {
         throw new Exception("Refusing to use an existing database.");
+    }
+
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA sales");
     await context.Database.ExecuteSqlRawAsync("CREATE TABLE sales.CurrencyMasters (CurrencyCode nvarchar(3), IsActive bit); INSERT INTO sales.CurrencyMasters VALUES ('INR',1),('USD',1),('AED',1),('EUR',0)");
     var clock = new TestClock();
@@ -131,7 +137,9 @@ try
 finally
 {
     if (created)
+    {
         await context.Database.EnsureDeletedAsync();
+    }
 }
 
 sealed class TestClock : TimeProvider
@@ -158,7 +166,10 @@ sealed class TestProvider(TestClock clock) : IDailyRateProvider
         Calls++;
         Dates.Add(date);
         if (FailUsd && source == "USD")
+        {
             throw new HttpRequestException("Test outage");
+        }
+
         var values = new Dictionary<string, decimal>
         {
             ["INR"] = 1m,

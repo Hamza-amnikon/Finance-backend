@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using BillService.API.Data;
 using BillService.API.DTOs;
@@ -87,7 +88,10 @@ namespace BillService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = bill.Id },
+                    new
+                    {
+                        id = bill.Id
+                    },
                     bill);
             }, cancellationToken);
         }
@@ -322,8 +326,8 @@ namespace BillService.API.Controllers
             {
                 return await action();
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -416,8 +420,8 @@ namespace BillService.API.Controllers
             {
                 return await action();
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

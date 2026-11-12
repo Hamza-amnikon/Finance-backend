@@ -44,11 +44,7 @@
 
     public class JournalEntryPagedResultDto
     {
-        public IReadOnlyList<JournalEntryListDto> Data
-        {
-            get;
-            set;
-        } = [];
+        public IReadOnlyList<JournalEntryListDto> Data { get; set; } = [];
 
         public int Total { get; set; }
 

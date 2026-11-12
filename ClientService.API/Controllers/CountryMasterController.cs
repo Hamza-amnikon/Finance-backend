@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using ClientService.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -55,13 +56,8 @@ namespace ClientService.API.Controllers
             {
                 return Ok(await load());
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                return StatusCode(499);
-            }
-            catch (SqlException exception)
-                when (cancellationToken.IsCancellationRequested && exception.Number == 0)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

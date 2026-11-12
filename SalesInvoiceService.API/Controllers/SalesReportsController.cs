@@ -25,7 +25,10 @@ namespace SalesInvoiceService.API.Controllers
             if (fromDate == default || toDate == default || fromDate > toDate ||
                 toDate.DayNumber - fromDate.DayNumber > 3660)
             {
-                return BadRequest(new { message = "Choose a valid date range of up to ten years." });
+                return BadRequest(new
+                {
+                    message = "Choose a valid date range of up to ten years."
+                });
             }
 
             // Read-only reporting: no changes to document, payment or posting workflows.
@@ -33,12 +36,20 @@ namespace SalesInvoiceService.API.Controllers
                 .Where(row => row.Status == SalesInvoiceStatus.Issued && row.InvoiceDate <= toDate)
                 .Select(row => new
                 {
-                    row.Id, row.InvoiceNumber, row.ClientId, row.ClientName,
-                    row.Branch, row.Currency, row.InvoiceDate, row.DueDate,
-                    row.GrandTotal, row.TaxTotal,
+                    row.Id,
+                    row.InvoiceNumber,
+                    row.ClientId,
+                    row.ClientName,
+                    row.Branch,
+                    row.Currency,
+                    row.InvoiceDate,
+                    row.DueDate,
+                    row.GrandTotal,
+                    row.TaxTotal,
                     Services = row.Items.Select(item => new
                     {
-                        item.ServiceName, Net = item.LineTotal - item.TaxAmount
+                        item.ServiceName,
+                        Net = item.LineTotal - item.TaxAmount
                     }).ToList()
                 }).ToListAsync(cancellationToken);
             var credits = await _context.SalesCreditNotes.AsNoTracking()
@@ -48,11 +59,16 @@ namespace SalesInvoiceService.API.Controllers
                     row.SalesInvoice.InvoiceDate <= toDate)
                 .Select(row => new
                 {
-                    row.Id, row.SalesInvoiceId, row.CreditNoteNumber,
-                    row.CreditNoteDate, row.GrandTotal, row.TaxTotal,
+                    row.Id,
+                    row.SalesInvoiceId,
+                    row.CreditNoteNumber,
+                    row.CreditNoteDate,
+                    row.GrandTotal,
+                    row.TaxTotal,
                     Services = row.Items.Select(item => new
                     {
-                        item.ServiceName, Net = item.LineTotal - item.TaxAmount
+                        item.ServiceName,
+                        Net = item.LineTotal - item.TaxAmount
                     }).ToList()
                 }).ToListAsync(cancellationToken);
             var payments = await _context.SalesInvoicePayments.AsNoTracking()
@@ -88,12 +104,23 @@ namespace SalesInvoiceService.API.Controllers
                     balance == 0 ? "Paid" : paid + applied > 0 ? "Partially Paid" : "Unpaid";
                 documents.Add(new
                 {
-                    id = invoice.Id, type = "Invoice", number = invoice.InvoiceNumber,
-                    invoice.ClientId, invoice.ClientName, invoice.Branch, invoice.Currency,
-                    date = invoice.InvoiceDate, dueDate = invoice.DueDate,
-                    net = invoice.GrandTotal - invoice.TaxTotal, tax = invoice.TaxTotal,
-                    total = invoice.GrandTotal, paid, balance, status,
-                    overdue = invoice.DueDate < toDate ? balance : 0m, invoice.Services
+                    id = invoice.Id,
+                    type = "Invoice",
+                    number = invoice.InvoiceNumber,
+                    invoice.ClientId,
+                    invoice.ClientName,
+                    invoice.Branch,
+                    invoice.Currency,
+                    date = invoice.InvoiceDate,
+                    dueDate = invoice.DueDate,
+                    net = invoice.GrandTotal - invoice.TaxTotal,
+                    tax = invoice.TaxTotal,
+                    total = invoice.GrandTotal,
+                    paid,
+                    balance,
+                    status,
+                    overdue = invoice.DueDate < toDate ? balance : 0m,
+                    invoice.Services
                 });
             }
             var byId = invoices.ToDictionary(row => row.Id);
@@ -102,25 +129,46 @@ namespace SalesInvoiceService.API.Controllers
                 var invoice = byId[credit.SalesInvoiceId];
                 documents.Add(new
                 {
-                    id = credit.Id, type = "CreditNote", number = credit.CreditNoteNumber,
-                    invoice.ClientId, invoice.ClientName, invoice.Branch, invoice.Currency,
-                    date = credit.CreditNoteDate, dueDate = (DateOnly?)null,
-                    net = -(credit.GrandTotal - credit.TaxTotal), tax = -credit.TaxTotal,
-                    total = -credit.GrandTotal, paid = 0m, balance = 0m, overdue = 0m,
-                    status = "Issued", services = credit.Services.Select(row => new
+                    id = credit.Id,
+                    type = "CreditNote",
+                    number = credit.CreditNoteNumber,
+                    invoice.ClientId,
+                    invoice.ClientName,
+                    invoice.Branch,
+                    invoice.Currency,
+                    date = credit.CreditNoteDate,
+                    dueDate = (DateOnly?)null,
+                    net = -(credit.GrandTotal - credit.TaxTotal),
+                    tax = -credit.TaxTotal,
+                    total = -credit.GrandTotal,
+                    paid = 0m,
+                    balance = 0m,
+                    overdue = 0m,
+                    status = "Issued",
+                    services = credit.Services.Select(row => new
                     {
-                        row.ServiceName, Net = -row.Net
+                        row.ServiceName,
+                        Net = -row.Net
                     })
                 });
             }
             return Ok(new
             {
-                fromDate, toDate, documents,
+                fromDate,
+                toDate,
+                documents,
                 receipts = payments.Where(row => row.PaymentDate >= fromDate).Select(row =>
                 {
                     var invoice = byId[row.SalesInvoiceId];
-                    return new { invoice.ClientId, invoice.ClientName, invoice.Branch,
-                        invoice.Currency, date = row.PaymentDate, row.Amount };
+                    return new
+                    {
+                        invoice.ClientId,
+                        invoice.ClientName,
+                        invoice.Branch,
+                        invoice.Currency,
+                        date = row.PaymentDate,
+                        row.Amount
+                    };
                 })
             });
         }

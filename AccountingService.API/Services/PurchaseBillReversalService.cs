@@ -36,7 +36,12 @@ namespace AccountingService.API.Services
             if (original == null)
             {
                 await transaction.CommitAsync(cancellationToken);
-                return new { journalEntryId = 0, status = "NoPosting", alreadyExisted = true };
+                return new
+                {
+                    journalEntryId = 0,
+                    status = "NoPosting",
+                    alreadyExisted = true
+                };
             }
             var existing = await _context.JournalEntries.AsNoTracking()
                 .SingleOrDefaultAsync(row => row.ReversalOfJournalEntryId == original.Id, cancellationToken);
@@ -47,7 +52,12 @@ namespace AccountingService.API.Services
                     throw new ValidationException("The linked bill reversal requires accounting review.");
                 }
                 await transaction.CommitAsync(cancellationToken);
-                return new { journalEntryId = existing.Id, status = "Reversed", alreadyExisted = true };
+                return new
+                {
+                    journalEntryId = existing.Id,
+                    status = "Reversed",
+                    alreadyExisted = true
+                };
             }
             var reversal = await _journals.ReverseAsync(original.Id, original.CompanyId,
                 new JournalEntryActionDto
@@ -57,7 +67,12 @@ namespace AccountingService.API.Services
                 }, cancellationToken)
                 ?? throw new ValidationException("The linked purchase bill journal could not be reversed.");
             await transaction.CommitAsync(cancellationToken);
-            return new { journalEntryId = reversal.Id, status = "Reversed", alreadyExisted = false };
+            return new
+            {
+                journalEntryId = reversal.Id,
+                status = "Reversed",
+                alreadyExisted = false
+            };
         }
     }
 }

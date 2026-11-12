@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using ExpenseService.API.Data;
 using ExpenseService.API.DTOs;
@@ -77,7 +78,10 @@ namespace ExpenseService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = expense.Id },
+                    new
+                    {
+                        id = expense.Id
+                    },
                     expense);
             }, cancellationToken);
         }
@@ -451,14 +455,8 @@ namespace ExpenseService.API.Controllers
             {
                 return await action();
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                return StatusCode(499);
-            }
-            catch (SqlException exception)
-                when (cancellationToken.IsCancellationRequested &&
-                      exception.Number == 0)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using SalesInvoiceService.API.Services;
@@ -24,21 +25,37 @@ namespace SalesInvoiceService.API.Controllers
             try
             {
                 var payment = await _service.VoidAsync(paymentId, request.Reason, cancellationToken);
-                return Ok(new { payment.Id, payment.Status, payment.VoidedDate, payment.VoidReason });
+                return Ok(new
+                {
+                    payment.Id,
+                    payment.Status,
+                    payment.VoidedDate,
+                    payment.VoidReason
+                });
             }
             catch (KeyNotFoundException exception)
             {
-                return NotFound(new { message = exception.Message });
+                return NotFound(new
+                {
+                    message = exception.Message
+                });
             }
             catch (ArgumentException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (InvalidOperationException exception)
             {
-                return Conflict(new { message = exception.Message });
+                return Conflict(new
+                {
+                    message = exception.Message
+                });
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

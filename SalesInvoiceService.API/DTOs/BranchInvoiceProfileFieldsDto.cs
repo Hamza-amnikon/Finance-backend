@@ -4,6 +4,10 @@ namespace SalesInvoiceService.API.DTOs
 {
     public class BranchInvoiceProfileFieldsDto
     {
+        [MaxLength(10)]
+        [RegularExpression("^[A-Za-z0-9]*$")]
+        public string? InvoiceNumberPrefix { get; set; }
+
         [MaxLength(200)]
         public string CompanyName { get; set; } = string.Empty;
 

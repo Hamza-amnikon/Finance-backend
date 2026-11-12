@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using SalesInvoiceService.API.Services;
@@ -27,14 +28,8 @@ namespace SalesInvoiceService.API.Controllers
 
                 return Ok(paymentModes);
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                return StatusCode(499);
-            }
-            catch (SqlException exception)
-                when (cancellationToken.IsCancellationRequested &&
-                      exception.Number == 0)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

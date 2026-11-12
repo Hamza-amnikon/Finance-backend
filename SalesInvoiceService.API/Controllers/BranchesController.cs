@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using SparkFinance.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.DTOs;
@@ -29,17 +30,14 @@ namespace SalesInvoiceService.API.Controllers
                     cancellationToken);
 
                 return profile == null
-                    ? NotFound(new { message = "Active branch not found." })
+                    ? NotFound(new
+                    {
+                        message = "Active branch not found."
+                    })
                     : Ok(profile);
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                return StatusCode(499);
-            }
-            catch (SqlException exception)
-                when (cancellationToken.IsCancellationRequested &&
-                      exception.Number == 0)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -59,7 +57,10 @@ namespace SalesInvoiceService.API.Controllers
                     cancellationToken);
 
                 return profile == null
-                    ? NotFound(new { message = "Active branch not found." })
+                    ? NotFound(new
+                    {
+                        message = "Active branch not found."
+                    })
                     : Ok(profile);
             }
             catch (DbUpdateConcurrencyException)
@@ -89,14 +90,8 @@ namespace SalesInvoiceService.API.Controllers
                     branch.IsActive
                 }));
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                return StatusCode(499);
-            }
-            catch (SqlException exception)
-                when (cancellationToken.IsCancellationRequested &&
-                      exception.Number == 0)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

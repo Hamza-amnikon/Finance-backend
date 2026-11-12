@@ -34,6 +34,20 @@ namespace SalesInvoiceService.API.Repositories
             await using var transaction = await _context.Database
                 .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 
+            var branch = await _context.BranchMasters
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    entry => entry.Name == invoice.Branch && entry.IsActive,
+                    cancellationToken)
+                ?? throw new ArgumentException("Select an active Billing Branch before issuing.");
+
+            var prefix = branch.InvoiceNumberPrefix.Trim();
+
+            if (prefix.Length > 10 || prefix.Any(character => !char.IsAsciiLetterOrDigit(character)))
+            {
+                throw new ArgumentException("Review the invoice number prefix in branch invoice details.");
+            }
+
             var periodKey = $"{invoice.InvoiceDate.Year:D4}{invoice.InvoiceDate.Month:D2}";
             var counter = await _context.Set<InvoiceNumberCounter>()
                 .FromSqlInterpolated($"SELECT * FROM [sales].[InvoiceNumberCounters] WITH (UPDLOCK, HOLDLOCK) WHERE [PeriodKey] = {periodKey}")
@@ -46,7 +60,11 @@ namespace SalesInvoiceService.API.Repositories
             }
 
             counter.LastNumber = checked(counter.LastNumber + 1);
-            invoice.InvoiceNumber = $"{invoice.InvoiceDate.Year:D4}/{invoice.InvoiceDate.Month:D3}/{counter.LastNumber:D3}";
+            var number = $"{invoice.InvoiceDate.Year:D4}/{invoice.InvoiceDate.Month:D3}/{counter.LastNumber:D3}";
+
+            invoice.InvoiceNumber = string.IsNullOrEmpty(prefix)
+                ? number
+                : $"{prefix}-{number}";
 
             _context.SalesInvoices.Attach(invoice);
             _context.Entry(invoice).State = EntityState.Modified;
@@ -81,10 +99,17 @@ namespace SalesInvoiceService.API.Repositories
 
             var total = await query.CountAsync(cancellationToken);
 
+            var offset = ((long)page - 1) * pageSize;
+
+            if (offset >= total)
+            {
+                return ([], total);
+            }
+
             var invoices = await query
                 .OrderByDescending(invoice => invoice.CreatedDate)
                 .ThenByDescending(invoice => invoice.Id)
-                .Skip((page - 1) * pageSize)
+                .Skip((int)offset)
                 .Take(pageSize)
                 .Include(invoice => invoice.Items)
                 .ToListAsync(cancellationToken);

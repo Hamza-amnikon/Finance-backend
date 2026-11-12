@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text;
@@ -65,19 +66,35 @@ namespace AccountingService.API.Controllers
         private async Task<IActionResult> Handle(Func<Task<IActionResult>> action)
         {
             if (!Allowed())
+            {
                 return StatusCode(
-                    403,
-                    new { message = "Administrator access is required. Local role headers are accepted only in Development mode until authentication is connected." }
-                );
+                                403,
+                                new
+                                {
+                                    message = "Administrator access is required. Local role headers are accepted only in Development mode until authentication is connected."
+                                }
+                            );
+            }
+
             try
             {
                 return await action();
             }
             catch (ValidationException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
-            catch (OperationCanceledException)when (HttpContext.RequestAborted.IsCancellationRequested)
+            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    HttpContext?.RequestAborted ?? CancellationToken.None))
             {
                 return StatusCode(499);
             }
@@ -94,22 +111,46 @@ namespace AccountingService.API.Controllers
         private IQueryable<AuditEvent> Filter(AuditHistoryQuery query)
         {
             if (query.From.HasValue && query.Before.HasValue && query.From >= query.Before)
+            {
                 throw new ValidationException("Choose a valid date range; From must be on or before To.");
+            }
+
             var rows = AuditActivityFilter.Apply(_context, query.Activity);
             if (query.From.HasValue)
+            {
                 rows = rows.Where(row => row.AtUtc >= query.From.Value);
+            }
+
             if (query.Before.HasValue)
+            {
                 rows = rows.Where(row => row.AtUtc < query.Before.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(query.Service))
+            {
                 rows = rows.Where(row => row.Service == query.Service);
+            }
+
             if (!string.IsNullOrWhiteSpace(query.EntityType))
+            {
                 rows = rows.Where(row => row.EntityType == query.EntityType);
+            }
+
             if (!string.IsNullOrWhiteSpace(query.EntityId))
+            {
                 rows = rows.Where(row => row.EntityId == query.EntityId);
+            }
+
             if (!string.IsNullOrWhiteSpace(query.Branch))
+            {
                 rows = rows.Where(row => row.Branch == query.Branch);
+            }
+
             if (!string.IsNullOrWhiteSpace(query.Action))
+            {
                 rows = rows.Where(row => row.Action == query.Action);
+            }
+
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
                 var search = query.Search.Trim();
@@ -129,9 +170,18 @@ namespace AccountingService.API.Controllers
             var total = await rows.CountAsync(cancellationToken);
             var skip = ((long)query.Page - 1) * query.PageSize;
             if (skip > int.MaxValue)
+            {
                 throw new ValidationException("Page is too large.");
+            }
+
             var data = await rows.OrderByDescending(row => row.Id).Skip((int)skip).Take(query.PageSize).ToListAsync(cancellationToken);
-            return Ok(new { data, total, query.Page, query.PageSize });
+            return Ok(new
+            {
+                data,
+                total,
+                query.Page,
+                query.PageSize
+            });
         });
         [HttpGet("lookups")]
         public Task<IActionResult> Lookups([FromQuery] string? activity, CancellationToken cancellationToken) => Handle(async () =>
@@ -168,22 +218,31 @@ namespace AccountingService.API.Controllers
         {
             var rows = await Filter(query).OrderByDescending(row => row.Id).Take(10001).ToListAsync(cancellationToken);
             if (rows.Count > 10000)
+            {
                 throw new ValidationException("Narrow your filters to export up to 10,000 audit events at a time.");
+            }
+
             string Cell(string? text) => "\"" + (text ?? "").Replace("\"", "\"\"") + "\"";
             string Safe(string? value)
             {
                 var text = value ?? "";
                 if (text.TrimStart().Length > 0 && "=+@-".Contains(text.TrimStart()[0]))
+                {
                     text = "'" + text;
+                }
+
                 return Cell(text);
             }
 
             var csv = new StringBuilder("\uFEFFTime (UTC),Service,Record,Record ID,Action,Actor,Identity type,Branch,Before,After\r\n");
             foreach (var row in rows)
+            {
                 csv.AppendLine(string.Join(
-                    ",",
-                    new[] { row.AtUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture), row.Service, row.EntityType, row.EntityId, row.Action, row.Actor, row.ActorKind, row.Branch, row.BeforeJson, row.AfterJson }.Select(Safe)
-                ));
+                ",",
+                new[] { row.AtUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture), row.Service, row.EntityType, row.EntityId, row.Action, row.Actor, row.ActorKind, row.Branch, row.BeforeJson, row.AfterJson }.Select(Safe)
+            ));
+            }
+
             return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv;charset=utf-8", "audit-history.csv");
         });
     }

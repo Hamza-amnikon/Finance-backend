@@ -101,7 +101,9 @@ namespace SalesEstimateService.API.Repositories
             CancellationToken cancellationToken)
         {
             if (invoiceId < 1 || rowVersion == null || rowVersion.Length != 8)
+            {
                 throw new ArgumentException("A valid invoice ID and RowVersion are required.");
+            }
 
             await using var transaction = await _context.Database
                 .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
@@ -111,7 +113,9 @@ namespace SalesEstimateService.API.Repositories
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (estimate == null)
+            {
                 return null;
+            }
 
             if (estimate.Status == SalesEstimateStatus.Converted && estimate.ConvertedInvoiceId == invoiceId)
             {
@@ -120,10 +124,14 @@ namespace SalesEstimateService.API.Repositories
             }
 
             if (estimate.Status != SalesEstimateStatus.Accepted)
+            {
                 throw new InvalidOperationException("Only accepted estimates can be converted.");
+            }
 
             if (!estimate.RowVersion.SequenceEqual(rowVersion))
+            {
                 throw new DbUpdateConcurrencyException();
+            }
 
             estimate.ConvertedInvoiceId = invoiceId;
             estimate.ConvertedDate = DateTime.UtcNow;

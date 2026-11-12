@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.Data;
 using SalesInvoiceService.API.DTOs;
 using SalesInvoiceService.API.Models;
+using SparkFinance.Http;
 
 namespace SalesInvoiceService.API.Controllers
 {
@@ -25,7 +26,10 @@ namespace SalesInvoiceService.API.Controllers
         {
             if (page < 1 || pageSize < 1 || pageSize > 100)
             {
-                return BadRequest(new { message = "Choose a valid page and page size between 1 and 100." });
+                return BadRequest(new
+                {
+                    message = "Choose a valid page and page size between 1 and 100."
+                });
             }
 
             var rows = _context.OrganizationProfiles.AsNoTracking();
@@ -34,7 +38,13 @@ namespace SalesInvoiceService.API.Controllers
                 .Skip((page - 1) * pageSize).Take(pageSize)
                 .ToListAsync(cancellationToken);
 
-            return Ok(new { data, total, page, pageSize });
+            return Ok(new
+            {
+                data,
+                total,
+                page,
+                pageSize
+            });
         }
 
         [HttpGet("{id:int:min(1)}")]
@@ -58,6 +68,45 @@ namespace SalesInvoiceService.API.Controllers
             return Save(id, dto, cancellationToken);
         }
 
+        [HttpDelete("{id:int:min(1)}")]
+        public async Task<IActionResult> Delete(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var profile = await _context.OrganizationProfiles
+                    .SingleOrDefaultAsync(
+                        row => row.Id == id,
+                        cancellationToken);
+
+                if (profile == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Organization profile was not found. Refresh the list."
+                    });
+                }
+
+                _context.OrganizationProfiles.Remove(profile);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return NoContent();
+            }
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
+            {
+                return StatusCode(499);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Conflict(new
+                {
+                    message = "This organization profile changed. Refresh the list and try again."
+                });
+            }
+        }
+
         private async Task<IActionResult> Save(
             int? id,
             OrganizationProfileDto dto,
@@ -65,7 +114,10 @@ namespace SalesInvoiceService.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Email))
             {
-                return BadRequest(new { message = "Organization name and business email are required." });
+                return BadRequest(new
+                {
+                    message = "Organization name and business email are required."
+                });
             }
 
             var profile = id.HasValue
@@ -83,7 +135,10 @@ namespace SalesInvoiceService.API.Controllers
 
             if (!active && (!id.HasValue || profile.Currency != currency))
             {
-                return BadRequest(new { message = "Select an active currency from the currency master." });
+                return BadRequest(new
+                {
+                    message = "Select an active currency from the currency master."
+                });
             }
 
             profile.Name = dto.Name.Trim();

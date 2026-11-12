@@ -14,10 +14,14 @@ namespace SalesEstimateService.API.DTOs
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             if (InvoiceDate == default)
+            {
                 yield return new ValidationResult("Invoice date is required.", new[] { nameof(InvoiceDate) });
+            }
 
             if (DueDate == default || DueDate < InvoiceDate)
+            {
                 yield return new ValidationResult("Due date must be on or after invoice date.", new[] { nameof(DueDate) });
+            }
         }
     }
 }

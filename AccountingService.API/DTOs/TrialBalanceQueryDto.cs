@@ -17,11 +17,7 @@ namespace AccountingService.API.DTOs
         [MaxLength(100)]
         public string? CostCenter { get; set; }
 
-        public bool IncludeZeroBalances
-        {
-            get;
-            set;
-        }
+        public bool IncludeZeroBalances { get; set; }
 
         [MaxLength(160)]
         public string? Search { get; set; }

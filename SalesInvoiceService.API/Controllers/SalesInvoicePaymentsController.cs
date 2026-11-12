@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using SparkFinance.Http;
+using Microsoft.AspNetCore.Mvc;
 using SalesInvoiceService.API.DTOs;
 using SalesInvoiceService.API.Services;
 
@@ -52,8 +53,8 @@ namespace SalesInvoiceService.API.Controllers
                     message = exception.Message
                 });
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -87,8 +88,8 @@ namespace SalesInvoiceService.API.Controllers
                     message = exception.Message
                 });
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

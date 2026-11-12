@@ -20,7 +20,10 @@ void Check(
 )
 {
     if (!condition)
+    {
         throw new Exception("FAIL: " + name);
+    }
+
     Console.WriteLine("PASS: " + name);
     checks++;
 }
@@ -39,9 +42,12 @@ try
         }
 
         )
+        {
             await new SqlCommand($"CREATE SCHEMA [{schema}]", sql).ExecuteNonQueryAsync();
+        }
+
         await new SqlCommand(
-            """
+                    """
             CREATE TABLE sales.SalesInvoices (Id int, InvoiceNumber nvarchar(50), ClientId uniqueidentifier, ClientName nvarchar(200), Branch nvarchar(100), Currency nvarchar(3), InvoiceDate date, DueDate date, GrandTotal decimal(18,2), Status nvarchar(20));
             CREATE TABLE sales.SalesInvoicePayments (SalesInvoiceId int, Amount decimal(18,2), PaymentDate date, Status nvarchar(20) NOT NULL DEFAULT 'Recorded');
             CREATE TABLE sales.SalesCreditNotes (SalesInvoiceId int, GrandTotal decimal(18,2), CreditNoteDate date, Status nvarchar(20));
@@ -63,8 +69,8 @@ try
             INSERT INTO purchases.PaymentsMade VALUES (1,100,'2026-10-12','Recorded'),(1,50,'2026-11-02','Recorded'),(1,40,'2026-10-15','Voided');
             INSERT INTO purchases.VendorCreditApplications VALUES (1,50,'2026-10-20','Applied'),(1,25,'2026-11-02','Applied'),(1,20,'2026-10-20','Voided');
             """,
-            sql
-        ).ExecuteNonQueryAsync();
+                    sql
+                ).ExecuteNonQueryAsync();
     }
 
     var start = new ProcessStartInfo("dotnet")
@@ -90,8 +96,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.ErrorDataReceived += (
         _,
@@ -99,8 +107,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.Start();
     server.BeginOutputReadLine();
@@ -110,20 +120,25 @@ try
         BaseAddress = new Uri("http://127.0.0.1:5401"),
         Timeout = TimeSpan.FromSeconds(15)
     };
-    for (var attempt = 0;; attempt++)
+    for (var attempt = 0; ; attempt++)
     {
         try
         {
             using var ping = await client.GetAsync("/api/aging-reports");
             if (ping.StatusCode == HttpStatusCode.BadRequest)
+            {
                 break;
+            }
         }
         catch (HttpRequestException)
         {
         }
 
         if (attempt >= 60 || server.HasExited)
+        {
             throw new Exception("Test server did not start: " + output);
+        }
+
         await Task.Delay(200);
     }
 
@@ -132,7 +147,10 @@ try
         using var response = await client.GetAsync("/api/aging-reports?asOf=" + date);
         var text = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
+        {
             throw new Exception(text + output);
+        }
+
         return JsonNode.Parse(text)!["rows"]!.AsArray();
     }
 
@@ -173,10 +191,15 @@ finally
 
     server?.Dispose();
     if (!database.StartsWith("OrbitAgingTests_", StringComparison.Ordinal) || database.Length != 48)
+    {
         throw new Exception("Unexpected test database name.");
+    }
+
     if (created)
+    {
         await new SqlCommand(
-            $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{database}];",
-            master
-        ).ExecuteNonQueryAsync();
+                $"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{database}];",
+                master
+            ).ExecuteNonQueryAsync();
+    }
 }

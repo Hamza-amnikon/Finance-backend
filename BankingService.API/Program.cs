@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using BankingService.API.Data;
 using BankingService.API.Repositories;
 using BankingService.API.Services;
@@ -116,21 +117,7 @@ app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
-app.Use(async (context, next) =>
-{
-    try
-    {
-        await next();
-    }
-    catch (OperationCanceledException)
-        when (context.RequestAborted.IsCancellationRequested)
-    {
-        if (!context.Response.HasStarted)
-        {
-            context.Response.StatusCode = 499;
-        }
-    }
-});
+app.UseFinanceRequestCancellation();
 
 app.MapControllers();
 

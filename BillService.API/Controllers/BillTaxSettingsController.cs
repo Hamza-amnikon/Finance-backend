@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using BillService.API.Services;
@@ -27,7 +28,17 @@ namespace BillService.API.Controllers
             }
             catch (ArgumentException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
+            }
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    HttpContext?.RequestAborted ?? CancellationToken.None))
+            {
+                return StatusCode(499);
             }
             catch (SqlException exception) when (exception.Number == 208)
             {

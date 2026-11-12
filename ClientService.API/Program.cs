@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using ClientService.API.Data;
 using ClientService.API.Repositories;
 using ClientService.API.Services;
@@ -96,21 +97,7 @@ else
 
 app.UseCors("ReactPolicy");
 
-app.Use(async (context, next) =>
-{
-    try
-    {
-        await next();
-    }
-    catch (OperationCanceledException)
-        when (context.RequestAborted.IsCancellationRequested)
-    {
-        if (!context.Response.HasStarted)
-        {
-            context.Response.StatusCode = 499;
-        }
-    }
-});
+app.UseFinanceRequestCancellation();
 
 app.MapControllers();
 

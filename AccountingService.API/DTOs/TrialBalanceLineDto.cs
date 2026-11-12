@@ -18,17 +18,9 @@
 
         public int? ParentAccountId { get; set; }
 
-        public string? ParentAccountCode
-        {
-            get;
-            set;
-        }
+        public string? ParentAccountCode { get; set; }
 
-        public string? ParentAccountName
-        {
-            get;
-            set;
-        }
+        public string? ParentAccountName { get; set; }
 
         public bool IsControlAccount { get; set; }
 

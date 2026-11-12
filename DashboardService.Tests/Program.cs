@@ -18,7 +18,11 @@ var created = false;
 var checks = 0;
 void Check(bool condition, string name)
 {
-    if (!condition) throw new Exception("FAILED: " + name);
+    if (!condition)
+    {
+        throw new Exception("FAILED: " + name);
+    }
+
     checks++;
     Console.WriteLine("PASS: " + name);
 }
@@ -26,7 +30,11 @@ void Check(bool condition, string name)
 try
 {
     created = await context.Database.EnsureCreatedAsync();
-    if (!created) throw new Exception("Refusing to use an existing test database.");
+    if (!created)
+    {
+        throw new Exception("Refusing to use an existing test database.");
+    }
+
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA sales");
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA purchases");
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA expenses");
@@ -106,7 +114,10 @@ try
 }
 finally
 {
-    if (created) await context.Database.EnsureDeletedAsync();
+    if (created)
+    {
+        await context.Database.EnsureDeletedAsync();
+    }
 }
 
 sealed class FixedRates : IDashboardExchangeRateService
@@ -116,8 +127,10 @@ sealed class FixedRates : IDashboardExchangeRateService
         var inr = new Dictionary<string, decimal> { ["INR"] = 1m, ["USD"] = 10m };
         return Task.FromResult(new DashboardExchangeRateDto
         {
-            Rate = inr[source] / inr[target], RateDate = date!.Value,
-            Source = "Test rates", RetrievedAtUtc = DateTimeOffset.UtcNow
+            Rate = inr[source] / inr[target],
+            RateDate = date!.Value,
+            Source = "Test rates",
+            RetrievedAtUtc = DateTimeOffset.UtcNow
         });
     }
 }

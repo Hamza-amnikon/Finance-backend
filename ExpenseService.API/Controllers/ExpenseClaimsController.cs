@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using ExpenseService.API.Data;
@@ -37,14 +38,19 @@ namespace ExpenseService.API.Controllers
             {
                 var id = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
                 if (!string.IsNullOrWhiteSpace(id))
+                {
                     return (id, User.IsInRole("Admin"));
+                }
             }
 
             // Explicit local operator mode only. This is not authentication.
             // Production will require a verified identity when the auth module is connected.
             var local = Request.Headers["X-Claim-Operator"].ToString().Trim();
-            if (_environment.IsDevelopment() && local.Length is> 0 and <= 200)
+            if (_environment.IsDevelopment() && local.Length is > 0 and <= 200)
+            {
                 return (local, Request.Headers["X-Claim-Role"] == "Admin");
+            }
+
             throw new UnauthorizedAccessException("Sign in first, or select a local operator in Development mode.");
         }
 
@@ -56,29 +62,54 @@ namespace ExpenseService.API.Controllers
             }
             catch (UnauthorizedAccessException exception)
             {
-                return Unauthorized(new { message = exception.Message });
+                return Unauthorized(new
+                {
+                    message = exception.Message
+                });
             }
             catch (ValidationException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (KeyNotFoundException exception)
             {
-                return NotFound(new { message = exception.Message });
+                return NotFound(new
+                {
+                    message = exception.Message
+                });
             }
             catch (InvalidOperationException exception)
             {
-                return Conflict(new { message = exception.Message });
+                return Conflict(new
+                {
+                    message = exception.Message
+                });
             }
             catch (DbUpdateConcurrencyException)
             {
-                return Conflict(new { message = "The claim changed. Refresh and try again." });
+                return Conflict(new
+                {
+                    message = "The claim changed. Refresh and try again."
+                });
             }
-            catch (DbUpdateException exception)when (exception.InnerException is SqlException sql && sql.Number is 2601 or 2627)
+            catch (DbUpdateException exception) when (exception.InnerException is SqlException sql && sql.Number is 2601 or 2627)
             {
-                return Conflict(new { message = "This claim reference or request already exists. Refresh before retrying." });
+                return Conflict(new
+                {
+                    message = "This claim reference or request already exists. Refresh before retrying."
+                });
             }
-            catch (SqlException exception)when (exception.Number == 208)
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    HttpContext?.RequestAborted ?? CancellationToken.None))
+            {
+                return StatusCode(499);
+            }
+            catch (SqlException exception) when (exception.Number == 208)
             {
                 return Problem(
                     statusCode: 503,
@@ -110,7 +141,9 @@ namespace ExpenseService.API.Controllers
             }
 
             if (!claim.RowVersion.SequenceEqual(bytes))
+            {
                 throw new InvalidOperationException("The claim changed. Refresh and try again.");
+            }
         }
 
         private async Task<ExpenseClaim> Find(
@@ -136,11 +169,17 @@ namespace ExpenseService.API.Controllers
         {
             var actor = Actor();
             if (dto.RequestId == Guid.Empty || dto.Date == default || dto.Date > DateOnly.FromDateTime(DateTime.Today))
-                throw new ValidationException("A request ID and a valid claim date are required.");
-            if (dto.Amount != decimal.Round(dto.Amount, 2))
-                throw new ValidationException("Use at most two decimal places for a claim amount.");
-            if (new[]
             {
+                throw new ValidationException("A request ID and a valid claim date are required.");
+            }
+
+            if (dto.Amount != decimal.Round(dto.Amount, 2))
+            {
+                throw new ValidationException("Use at most two decimal places for a claim amount.");
+            }
+
+            if (new[]
+                        {
                 dto.Reference,
                 dto.Employee,
                 dto.Category,
@@ -148,20 +187,32 @@ namespace ExpenseService.API.Controllers
                 dto.Branch,
                 dto.Currency
             }.Any(string.IsNullOrWhiteSpace))
+            {
                 throw new ValidationException("Complete all required claim fields.");
+            }
+
             var company = await _context.Companies.AsNoTracking().SingleOrDefaultAsync(row => row.Id == dto.CompanyId, cancellationToken) ?? throw new ValidationException("Select an existing company.");
             var branchMatches = await _context.Database.SqlQuery<int>($@"SELECT COUNT(*) AS Value FROM sales.BranchMasters
                 WHERE Name = {dto.Branch} AND IsActive = 1 AND AccountingCompanyId = {dto.CompanyId}").SingleAsync(cancellationToken);
             if (branchMatches != 1)
+            {
                 throw new ValidationException("Select a branch linked to this accounting company.");
+            }
+
             await _lookups.ResolveCurrencyAsync(dto.Currency, true, cancellationToken);
             var existing = !id.HasValue ? await _context.ExpenseClaims.AsNoTracking().SingleOrDefaultAsync(row => row.RequestId == dto.RequestId, cancellationToken) : null;
             if (existing != null)
             {
                 if (!ExpenseClaimWorkflow.IsOwner(existing.CreatedBy, actor.Id))
+                {
                     throw new UnauthorizedAccessException("This request belongs to a different operator.");
+                }
+
                 if (existing.CompanyId != dto.CompanyId || existing.Reference != dto.Reference.Trim() || existing.Amount != dto.Amount || existing.Currency != dto.Currency.Trim().ToUpperInvariant() || existing.Date != dto.Date || existing.Employee != dto.Employee.Trim() || existing.Branch != dto.Branch.Trim() || existing.Purpose != dto.Purpose.Trim() || existing.Category != dto.Category.Trim() || existing.Notes != dto.Notes.Trim())
+                {
                     throw new InvalidOperationException("This request ID was already used for different claim details. Refresh before retrying.");
+                }
+
                 return Ok(existing);
             }
 
@@ -171,9 +222,15 @@ namespace ExpenseService.API.Controllers
                 RequestId = dto.RequestId
             };
             if (claim.Status != "Draft" || (!actor.Admin && !ExpenseClaimWorkflow.IsOwner(claim.CreatedBy, actor.Id)))
+            {
                 throw new InvalidOperationException("Only the owner or administrator can edit a draft.");
+            }
+
             if (id.HasValue)
+            {
                 CheckVersion(claim, dto.RowVersion);
+            }
+
             claim.CompanyId = dto.CompanyId;
             claim.Branch = dto.Branch.Trim();
             claim.Currency = dto.Currency.Trim().ToUpperInvariant();
@@ -188,7 +245,10 @@ namespace ExpenseService.API.Controllers
             claim.ModifiedDate = DateTime.UtcNow;
             claim.History.Add(new ExpenseClaimHistory { Actor = actor.Id, Status = "Draft", Reason = id.HasValue ? "Draft updated" : "Draft created" });
             if (!id.HasValue)
+            {
                 _context.ExpenseClaims.Add(claim);
+            }
+
             await _context.SaveChangesAsync(cancellationToken);
             return Ok(claim);
         });
@@ -209,7 +269,10 @@ namespace ExpenseService.API.Controllers
             {
                 var date = dto.ApprovedDate ?? today;
                 if (date < claim.Date || date > today)
+                {
                     throw new ValidationException("Approval date must be between the claim date and today.");
+                }
+
                 var rate = await _rates.GetRateAsync(claim.Currency, claim.ReportingCurrency, claim.Date, cancellationToken);
                 claim.ExchangeRate = rate.Rate;
                 claim.RateDate = rate.RateDate;
@@ -232,7 +295,10 @@ namespace ExpenseService.API.Controllers
             if (dto.Status == "Paid")
             {
                 if (!dto.PaidDate.HasValue || dto.PaidDate < claim.ApprovedDate || dto.PaidDate > today || string.IsNullOrWhiteSpace(dto.PaymentReference))
+                {
                     throw new ValidationException("Enter a payment date on or after approval, and a payment reference.");
+                }
+
                 await ValidateAccount(claim.CompanyId, dto.PaymentAccountId, "Asset", cancellationToken);
                 claim.PaymentAccountId = dto.PaymentAccountId;
                 claim.PaidDate = dto.PaidDate;
@@ -266,7 +332,9 @@ namespace ExpenseService.API.Controllers
             var count = await _context.Database.SqlQuery<int>($@"SELECT COUNT(*) AS Value FROM accounting.Accounts
                 WHERE Id = {id} AND CompanyId = {companyId} AND Type = {type} AND IsActive = 1 AND IsPostingAccount = 1").SingleAsync(cancellationToken);
             if (count != 1)
+            {
                 throw new ValidationException($"Select an active {type.ToLowerInvariant()} posting account for this company.");
+            }
         }
 
         private async Task Post(
@@ -285,7 +353,10 @@ namespace ExpenseService.API.Controllers
             var total = claim.Amount;
             var baseAmount = decimal.Round(total * claim.ExchangeRate, 2, MidpointRounding.AwayFromZero);
             if (baseAmount <= 0)
+            {
                 throw new ValidationException("The converted claim amount is too small to post in the company currency.");
+            }
+
             var now = DateTime.UtcNow;
             await _context.Database.ExecuteSqlInterpolatedAsync(
                 $@"
@@ -325,15 +396,24 @@ namespace ExpenseService.API.Controllers
             var claim = await Find(id, cancellationToken);
             CheckVersion(claim, rowVersion);
             if (claim.Status != "Draft" || (!actor.Admin && !ExpenseClaimWorkflow.IsOwner(claim.CreatedBy, actor.Id)))
+            {
                 throw new InvalidOperationException("Only editable drafts can receive attachments.");
+            }
+
             if (claim.Receipts.Count >= 10 || file.Length <= 0 || file.Length > 5 * 1024 * 1024)
+            {
                 throw new ValidationException("Upload up to ten receipts, each no larger than 5 MB.");
+            }
+
             using var stream = new MemoryStream();
             await file.CopyToAsync(stream, cancellationToken);
             var bytes = stream.ToArray();
             var type = bytes.AsSpan().StartsWith("%PDF-"u8) ? "application/pdf" : bytes.AsSpan().StartsWith(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }) ? "image/png" : bytes.AsSpan().StartsWith(new byte[] { 255, 216, 255 }) ? "image/jpeg" : null;
             if (type == null)
+            {
                 throw new ValidationException("Choose a PDF, PNG or JPEG receipt.");
+            }
+
             claim.Receipts.Add(new ExpenseClaimReceipt { FileName = Path.GetFileName(file.FileName)[..Math.Min(200, Path.GetFileName(file.FileName).Length)], ContentType = type, Content = bytes, Size = file.Length });
             claim.ModifiedDate = DateTime.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
@@ -349,7 +429,10 @@ namespace ExpenseService.API.Controllers
             var actor = Actor();
             var claim = await Find(id, cancellationToken);
             if (!actor.Admin && !ExpenseClaimWorkflow.IsOwner(claim.CreatedBy, actor.Id))
+            {
                 throw new UnauthorizedAccessException("This claim belongs to a different operator.");
+            }
+
             var receipt = claim.Receipts.SingleOrDefault(row => row.Id == receiptId) ?? throw new KeyNotFoundException("Receipt not found.");
             return File(receipt.Content, receipt.ContentType, receipt.FileName);
         });

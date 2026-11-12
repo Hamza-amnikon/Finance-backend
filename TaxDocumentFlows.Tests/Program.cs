@@ -105,7 +105,11 @@ try
     {
         return new ED.CreateSalesEstimateDto
         {
-            ClientId = client.Id, Branch = "Dubai", Currency = "USD", EstimateDate = date, ValidUntil = date.AddDays(30),
+            ClientId = client.Id,
+            Branch = "Dubai",
+            Currency = "USD",
+            EstimateDate = date,
+            ValidUntil = date.AddDays(30),
             Items = [new ED.SalesEstimateItemRequestDto
             {
                 ServiceName = "Test service", Unit = E.ServiceUnit.FixedFee, Quantity = 1, UnitPrice = 1000,
@@ -154,7 +158,11 @@ try
     {
         return new PD.CreatePurchaseOrderDto
         {
-            RequestId = Guid.NewGuid(), VendorId = client.Id, Branch = "Dubai", Currency = "USD", OrderDate = date,
+            RequestId = Guid.NewGuid(),
+            VendorId = client.Id,
+            Branch = "Dubai",
+            Currency = "USD",
+            OrderDate = date,
             Items = [new PD.PurchaseOrderItemRequestDto
             {
                 ItemName = "Test item", Unit = P.PurchaseUnit.Piece, Quantity = 1, UnitPrice = 1000,
@@ -212,7 +220,10 @@ try
     accepted = (await estimateService.AcceptAsync(sent.Id, new ED.SalesEstimateActionDto { RowVersion = sent.RowVersion }, default))!;
     var indiaInvoice = await converter.CreateAsync(new ID.CreateInvoiceFromEstimateDto
     {
-        EstimateId = accepted.Id, RowVersion = accepted.RowVersion, InvoiceDate = date, DueDate = date
+        EstimateId = accepted.Id,
+        RowVersion = accepted.RowVersion,
+        InvoiceDate = date,
+        DueDate = date
     }, default);
     Check(indiaInvoice.TaxTreatment == I.SalesInvoiceTaxTreatment.IndiaIgst && indiaInvoice.GrandTotal == 1050,
         "Turbhe IGST carries through estimate conversion without a manual treatment");
@@ -223,14 +234,21 @@ try
     accepted = (await estimateService.AcceptAsync(sent.Id, new ED.SalesEstimateActionDto { RowVersion = sent.RowVersion }, default))!;
     await Reject(() => converter.CreateAsync(new ID.CreateInvoiceFromEstimateDto
     {
-        EstimateId = accepted.Id, RowVersion = accepted.RowVersion,
-        InvoiceDate = new DateOnly(2100, 1, 1), DueDate = new DateOnly(2100, 1, 2)
+        EstimateId = accepted.Id,
+        RowVersion = accepted.RowVersion,
+        InvoiceDate = new DateOnly(2100, 1, 1),
+        DueDate = new DateOnly(2100, 1, 2)
     }, default), "Conversion rejects a saved setting outside the destination invoice date");
 
     var legacyEstimate = new E.SalesEstimate
     {
-        ClientId = client.Id, ClientName = "Legacy client", Branch = "Dubai", Currency = "USD",
-        EstimateDate = date, ValidUntil = date.AddDays(30), UsesTaxSettings = false,
+        ClientId = client.Id,
+        ClientName = "Legacy client",
+        Branch = "Dubai",
+        Currency = "USD",
+        EstimateDate = date,
+        ValidUntil = date.AddDays(30),
+        UsesTaxSettings = false,
         Items = [new E.SalesEstimateItem { ServiceName = "Legacy service", Quantity = 1, UnitPrice = 100, TaxRate = 8,
             DiscountEnabled = true, DiscountAmount = 10 }]
     };
@@ -241,7 +259,10 @@ try
     accepted = (await estimateService.AcceptAsync(sent.Id, new ED.SalesEstimateActionDto { RowVersion = sent.RowVersion }, default))!;
     var legacyInvoice = await converter.CreateAsync(new ID.CreateInvoiceFromEstimateDto
     {
-        EstimateId = accepted.Id, RowVersion = accepted.RowVersion, InvoiceDate = date, DueDate = date,
+        EstimateId = accepted.Id,
+        RowVersion = accepted.RowVersion,
+        InvoiceDate = date,
+        DueDate = date,
         TaxTreatment = I.SalesInvoiceTaxTreatment.UaeVat
     }, default);
     Check(!legacyInvoice.UsesTaxSettings && legacyInvoice.GrandTotal == 97.20m && legacyInvoice.Items[0].TaxRate == 8 &&
@@ -249,8 +270,14 @@ try
         "Legacy estimate send and conversion retain the recorded rate and amounts");
     var legacyOrder = new P.PurchaseOrder
     {
-        RequestId = Guid.NewGuid(), VendorId = client.Id, VendorName = "Legacy vendor", Branch = "Dubai", Currency = "USD",
-        CurrencyDecimalPlaces = 2, OrderDate = date, UsesTaxSettings = false,
+        RequestId = Guid.NewGuid(),
+        VendorId = client.Id,
+        VendorName = "Legacy vendor",
+        Branch = "Dubai",
+        Currency = "USD",
+        CurrencyDecimalPlaces = 2,
+        OrderDate = date,
+        UsesTaxSettings = false,
         Items = [new P.PurchaseOrderItem { ItemName = "Legacy item", Quantity = 1, UnitPrice = 100, TaxRate = 8,
             DiscountEnabled = true, DiscountAmount = 10 }]
     };
@@ -275,8 +302,13 @@ try
     discountedEstimateRequest.Items[0].DiscountValue = 20;
     var discountedEdit = (await estimateService.UpdateAsync(discountedEstimate.Id, new ED.UpdateSalesEstimateDto
     {
-        ClientId = client.Id, Branch = "Dubai", Currency = "USD", EstimateDate = date, ValidUntil = date.AddDays(30),
-        RowVersion = discountedEstimate.RowVersion, Items = discountedEstimateRequest.Items
+        ClientId = client.Id,
+        Branch = "Dubai",
+        Currency = "USD",
+        EstimateDate = date,
+        ValidUntil = date.AddDays(30),
+        RowVersion = discountedEstimate.RowVersion,
+        Items = discountedEstimateRequest.Items
     }, default))!;
     Check(discountedEdit.Items[0].DiscountValue == 20 && discountedEdit.DiscountTotal == 200 && discountedEdit.GrandTotal == 840,
         "Editing an estimate preserves the entered percentage and recalculates its deduction");
@@ -284,7 +316,10 @@ try
     accepted = (await estimateService.AcceptAsync(sent.Id, new ED.SalesEstimateActionDto { RowVersion = sent.RowVersion }, default))!;
     var discountedInvoice = await converter.CreateAsync(new ID.CreateInvoiceFromEstimateDto
     {
-        EstimateId = accepted.Id, RowVersion = accepted.RowVersion, InvoiceDate = date, DueDate = date
+        EstimateId = accepted.Id,
+        RowVersion = accepted.RowVersion,
+        InvoiceDate = date,
+        DueDate = date
     }, default);
     Check(discountedInvoice.Items[0].DiscountType == "Percentage" && discountedInvoice.Items[0].DiscountValue == 20 &&
         discountedInvoice.DiscountTotal == 200 && discountedInvoice.TaxTotal == 40 && discountedInvoice.GrandTotal == 840,
@@ -298,8 +333,12 @@ try
     orders.ChangeTracker.Clear();
     var discountedOrderEdit = (await orderService.UpdateAsync(discountedOrder.Id, new PD.UpdatePurchaseOrderDto
     {
-        VendorId = client.Id, Branch = "Dubai", Currency = "USD", OrderDate = date,
-        RowVersion = discountedOrder.RowVersion, Items = discountedOrderRequest.Items
+        VendorId = client.Id,
+        Branch = "Dubai",
+        Currency = "USD",
+        OrderDate = date,
+        RowVersion = discountedOrder.RowVersion,
+        Items = discountedOrderRequest.Items
     }, default))!;
     Check(discountedOrderEdit.Items[0].DiscountValue == 10 && discountedOrderEdit.DiscountTotal == 200 && discountedOrderEdit.GrandTotal == 1890,
         "Changing order quantity recalculates the percentage deduction");
@@ -312,7 +351,10 @@ try
     bills.ChangeTracker.Clear();
     var discountedBillEdit = (await billService.UpdateAsync(discountedBill.Id, new BD.UpdateBillDto
     {
-        VendorId = client.Id, Branch = "Dubai", Currency = "USD", BillDate = discountedBill.BillDate,
+        VendorId = client.Id,
+        Branch = "Dubai",
+        Currency = "USD",
+        BillDate = discountedBill.BillDate,
         RowVersion = discountedBill.RowVersion,
         Items = [new BD.BillItemRequestDto
         {

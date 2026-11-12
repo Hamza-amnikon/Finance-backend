@@ -52,7 +52,9 @@ namespace BillService.API.Data
                 entity.Property(row => row.Unit).HasConversion<string>().HasMaxLength(20);
                 entity.Property(row => row.AccountCode).HasMaxLength(30).IsRequired();
                 foreach (var property in new[] { "Quantity", "UnitPrice", "DiscountAmount", "TaxRate", "LineSubTotal", "TaxAmount", "LineTotal" })
+                {
                     entity.Property<decimal>(property).HasPrecision(18, 4);
+                }
             });
             builder.Entity<BillNumberCounter>(entity =>
             {

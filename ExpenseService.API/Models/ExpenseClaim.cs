@@ -21,8 +21,10 @@ namespace ExpenseService.API.Models
         [MaxLength(3)] public string ReportingCurrency { get; set; } = "";
         [MaxLength(20)] public string Status { get; set; } = "Draft";
         [MaxLength(200)] public string CreatedBy { get; set; } = "";
-        [MaxLength(200)] public string? ApprovedBy { get; set; }
-        [MaxLength(200)] public string? PaidBy { get; set; }
+        [MaxLength(200)]
+        public string? ApprovedBy { get; set; }
+        [MaxLength(200)]
+        public string? PaidBy { get; set; }
         [MaxLength(1000)] public string DecisionReason { get; set; } = "";
         public DateOnly? ApprovedDate { get; set; }
         public DateOnly? PaidDate { get; set; }

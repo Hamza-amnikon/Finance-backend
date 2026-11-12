@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using SparkFinance.Http;
+using System.ComponentModel.DataAnnotations;
 using AccountingService.API.DTOs;
 using AccountingService.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -39,10 +40,8 @@ namespace AccountingService.API.Controllers
 
                 return Ok(result);
             }
-            catch (OperationCanceledException)
-                when (
-                    cancellationToken
-                        .IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

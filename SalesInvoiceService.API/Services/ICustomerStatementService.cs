@@ -11,6 +11,8 @@ namespace SalesInvoiceService.API.Services
             Guid clientId,
             string branch,
             string currency,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            DateOnly? fromDate = null,
+            DateOnly? toDate = null);
     }
 }

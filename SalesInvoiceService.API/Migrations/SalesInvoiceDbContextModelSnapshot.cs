@@ -110,6 +110,13 @@ namespace SalesInvoiceService.API.Migrations
                         .HasColumnType("nvarchar(2000)")
                         .HasDefaultValue("");
 
+                    b.Property<string>("InvoiceNumberPrefix")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 

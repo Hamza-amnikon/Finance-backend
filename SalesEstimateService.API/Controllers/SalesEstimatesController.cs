@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -61,7 +62,10 @@ namespace SalesEstimateService.API.Controllers
                     cancellationToken);
 
                 return estimate == null
-                    ? NotFound(new { message = "Estimate not found." })
+                    ? NotFound(new
+                    {
+                        message = "Estimate not found."
+                    })
                     : Ok(estimate);
             }, cancellationToken);
         }
@@ -80,7 +84,10 @@ namespace SalesEstimateService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = estimate.Id },
+                    new
+                    {
+                        id = estimate.Id
+                    },
                     estimate);
             }, cancellationToken);
         }
@@ -118,7 +125,10 @@ namespace SalesEstimateService.API.Controllers
                     cancellationToken);
 
                 return estimate == null
-                    ? NotFound(new { message = "Estimate not found." })
+                    ? NotFound(new
+                    {
+                        message = "Estimate not found."
+                    })
                     : Ok(estimate);
             }, cancellationToken);
         }
@@ -140,7 +150,10 @@ namespace SalesEstimateService.API.Controllers
                     cancellationToken);
 
                 return estimate == null
-                    ? NotFound(new { message = "Estimate not found." })
+                    ? NotFound(new
+                    {
+                        message = "Estimate not found."
+                    })
                     : Ok(estimate);
             }, cancellationToken);
         }
@@ -162,7 +175,10 @@ namespace SalesEstimateService.API.Controllers
                     cancellationToken);
 
                 return estimate == null
-                    ? NotFound(new { message = "Estimate not found." })
+                    ? NotFound(new
+                    {
+                        message = "Estimate not found."
+                    })
                     : Ok(estimate);
             }, cancellationToken);
         }
@@ -184,7 +200,10 @@ namespace SalesEstimateService.API.Controllers
                     cancellationToken);
 
                 return estimate == null
-                    ? NotFound(new { message = "Estimate not found." })
+                    ? NotFound(new
+                    {
+                        message = "Estimate not found."
+                    })
                     : Ok(estimate);
             }, cancellationToken);
         }
@@ -203,7 +222,10 @@ namespace SalesEstimateService.API.Controllers
                 var result = await _conversionService.ConvertAsync(id, dto, cancellationToken);
 
                 return result == null
-                    ? NotFound(new { message = "Estimate not found." })
+                    ? NotFound(new
+                    {
+                        message = "Estimate not found."
+                    })
                     : Ok(result);
             }, cancellationToken);
         }
@@ -234,11 +256,17 @@ namespace SalesEstimateService.API.Controllers
             }
             catch (InvalidOperationException exception)
             {
-                return Conflict(new { message = exception.Message });
+                return Conflict(new
+                {
+                    message = exception.Message
+                });
             }
             catch (ArgumentException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (OverflowException)
             {
@@ -256,8 +284,8 @@ namespace SalesEstimateService.API.Controllers
                     message = "Client or currency service is unavailable. Try again later."
                 });
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -267,11 +295,6 @@ namespace SalesEstimateService.API.Controllers
                 {
                     message = "Client or currency service took too long to respond. Try again later."
                 });
-            }
-            catch (SqlException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                return StatusCode(499);
             }
             catch (SqlException exception)
             {

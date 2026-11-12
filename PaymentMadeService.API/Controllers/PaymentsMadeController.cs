@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -59,7 +60,10 @@ namespace PaymentMadeService.API.Controllers
 
                 if (payment == null)
                 {
-                    return NotFound(new { message = "Payment not found." });
+                    return NotFound(new
+                    {
+                        message = "Payment not found."
+                    });
                 }
 
                 return Ok(payment);
@@ -77,7 +81,10 @@ namespace PaymentMadeService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = payment.Id },
+                    new
+                    {
+                        id = payment.Id
+                    },
                     payment);
             });
         }
@@ -94,7 +101,10 @@ namespace PaymentMadeService.API.Controllers
 
                 if (payment == null)
                 {
-                    return NotFound(new { message = "Payment not found." });
+                    return NotFound(new
+                    {
+                        message = "Payment not found."
+                    });
                 }
 
                 return Ok(payment);
@@ -114,7 +124,10 @@ namespace PaymentMadeService.API.Controllers
 
                 if (balance == null)
                 {
-                    return NotFound(new { message = "Bill not found." });
+                    return NotFound(new
+                    {
+                        message = "Bill not found."
+                    });
                 }
 
                 return Ok(balance);
@@ -210,7 +223,13 @@ namespace PaymentMadeService.API.Controllers
                         .Take(pageSize)
                         .ToListAsync(cancellationToken);
 
-                return Ok(new { data, total, page, pageSize });
+                return Ok(new
+                {
+                    data,
+                    total,
+                    page,
+                    pageSize
+                });
             });
         }
 
@@ -226,7 +245,10 @@ namespace PaymentMadeService.API.Controllers
             {
                 if (vendorId == Guid.Empty)
                 {
-                    return BadRequest(new { message = "Select a vendor." });
+                    return BadRequest(new
+                    {
+                        message = "Select a vendor."
+                    });
                 }
 
                 var query = _context.Bills
@@ -279,7 +301,13 @@ namespace PaymentMadeService.API.Controllers
                         .Take(pageSize)
                         .ToListAsync(cancellationToken);
 
-                return Ok(new { data, total, page, pageSize });
+                return Ok(new
+                {
+                    data,
+                    total,
+                    page,
+                    pageSize
+                });
             });
         }
 
@@ -291,11 +319,17 @@ namespace PaymentMadeService.API.Controllers
             }
             catch (ValidationException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (ArgumentException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -306,7 +340,10 @@ namespace PaymentMadeService.API.Controllers
             }
             catch (InvalidOperationException exception)
             {
-                return Conflict(new { message = exception.Message });
+                return Conflict(new
+                {
+                    message = exception.Message
+                });
             }
             catch (DbUpdateException exception)
             {
@@ -315,6 +352,13 @@ namespace PaymentMadeService.API.Controllers
                 return Problem(
                     statusCode: 500,
                     title: "Unable to save payment changes.");
+            }
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    HttpContext?.RequestAborted ?? CancellationToken.None))
+            {
+                return StatusCode(499);
             }
             catch (SqlException exception)
             {

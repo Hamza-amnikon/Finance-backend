@@ -29,11 +29,15 @@ namespace SalesEstimateService.API.Services
         {
             var errors = new List<ValidationResult>();
             if (!Validator.TryValidateObject(dto, new ValidationContext(dto), errors, true))
+            {
                 throw new ArgumentException(string.Join(" ", errors.Select(error => error.ErrorMessage)));
+            }
 
             var estimate = await _estimateService.GetByIdAsync(id, cancellationToken);
             if (estimate == null)
+            {
                 return null;
+            }
 
             if (estimate.Status == SalesEstimateStatus.Converted)
             {
@@ -42,17 +46,23 @@ namespace SalesEstimateService.API.Services
                     : null;
 
                 if (linked == null || linked.SourceEstimateId != id)
+                {
                     throw new InvalidOperationException("The linked invoice could not be found. Review the conversion link before continuing.");
+                }
 
                 CheckDates(linked, dto);
                 return new SalesEstimateConversionResponseDto { Estimate = estimate, Invoice = linked };
             }
 
             if (estimate.Status != SalesEstimateStatus.Accepted)
+            {
                 throw new InvalidOperationException("Only accepted estimates can be converted to an invoice.");
+            }
 
             if (!estimate.RowVersion.SequenceEqual(dto.RowVersion))
+            {
                 throw new DbUpdateConcurrencyException();
+            }
 
             // The invoice API persists a unique source-estimate ID before returning.
             // A retry recovers the same invoice if this call or the link save fails.
@@ -60,7 +70,9 @@ namespace SalesEstimateService.API.Services
             if (invoice.Id < 1 || invoice.SourceEstimateId != id ||
                 invoice.SourceEstimateRowVersion == null ||
                 !invoice.SourceEstimateRowVersion.SequenceEqual(dto.RowVersion))
+            {
                 throw new HttpRequestException("Invoice service returned a mismatched conversion response.");
+            }
 
             CheckDates(invoice, dto);
 
@@ -71,7 +83,9 @@ namespace SalesEstimateService.API.Services
                 cancellationToken);
 
             if (converted == null)
+            {
                 throw new InvalidOperationException("Invoice was created but the estimate link is missing. Retry the same request to recover the link.");
+            }
 
             estimate.Status = converted.Status;
             estimate.ConvertedInvoiceId = converted.ConvertedInvoiceId;
@@ -86,7 +100,9 @@ namespace SalesEstimateService.API.Services
         {
             if (invoice.SourceEstimateInvoiceDate != dto.InvoiceDate || invoice.SourceEstimateDueDate != dto.DueDate ||
                 !string.Equals(invoice.PreferredPaymentMode, dto.PreferredPaymentMode?.Trim() ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+            {
                 throw new InvalidOperationException("This estimate already has an invoice with different conversion dates or payment mode. Open the existing invoice.");
+            }
         }
     }
 }

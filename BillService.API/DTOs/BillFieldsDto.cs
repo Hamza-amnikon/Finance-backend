@@ -14,7 +14,8 @@ namespace BillService.API.DTOs
         [Required, RegularExpression("^[A-Za-z]{3}$")] public string Currency { get; set; } = "";
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public BillTaxTreatment? TaxTreatment { get; set; }
-        [MaxLength(1000)] public string? BillingAddress { get; set; }
+        [MaxLength(1000)]
+        public string? BillingAddress { get; set; }
         [MaxLength(1000)] public string ShippingAddress { get; set; } = "";
         [MaxLength(200)] public string Reference { get; set; } = "";
         [MaxLength(200)] public string PaymentTerms { get; set; } = "";
@@ -25,10 +26,20 @@ namespace BillService.API.DTOs
 
         public IEnumerable<ValidationResult> Validate(ValidationContext context)
         {
-            if (VendorId == Guid.Empty) yield return new("Select a vendor.", [nameof(VendorId)]);
-            if (BillDate == default) yield return new("Bill date is required.", [nameof(BillDate)]);
+            if (VendorId == Guid.Empty)
+            {
+                yield return new("Select a vendor.", [nameof(VendorId)]);
+            }
+
+            if (BillDate == default)
+            {
+                yield return new("Bill date is required.", [nameof(BillDate)]);
+            }
+
             if (DueDate.HasValue && DueDate.Value < BillDate)
+            {
                 yield return new("Due date cannot precede the bill date.", [nameof(DueDate)]);
+            }
         }
     }
 }

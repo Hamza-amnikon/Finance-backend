@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using SparkFinance.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.DTOs;
@@ -109,7 +110,10 @@ namespace SalesInvoiceService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = creditNote.Id },
+                    new
+                    {
+                        id = creditNote.Id
+                    },
                     creditNote);
             }, cancellationToken);
         }
@@ -150,13 +154,8 @@ namespace SalesInvoiceService.API.Controllers
             {
                 return await action();
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                return StatusCode(499);
-            }
-            catch (SqlException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

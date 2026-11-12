@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using Microsoft.AspNetCore.Mvc;
 using SalesInvoiceService.API.DTOs;
 using SalesInvoiceService.API.Services;
@@ -27,35 +28,57 @@ namespace SalesInvoiceService.API.Controllers
             }
             catch (InvalidOperationException exception)
             {
-                return Conflict(new { message = exception.Message });
+                return Conflict(new
+                {
+                    message = exception.Message
+                });
             }
             catch (ArgumentException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (OverflowException)
             {
-                return BadRequest(new { message = "Invoice amounts exceed the supported range." });
+                return BadRequest(new
+                {
+                    message = "Invoice amounts exceed the supported range."
+                });
             }
             catch (Microsoft.EntityFrameworkCore.DbUpdateException)
             {
-                return StatusCode(503, new { message = "Invoice save failed. Retry the same conversion request." });
+                return StatusCode(503, new
+                {
+                    message = "Invoice save failed. Retry the same conversion request."
+                });
             }
             catch (Microsoft.Data.SqlClient.SqlException)
             {
-                return StatusCode(503, new { message = "Invoice database is unavailable. Retry the same conversion request." });
+                return StatusCode(503, new
+                {
+                    message = "Invoice database is unavailable. Retry the same conversion request."
+                });
             }
             catch (HttpRequestException)
             {
-                return StatusCode(503, new { message = "Estimate or client service is unavailable. Retry the same request later." });
+                return StatusCode(503, new
+                {
+                    message = "Estimate or client service is unavailable. Retry the same request later."
+                });
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
             catch (OperationCanceledException)
             {
-                return StatusCode(504, new { message = "A related service timed out. Retry the same request later." });
+                return StatusCode(504, new
+                {
+                    message = "A related service timed out. Retry the same request later."
+                });
             }
         }
     }

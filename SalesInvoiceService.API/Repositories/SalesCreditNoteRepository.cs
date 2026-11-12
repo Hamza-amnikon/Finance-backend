@@ -322,7 +322,9 @@ namespace SalesInvoiceService.API.Repositories
             CancellationToken cancellationToken)
         {
             if (rowVersion == null || rowVersion.Length != 8)
+            {
                 throw new ArgumentException("A valid row version is required.");
+            }
 
             var invoiceId = await _context.SalesCreditNotes
                 .AsNoTracking()
@@ -331,7 +333,9 @@ namespace SalesInvoiceService.API.Repositories
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (!invoiceId.HasValue)
+            {
                 return null;
+            }
 
             await using var transaction = await _context.Database.BeginTransactionAsync(
                 IsolationLevel.ReadCommitted, cancellationToken);
@@ -343,7 +347,9 @@ namespace SalesInvoiceService.API.Repositories
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (invoice == null)
+            {
                 throw new InvalidOperationException("The original invoice could not be found.");
+            }
 
             var creditNote = await _context.SalesCreditNotes
                 .FromSqlInterpolated($"SELECT * FROM [sales].[SalesCreditNotes] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {id}")
@@ -351,10 +357,14 @@ namespace SalesInvoiceService.API.Repositories
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (creditNote == null)
+            {
                 return null;
+            }
 
             if (creditNote.SalesInvoiceId != invoice.Id)
+            {
                 throw new InvalidOperationException("The credit note invoice link has changed.");
+            }
 
             creditNote.SalesInvoice = invoice;
 
@@ -366,28 +376,42 @@ namespace SalesInvoiceService.API.Repositories
             }
 
             if (creditNote.Status != SalesCreditNoteStatus.Draft)
+            {
                 throw new InvalidOperationException("Only draft credit notes can be issued.");
+            }
 
             if (!creditNote.RowVersion.SequenceEqual(rowVersion))
+            {
                 throw new DbUpdateConcurrencyException("The credit note changed. Reload it before issuing.");
+            }
 
             if (invoice.Status != SalesInvoiceStatus.Issued)
+            {
                 throw new InvalidOperationException("The original invoice must be issued.");
+            }
 
             if (creditNote.CreditNoteDate == default || creditNote.CreditNoteDate < invoice.InvoiceDate)
+            {
                 throw new ArgumentException("Credit note date must be on or after the invoice date.");
+            }
 
             if (string.IsNullOrWhiteSpace(creditNote.Reason))
+            {
                 throw new ArgumentException("A credit reason is required.");
+            }
 
             if (!string.IsNullOrEmpty(creditNote.CreditNoteNumber))
+            {
                 throw new InvalidOperationException("A draft credit note must not already have an issued number.");
+            }
 
             var currency = await _context.CurrencyMasters.AsNoTracking()
                 .SingleOrDefaultAsync(record => record.CurrencyCode == invoice.Currency, cancellationToken);
 
             if (currency == null)
+            {
                 throw new InvalidOperationException("The original invoice currency is not configured.");
+            }
 
             var issuedItems = await GetIssuedCreditItemsAsync(invoice.Id, cancellationToken);
             var savedTotals = (creditNote.Currency, creditNote.SubTotal, creditNote.DiscountTotal,
@@ -406,7 +430,9 @@ namespace SalesInvoiceService.API.Repositories
                     item.DiscountAmount, item.TaxAmount, item.LineTotal)).ToList();
 
             if (savedTotals != currentTotals || !savedLines.SequenceEqual(currentLines))
+            {
                 throw new InvalidOperationException("Available credit amounts changed after this draft was created. Create a new draft with the current amounts.");
+            }
 
             var periodKey = creditNote.CreditNoteDate.ToString("yyyyMM", CultureInfo.InvariantCulture);
             var counter = await _context.CreditNoteNumberCounters
@@ -420,7 +446,9 @@ namespace SalesInvoiceService.API.Repositories
             }
 
             if (counter.LastNumber < 0 || counter.LastNumber == int.MaxValue)
+            {
                 throw new InvalidOperationException("The credit note number counter requires review.");
+            }
 
             counter.LastNumber++;
             var year = creditNote.CreditNoteDate.Year.ToString("D4", CultureInfo.InvariantCulture);

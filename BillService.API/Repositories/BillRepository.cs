@@ -35,11 +35,17 @@ namespace BillService.API.Repositories
             }
 
             if (query.Status.HasValue)
+            {
                 rows = rows.Where(row => row.Status == query.Status.Value);
+            }
+
             var total = await rows.CountAsync(cancellationToken);
             var offset = ((long)query.Page - 1) * query.PageSize;
             if (offset >= total)
+            {
                 return ([], total);
+            }
+
             return (await rows.OrderByDescending(row => row.CreatedDate).ThenByDescending(row => row.Id).Skip((int)offset).Take(query.PageSize).ToListAsync(cancellationToken), total);
         }
 
@@ -67,15 +73,27 @@ namespace BillService.API.Repositories
             await using var transaction = _context.Database.CurrentTransaction == null ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken) : null;
             var stored = await LockAsync(bill.Id, cancellationToken);
             if (stored == null)
-                return null;
-            if (stored.Status != BillStatus.Draft)
-                throw new InvalidOperationException("Only draft bills can be edited.");
-            if (!stored.RowVersion.SequenceEqual(rowVersion))
-                throw new DbUpdateConcurrencyException();
-            if (stored.SourcePurchaseOrderId.HasValue && (stored.VendorId != bill.VendorId || stored.Currency != bill.Currency || stored.Branch != bill.Branch))
-                throw new InvalidOperationException("A linked bill must retain the purchase order vendor, branch and currency.");
-            foreach (var name in new[]
             {
+                return null;
+            }
+
+            if (stored.Status != BillStatus.Draft)
+            {
+                throw new InvalidOperationException("Only draft bills can be edited.");
+            }
+
+            if (!stored.RowVersion.SequenceEqual(rowVersion))
+            {
+                throw new DbUpdateConcurrencyException();
+            }
+
+            if (stored.SourcePurchaseOrderId.HasValue && (stored.VendorId != bill.VendorId || stored.Currency != bill.Currency || stored.Branch != bill.Branch))
+            {
+                throw new InvalidOperationException("A linked bill must retain the purchase order vendor, branch and currency.");
+            }
+
+            foreach (var name in new[]
+                        {
                 "VendorInvoiceNumber",
                 "VendorId",
                 "VendorName",
@@ -99,8 +117,11 @@ namespace BillService.API.Repositories
                 "GrandTotal"
             }
 
-            )
+                        )
+            {
                 _context.Entry(stored).Property(name).CurrentValue = _context.Entry(bill).Property(name).CurrentValue;
+            }
+
             stored.ModifiedDate = DateTime.UtcNow;
             _context.Entry(stored).Property(row => row.RowVersion).OriginalValue = rowVersion;
             _context.Entry(stored).Property(row => row.ModifiedDate).IsModified = true;
@@ -109,10 +130,16 @@ namespace BillService.API.Repositories
             await _context.SaveChangesAsync(cancellationToken);
             stored.Items.Clear();
             foreach (var item in bill.Items)
+            {
                 stored.Items.Add(item);
+            }
+
             await _context.SaveChangesAsync(cancellationToken);
             if (transaction != null)
+            {
                 await transaction.CommitAsync(cancellationToken);
+            }
+
             return stored;
         }
 
@@ -128,20 +155,32 @@ namespace BillService.API.Repositories
             await using var transaction = _context.Database.CurrentTransaction == null ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken) : null;
             var stored = await LockAsync(id, cancellationToken);
             if (stored == null)
+            {
                 return null;
+            }
+
             if (stored.Status == target)
             {
                 if (transaction != null)
+                {
                     await transaction.CommitAsync(cancellationToken);
+                }
+
                 return stored;
             }
 
             if (!stored.RowVersion.SequenceEqual(rowVersion))
+            {
                 throw new DbUpdateConcurrencyException();
+            }
+
             if (target == BillStatus.Issued)
             {
                 if (stored.Status != BillStatus.Draft)
+                {
                     throw new InvalidOperationException("Only drafts can be issued.");
+                }
+
                 await validateIssue(stored, cancellationToken);
                 var period = stored.BillDate.ToString("yyyyMM", System.Globalization.CultureInfo.InvariantCulture);
                 var counter = await _context.NumberCounters.FromSqlInterpolated($"SELECT * FROM [purchases].[BillNumberCounters] WITH (UPDLOCK,HOLDLOCK) WHERE [PeriodKey] = {period}").SingleOrDefaultAsync(cancellationToken);
@@ -161,7 +200,10 @@ namespace BillService.API.Repositories
             else if (target == BillStatus.Cancelled)
             {
                 if (stored.Status != BillStatus.Draft && stored.Status != BillStatus.Issued)
+                {
                     throw new InvalidOperationException("This bill cannot be cancelled.");
+                }
+
                 var paid = await _context.Database.SqlQuery<decimal>($"SELECT COALESCE(SUM([Amount]), 0) AS [Value] FROM [purchases].[PaymentsMade] WHERE [BillId] = {stored.Id} AND [Status] = N'Recorded'").SingleAsync(cancellationToken);
                 var credits = await _context.Database.SqlQuery<decimal>($"SELECT COALESCE(SUM([Amount]), 0) AS [Value] FROM [purchases].[VendorCreditApplications] WHERE [BillId] = {stored.Id} AND [Status] = N'Applied'").SingleAsync(cancellationToken);
                 if (paid > 0 || credits > 0)
@@ -173,13 +215,19 @@ namespace BillService.API.Repositories
                 stored.CancelledDate = DateTime.UtcNow;
             }
             else
+            {
                 throw new ArgumentException("Unsupported bill action.");
+            }
+
             stored.Status = target;
             stored.ModifiedDate = DateTime.UtcNow;
             _context.Entry(stored).Property(row => row.RowVersion).OriginalValue = rowVersion;
             await _context.SaveChangesAsync(cancellationToken);
             if (transaction != null)
+            {
                 await transaction.CommitAsync(cancellationToken);
+            }
+
             return stored;
         }
     }

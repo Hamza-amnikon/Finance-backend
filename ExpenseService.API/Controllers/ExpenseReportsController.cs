@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using ExpenseService.API.Data;
 using ExpenseService.API.DTOs;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +29,10 @@ namespace ExpenseService.API.Controllers
             if (fromDate == default || toDate == default || fromDate > toDate ||
                 toDate.DayNumber - fromDate.DayNumber > 3660)
             {
-                return BadRequest(new { message = "Choose a valid date range of up to ten years." });
+                return BadRequest(new
+                {
+                    message = "Choose a valid date range of up to ten years."
+                });
             }
 
             // Read-only cross-module reporting against the existing shared database.
@@ -100,9 +104,15 @@ namespace ExpenseService.API.Controllers
                     new SqlParameter("@from", fromDate.ToDateTime(TimeOnly.MinValue)),
                     new SqlParameter("@to", toDate.ToDateTime(TimeOnly.MinValue)))
                     .ToListAsync(cancellationToken);
-                return Ok(new { fromDate, toDate, rows });
+                return Ok(new
+                {
+                    fromDate,
+                    toDate,
+                    rows
+                });
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

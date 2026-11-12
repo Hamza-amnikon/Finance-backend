@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.DTOs;
@@ -58,8 +59,8 @@ namespace SalesInvoiceService.API.Controllers
                     pageSize
                 });
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -177,7 +178,10 @@ namespace SalesInvoiceService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = invoice.Id },
+                    new
+                    {
+                        id = invoice.Id
+                    },
                     invoice);
             }
             catch (ArgumentException exception)
@@ -205,8 +209,8 @@ namespace SalesInvoiceService.API.Controllers
                             "Try again later."
                     });
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -234,24 +238,39 @@ namespace SalesInvoiceService.API.Controllers
             {
                 var invoice = await _invoiceService.IssueAsync(id, dto, cancellationToken);
                 return invoice == null
-                    ? NotFound(new { message = "Invoice not found." })
+                    ? NotFound(new
+                    {
+                        message = "Invoice not found."
+                    })
                     : Ok(invoice);
             }
             catch (DbUpdateConcurrencyException)
             {
-                return Conflict(new { message = "Invoice changed since you opened it. Reload it before issuing." });
+                return Conflict(new
+                {
+                    message = "Invoice changed since you opened it. Reload it before issuing."
+                });
             }
             catch (InvalidOperationException exception)
             {
-                return Conflict(new { message = exception.Message });
+                return Conflict(new
+                {
+                    message = exception.Message
+                });
             }
             catch (ArgumentException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (OverflowException)
             {
-                return BadRequest(new { message = "Invoice amounts exceed the supported range." });
+                return BadRequest(new
+                {
+                    message = "Invoice amounts exceed the supported range."
+                });
             }
             catch (HttpRequestException)
             {
@@ -271,8 +290,8 @@ namespace SalesInvoiceService.API.Controllers
                         "Try issuing the invoice again."
                 });
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -299,8 +318,8 @@ namespace SalesInvoiceService.API.Controllers
 
                 return Ok(invoice);
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

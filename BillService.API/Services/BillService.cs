@@ -42,7 +42,7 @@ namespace BillService.API.Services
         )
         {
             Validator.ValidateObject(query, new(query), true);
-            var(data, total) = await _repository.GetPagedAsync(query, cancellationToken);
+            var (data, total) = await _repository.GetPagedAsync(query, cancellationToken);
             return (data.Select(ToResponse).ToList(), total);
         }
 
@@ -68,7 +68,10 @@ namespace BillService.API.Services
             var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(dto))));
             var existing = await _repository.GetByRequestIdAsync(dto.RequestId, cancellationToken);
             if (existing != null)
+            {
                 return CheckRequest(existing, fingerprint);
+            }
+
             var bill = await PrepareAsync(dto, cancellationToken);
             bill.RequestId = dto.RequestId;
             bill.RequestFingerprint = fingerprint;
@@ -76,12 +79,15 @@ namespace BillService.API.Services
             {
                 return ToResponse(await _repository.CreateAsync(bill, cancellationToken));
             }
-            catch (DbUpdateException error)when (error.InnerException is SqlException sql && (sql.Number == 2601 || sql.Number == 2627))
+            catch (DbUpdateException error) when (error.InnerException is SqlException sql && (sql.Number == 2601 || sql.Number == 2627))
             {
                 _context.ChangeTracker.Clear();
                 existing = await _repository.GetByRequestIdAsync(dto.RequestId, cancellationToken);
                 if (existing == null)
+                {
                     throw;
+                }
+
                 return CheckRequest(existing, fingerprint);
             }
         }
@@ -92,7 +98,10 @@ namespace BillService.API.Services
         )
         {
             if (bill.RequestFingerprint != fingerprint)
+            {
                 throw new InvalidOperationException("This request ID was already used for different bill details.");
+            }
+
             return ToResponse(bill);
         }
 
@@ -118,32 +127,38 @@ namespace BillService.API.Services
         )
         {
             if (rowVersion == null || rowVersion.Length != 8)
+            {
                 throw new ArgumentException("A valid row version is required.");
+            }
+
             var saved = await _repository.ChangeStatusAsync(
-                id,
-                status,
-                rowVersion,
-                async (bill, token) =>
-                {
-                    // These fields are saved with issue under the existing draft lock.
-                    if (issueDetails?.VendorInvoiceNumber != null)
-                    {
-                        var invoiceNumber = issueDetails.VendorInvoiceNumber.Trim();
-                        if (invoiceNumber.Length > 200)
-                        {
-                            throw new ArgumentException("Vendor invoice number cannot exceed 200 characters.");
-                        }
-                        bill.VendorInvoiceNumber = invoiceNumber;
-                    }
-                    if (issueDetails?.DueDate != null)
-                    {
-                        bill.DueDate = issueDetails.DueDate;
-                    }
-                    await ValidateIssueAsync(bill, token);
-                },
-                cancellationToken);
+                            id,
+                            status,
+                            rowVersion,
+                            async (bill, token) =>
+                            {
+                                // These fields are saved with issue under the existing draft lock.
+                                if (issueDetails?.VendorInvoiceNumber != null)
+                                {
+                                    var invoiceNumber = issueDetails.VendorInvoiceNumber.Trim();
+                                    if (invoiceNumber.Length > 200)
+                                    {
+                                        throw new ArgumentException("Vendor invoice number cannot exceed 200 characters.");
+                                    }
+                                    bill.VendorInvoiceNumber = invoiceNumber;
+                                }
+                                if (issueDetails?.DueDate != null)
+                                {
+                                    bill.DueDate = issueDetails.DueDate;
+                                }
+                                await ValidateIssueAsync(bill, token);
+                            },
+                            cancellationToken);
             if (saved != null && status == BillStatus.Issued)
+            {
                 await PostToAccountingAsync(saved, cancellationToken);
+            }
+
             if (saved != null && status == BillStatus.Cancelled && saved.AccountingReversalPending)
             {
                 await _accountingApiService.ReverseBillAsync(saved.Id, cancellationToken);
@@ -160,9 +175,15 @@ namespace BillService.API.Services
         )
         {
             if (string.IsNullOrWhiteSpace(bill.VendorInvoiceNumber))
+            {
                 throw new ArgumentException("Enter the vendor invoice number before issuing the bill.");
+            }
+
             if (!bill.DueDate.HasValue)
+            {
                 throw new ArgumentException("Enter a due date before issuing the bill.");
+            }
+
             if (bill.DueDate.Value < bill.BillDate)
             {
                 throw new ArgumentException("Due date cannot precede the bill date.");
@@ -172,23 +193,39 @@ namespace BillService.API.Services
                 var sourceId = bill.SourcePurchaseOrderId.Value;
                 var status = await _context.Database.SqlQuery<string>($"SELECT [Status] AS [Value] FROM [purchases].[PurchaseOrders] WITH (HOLDLOCK) WHERE [Id] = {sourceId}").SingleOrDefaultAsync(cancellationToken);
                 if (status != "Issued")
+                {
                     throw new InvalidOperationException("The source purchase order is no longer issued.");
+                }
             }
 
             if (!await _context.Vendors.AnyAsync(row => row.Id == bill.VendorId && row.IsActive, cancellationToken))
+            {
                 throw new InvalidOperationException("The vendor is inactive or unavailable.");
+            }
+
             if (!await _context.Branches.AnyAsync(row => row.Name == bill.Branch && row.IsActive, cancellationToken))
+            {
                 throw new InvalidOperationException("The managing branch is inactive or unavailable.");
+            }
+
             var branch = await _context.Branches.AsNoTracking().SingleAsync(row => row.Name == bill.Branch && row.IsActive, cancellationToken);
             if (!branch.AccountingCompanyId.HasValue)
+            {
                 throw new InvalidOperationException("Link the bill branch to an accounting company before issuing.");
+            }
+
             await _taxSettings.ValidateDraftAsync(bill, cancellationToken);
             bill.TaxTreatment = ResolveTaxTreatment(bill.TaxTreatment, branch.CountryCode, bill.TaxTotal);
             if (bill.Items.Any(item => string.IsNullOrWhiteSpace(item.AccountCode)))
+            {
                 throw new ArgumentException("Select an expense or asset account for every bill line before issuing.");
+            }
+
             var currency = await _context.Currencies.SingleOrDefaultAsync(row => row.CurrencyCode == bill.Currency && row.IsActive, cancellationToken);
             if (currency == null || currency.DecimalPlaces != bill.CurrencyDecimalPlaces)
+            {
                 throw new InvalidOperationException("Currency settings changed. Edit and save the draft before issuing.");
+            }
         }
 
         private async Task PostToAccountingAsync(
@@ -198,11 +235,17 @@ namespace BillService.API.Services
         {
             var branch = await _context.Branches.AsNoTracking().SingleOrDefaultAsync(row => row.Name == bill.Branch && row.IsActive, cancellationToken) ?? throw new InvalidOperationException("The managing branch is inactive or unavailable.");
             if (!branch.AccountingCompanyId.HasValue)
+            {
                 throw new InvalidOperationException("Link the bill branch to an accounting company before issuing.");
+            }
+
             var company = await _accountingApiService.GetCompanyAsync(branch.AccountingCompanyId.Value, cancellationToken) ?? throw new InvalidOperationException("The linked accounting company does not exist.");
             var billNumber = Clean(bill.BillNumber);
             if (billNumber.Length == 0)
+            {
                 throw new InvalidOperationException("The issued bill number is missing.");
+            }
+
             var exchangeRate = await _exchangeRateService.GetRateAsync(bill.Currency, company.Currency, bill.BillDate, cancellationToken);
             var treatment = ResolveTaxTreatment(bill.TaxTreatment, branch.CountryCode, bill.TaxTotal);
             var posting = new BillAccountingPostingDto
@@ -231,19 +274,28 @@ namespace BillService.API.Services
         )
         {
             if (taxTotal == 0)
+            {
                 return BillTaxTreatment.NoTax;
+            }
+
             var country = countryCode.Trim().ToUpperInvariant();
             if (country == "AE")
             {
                 if (selected.HasValue && selected != BillTaxTreatment.UaeVat)
+                {
                     throw new ArgumentException("A taxable UAE bill must use UAE VAT tax treatment.");
+                }
+
                 return BillTaxTreatment.UaeVat;
             }
 
             if (country == "IN")
             {
                 if (selected != BillTaxTreatment.IndiaCgstSgst && selected != BillTaxTreatment.IndiaIgst)
+                {
                     throw new ArgumentException("Select India CGST + SGST or India IGST before issuing the bill.");
+                }
+
                 return selected.Value;
             }
 
@@ -256,17 +308,26 @@ namespace BillService.API.Services
         )
         {
             if (treatment == BillTaxTreatment.NoTax || taxTotal == 0)
+            {
                 return new();
+            }
+
             if (treatment == BillTaxTreatment.UaeVat)
+            {
                 return new()
                 {
                     CreateTax("INPUT_VAT", "Input VAT on purchase bill", taxTotal)
                 };
+            }
+
             if (treatment == BillTaxTreatment.IndiaIgst)
+            {
                 return new()
                 {
                     CreateTax("INPUT_IGST", "Input IGST on purchase bill", taxTotal)
                 };
+            }
+
             var cgst = decimal.Round(taxTotal / 2m, 4, MidpointRounding.AwayFromZero);
             return new()
             {
@@ -295,15 +356,24 @@ namespace BillService.API.Services
             var code = dto.Currency.Trim().ToUpperInvariant();
             var currency = await _context.Currencies.SingleOrDefaultAsync(row => row.CurrencyCode == code && row.IsActive, cancellationToken) ?? throw new ArgumentException("Select an active currency.");
             if (!await _context.Branches.AnyAsync(row => row.Name == dto.Branch.Trim() && row.IsActive, cancellationToken))
+            {
                 throw new ArgumentException("Select an active managing branch.");
+            }
+
             if (currency.DecimalPlaces < 0 || currency.DecimalPlaces > 4)
+            {
                 throw new ArgumentException("Invalid currency precision.");
+            }
+
             var address = string.Join(
-                ", ",
-                new[] { vendor.Address, vendor.City, vendor.State, vendor.Country, vendor.PostalCode }.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim())
-            );
+                            ", ",
+                            new[] { vendor.Address, vendor.City, vendor.State, vendor.Country, vendor.PostalCode }.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim())
+                        );
             if (address.Length > 1000)
+            {
                 throw new ArgumentException("Vendor address exceeds 1000 characters.");
+            }
+
             var bill = new Bill
             {
                 VendorInvoiceNumber = Clean(dto.VendorInvoiceNumber),
@@ -349,7 +419,10 @@ namespace BillService.API.Services
             foreach (var item in dto.Items)
             {
                 if (item == null)
+                {
                     throw new ArgumentException("An bill line cannot be empty.");
+                }
+
                 Validator.ValidateObject(item, new(item), true);
             }
         }

@@ -31,4 +31,7 @@
   <ItemGroup>
     <Compile Include="../Shared/Discounts/LineDiscount.cs" Link="Shared/LineDiscount.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Http/RequestCancellation.cs" Link="Shared/RequestCancellation.cs" />
+  </ItemGroup>
 </Project>

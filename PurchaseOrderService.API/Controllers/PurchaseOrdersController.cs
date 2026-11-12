@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using PurchaseOrderService.API.Data;
 using PurchaseOrderService.API.DTOs;
@@ -84,7 +85,10 @@ namespace PurchaseOrderService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = order.Id },
+                    new
+                    {
+                        id = order.Id
+                    },
                     order);
             }, cancellationToken);
         }
@@ -365,6 +369,13 @@ namespace PurchaseOrderService.API.Controllers
                     statusCode: StatusCodes.Status500InternalServerError,
                     title: "Unable to save purchase order changes.");
             }
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    cancellationToken))
+            {
+                return StatusCode(499);
+            }
             catch (SqlException exception)
             {
                 _logger.LogError(
@@ -423,6 +434,13 @@ namespace PurchaseOrderService.API.Controllers
                 return Problem(
                     statusCode: StatusCodes.Status500InternalServerError,
                     title: "Unable to save purchase order changes.");
+            }
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    cancellationToken))
+            {
+                return StatusCode(499);
             }
             catch (SqlException exception)
             {

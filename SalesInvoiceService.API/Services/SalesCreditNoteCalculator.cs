@@ -18,41 +18,55 @@ namespace SalesInvoiceService.API.Services
             ArgumentNullException.ThrowIfNull(issuedCreditItems);
 
             if (decimalPlaces < 0 || decimalPlaces > 4)
+            {
                 throw new ArgumentException(
-                    "Currency decimal places must be between 0 and 4.");
+                                "Currency decimal places must be between 0 and 4.");
+            }
 
             if (creditNote.Status != SalesCreditNoteStatus.Draft)
+            {
                 throw new InvalidOperationException(
-                    "Only draft credit notes can be recalculated.");
+                                "Only draft credit notes can be recalculated.");
+            }
 
             if (originalInvoice.Status != SalesInvoiceStatus.Issued)
+            {
                 throw new InvalidOperationException(
-                    "Credit notes require an issued invoice.");
+                                "Credit notes require an issued invoice.");
+            }
 
             if (originalInvoice.Id <= 0 ||
                 creditNote.SalesInvoiceId != originalInvoice.Id)
+            {
                 throw new ArgumentException(
-                    "The credit note must belong to the original invoice.");
+                                "The credit note must belong to the original invoice.");
+            }
 
             if (creditNote.Items == null ||
                 creditNote.Items.Count == 0 ||
                 creditNote.Items.Any(item => item == null))
+            {
                 throw new ArgumentException(
-                    "Select at least one invoice service to credit.");
+                                "Select at least one invoice service to credit.");
+            }
 
             if (creditNote.Items
                 .GroupBy(item => item.SalesInvoiceItemId)
                 .Any(group => group.Count() > 1))
+            {
                 throw new ArgumentException(
-                    "Select each invoice service only once.");
+                                "Select each invoice service only once.");
+            }
 
             if (originalInvoice.Items == null ||
                 originalInvoice.Items.Any(item => item == null) ||
                 originalInvoice.Items
                     .GroupBy(item => item.Id)
                     .Any(group => group.Count() > 1))
+            {
                 throw new InvalidOperationException(
-                    "Original invoice items are invalid.");
+                                "Original invoice items are invalid.");
+            }
 
             var sources = originalInvoice.Items
                 .ToDictionary(item => item.Id);
@@ -60,8 +74,10 @@ namespace SalesInvoiceService.API.Services
             if (issuedCreditItems.Any(item =>
                 item == null ||
                 !sources.ContainsKey(item.SalesInvoiceItemId)))
+            {
                 throw new InvalidOperationException(
-                    "Previous credits must belong to this invoice.");
+                                "Previous credits must belong to this invoice.");
+            }
 
             var calculations = new List<(
                 SalesCreditNoteItem Item,
@@ -76,16 +92,20 @@ namespace SalesInvoiceService.API.Services
                 if (!sources.TryGetValue(
                     item.SalesInvoiceItemId,
                     out var source))
+                {
                     throw new ArgumentException(
-                        "A selected service does not belong to this invoice.");
+                                        "A selected service does not belong to this invoice.");
+                }
 
                 ValidateAmount(item.Quantity, "Credit quantity");
 
                 if ((!item.CreditAmount.HasValue && item.Quantity <= 0) ||
                     (item.CreditAmount.HasValue && item.Quantity != 0) ||
                     decimal.Round(item.Quantity, 4) != item.Quantity)
+                {
                     throw new ArgumentException(
-                        "Credit quantity must be positive with at most four decimal places.");
+                                        "Credit quantity must be positive with at most four decimal places.");
+                }
 
                 ValidateAmount(source.Quantity, "Original quantity");
                 ValidateAmount(source.LineSubTotal, "Original subtotal");
@@ -99,8 +119,10 @@ namespace SalesInvoiceService.API.Services
                         source.LineSubTotal -
                         source.DiscountAmount +
                         source.TaxAmount)
+                {
                     throw new InvalidOperationException(
-                        "Original invoice amounts are inconsistent.");
+                                        "Original invoice amounts are inconsistent.");
+                }
 
                 var previous = issuedCreditItems
                     .Where(saved =>
@@ -135,8 +157,10 @@ namespace SalesInvoiceService.API.Services
                             saved.LineSubTotal -
                             saved.DiscountAmount +
                             saved.TaxAmount)
+                    {
                         throw new InvalidOperationException(
-                            "Previous credit amounts are inconsistent.");
+                                                "Previous credit amounts are inconsistent.");
+                    }
                 }
 
                 var usedQuantity = previous.Sum(x => x.Quantity);
@@ -150,12 +174,16 @@ namespace SalesInvoiceService.API.Services
                     usedDiscount > source.DiscountAmount ||
                     usedTax > source.TaxAmount ||
                     usedTotal > source.LineTotal)
+                {
                     throw new InvalidOperationException(
-                        "Previous credits exceed the original invoice service.");
+                                        "Previous credits exceed the original invoice service.");
+                }
 
                 if (item.Quantity > source.Quantity - usedQuantity)
+                {
                     throw new ArgumentException(
-                        "Credit quantity exceeds the remaining invoice service quantity.");
+                                        "Credit quantity exceeds the remaining invoice service quantity.");
+                }
 
                 var combinedQuantity = usedQuantity + item.Quantity;
                 var fraction = combinedQuantity / source.Quantity;
@@ -190,9 +218,14 @@ namespace SalesInvoiceService.API.Services
                         decimalPlaces, MidpointRounding.AwayFromZero);
                     ValidateAmount(requestedNet, "Credit amount");
                     if (requestedNet <= 0 || decimal.Round(requestedNet, decimalPlaces) != requestedNet)
+                    {
                         throw new ArgumentException("Credit amount must be positive and use the invoice currency precision.");
+                    }
+
                     if (originalNet <= 0 || requestedNet > originalNet - usedNet)
+                    {
                         throw new ArgumentException("Credit amount exceeds the remaining service amount before tax.");
+                    }
 
                     var combinedNet = usedNet + requestedNet;
                     decimal AllocateNet(decimal original, decimal used) =>
@@ -214,8 +247,10 @@ namespace SalesInvoiceService.API.Services
 
                 if (discount > subTotal ||
                     total > source.LineTotal - usedTotal)
+                {
                     throw new ArgumentException(
-                        "Credit exceeds the remaining service amount.");
+                                        "Credit exceeds the remaining service amount.");
+                }
 
                 calculations.Add((
                     item,
@@ -237,8 +272,10 @@ namespace SalesInvoiceService.API.Services
             ValidateAmount(totalSum, "Credit note total");
 
             if (totalSum <= 0)
+            {
                 throw new ArgumentException(
-                    "Credit total must be greater than zero. Increase the credit amount or quantity if it rounds to zero.");
+                                "Credit total must be greater than zero. Increase the credit amount or quantity if it rounds to zero.");
+            }
 
             // Apply results only after every line passes validation.
             var lineNumber = 1;
@@ -270,8 +307,10 @@ namespace SalesInvoiceService.API.Services
             string field)
         {
             if (amount < 0 || amount > MaximumAmount)
+            {
                 throw new ArgumentException(
-                    $"{field} is outside the supported range.");
+                                $"{field} is outside the supported range.");
+            }
         }
     }
 }

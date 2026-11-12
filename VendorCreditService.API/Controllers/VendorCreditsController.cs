@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -99,7 +100,10 @@ namespace VendorCreditService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = credit.Id },
+                    new
+                    {
+                        id = credit.Id
+                    },
                     credit);
             }, cancellationToken);
         }
@@ -215,7 +219,13 @@ namespace VendorCreditService.API.Controllers
                         .Take(pageSize)
                         .ToListAsync(cancellationToken);
 
-                return Ok(new { data, total, page, pageSize });
+                return Ok(new
+                {
+                    data,
+                    total,
+                    page,
+                    pageSize
+                });
             }, cancellationToken);
         }
 
@@ -313,7 +323,13 @@ namespace VendorCreditService.API.Controllers
                         .Take(pageSize)
                         .ToListAsync(cancellationToken);
 
-                return Ok(new { data, total, page, pageSize });
+                return Ok(new
+                {
+                    data,
+                    total,
+                    page,
+                    pageSize
+                });
             }, cancellationToken);
         }
 
@@ -325,13 +341,8 @@ namespace VendorCreditService.API.Controllers
             {
                 return await action();
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                return StatusCode(499);
-            }
-            catch (SqlException exception)
-                when (cancellationToken.IsCancellationRequested && exception.Number == 0)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

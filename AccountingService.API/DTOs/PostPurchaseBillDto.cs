@@ -4,8 +4,10 @@ namespace AccountingService.API.DTOs
 {
     public class PostPurchaseBillDto
     {
-        [Range(1, int.MaxValue)] public int CompanyId { get; set; }
-        [Range(1, int.MaxValue)] public int BillId { get; set; }
+        [Range(1, int.MaxValue)]
+        public int CompanyId { get; set; }
+        [Range(1, int.MaxValue)]
+        public int BillId { get; set; }
         [Required, MaxLength(100)] public string BillNumber { get; set; } = string.Empty;
         public DateOnly BillDate { get; set; }
         [Required, MaxLength(100)] public string Branch { get; set; } = string.Empty;

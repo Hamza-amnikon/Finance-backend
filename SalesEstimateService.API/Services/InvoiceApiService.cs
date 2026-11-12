@@ -20,7 +20,14 @@ namespace SalesEstimateService.API.Services
         {
             using var response = await _httpClient.PostAsJsonAsync(
                 "api/sales-invoices/from-estimate",
-                new { estimateId, dto.RowVersion, dto.InvoiceDate, dto.DueDate, dto.PreferredPaymentMode },
+                new
+                {
+                    estimateId,
+                    dto.RowVersion,
+                    dto.InvoiceDate,
+                    dto.DueDate,
+                    dto.PreferredPaymentMode
+                },
                 cancellationToken
             );
             if (response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.Conflict)
@@ -30,14 +37,19 @@ namespace SalesEstimateService.API.Services
                 {
                     var body = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
                     if (body.TryGetProperty("message", out var value) && value.ValueKind == JsonValueKind.String)
+                    {
                         message = value.GetString() ?? message;
+                    }
                 }
                 catch (JsonException)
                 {
                 }
 
                 if (response.StatusCode == HttpStatusCode.Conflict)
+                {
                     throw new InvalidOperationException(message);
+                }
+
                 throw new ArgumentException(message);
             }
 
@@ -52,7 +64,10 @@ namespace SalesEstimateService.API.Services
         {
             using var response = await _httpClient.GetAsync($"api/sales-invoices/{id}", cancellationToken);
             if (response.StatusCode == HttpStatusCode.NotFound)
+            {
                 return null;
+            }
+
             response.EnsureSuccessStatusCode();
             return await ReadAsync(response, cancellationToken);
         }

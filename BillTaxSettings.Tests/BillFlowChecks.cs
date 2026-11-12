@@ -133,7 +133,9 @@ internal static class BillFlowChecks
         {
             return Task.FromResult<BillAccountingCompanyDto?>(new BillAccountingCompanyDto
             {
-                Id = companyId, Country = "AE", Currency = "USD"
+                Id = companyId,
+                Country = "AE",
+                Currency = "USD"
             });
         }
 

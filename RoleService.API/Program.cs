@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using SparkFinance.Http;
+using Microsoft.EntityFrameworkCore;
 using RoleService.API.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
@@ -72,6 +73,8 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IRoleService, RoleServiceImplementation>();
 
 var app = builder.Build();
+
+app.UseFinanceRequestCancellation();
 
 app.UseHttpsRedirection();
 

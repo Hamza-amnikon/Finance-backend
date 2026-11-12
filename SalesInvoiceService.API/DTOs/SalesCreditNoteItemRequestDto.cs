@@ -17,10 +17,14 @@ namespace SalesInvoiceService.API.DTOs
             if (CreditAmount.HasValue)
             {
                 if (Quantity != 0 || CreditAmount <= 0 || CreditAmount > maximum)
+                {
                     yield return new ValidationResult("Enter a positive credit amount and leave quantity at zero.");
+                }
             }
             else if (Quantity <= 0 || Quantity > maximum || decimal.Round(Quantity, 4) != Quantity)
+            {
                 yield return new ValidationResult("Credit quantity must be positive with at most four decimal places.");
+            }
         }
     }
 }

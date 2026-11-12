@@ -43,7 +43,7 @@ namespace SalesInvoiceService.API.Data
 
         public DbSet<CreditNoteNumberCounter> CreditNoteNumberCounters =>
             Set<CreditNoteNumberCounter>();
-         
+
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
         {
@@ -449,6 +449,11 @@ namespace SalesInvoiceService.API.Data
             modelBuilder.Entity<BranchMaster>(entity =>
             {
                 entity.ToTable("BranchMasters", "sales");
+
+                entity.Property(branch => branch.InvoiceNumberPrefix)
+                    .HasMaxLength(10)
+                    .IsRequired()
+                    .HasDefaultValue(string.Empty);
 
                 entity.HasKey(x => x.Id);
 

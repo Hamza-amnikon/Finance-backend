@@ -37,6 +37,11 @@ namespace SalesInvoiceService.API.Services
             branch.AccountingCompanyId =
                 dto.AccountingCompanyId;
 
+            if (dto.InvoiceNumberPrefix != null)
+            {
+                branch.InvoiceNumberPrefix = dto.InvoiceNumberPrefix.Trim();
+            }
+
             branch.CompanyName = dto.CompanyName?.Trim() ?? string.Empty;
             branch.Address = dto.Address?.Trim() ?? string.Empty;
             branch.CountryCode = dto.CountryCode?.Trim() ?? string.Empty;
@@ -67,6 +72,7 @@ namespace SalesInvoiceService.API.Services
                 AccountingCompanyId =
                     branch.AccountingCompanyId,
                 BranchName = branch.Name,
+                InvoiceNumberPrefix = branch.InvoiceNumberPrefix,
                 RowVersion = branch.RowVersion,
                 CompanyName = branch.CompanyName,
                 Address = branch.Address,

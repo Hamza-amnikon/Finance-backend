@@ -21,7 +21,11 @@ var created = false;
 var checks = 0;
 void Check(bool value, string description)
 {
-    if (!value) throw new Exception("FAIL: " + description);
+    if (!value)
+    {
+        throw new Exception("FAIL: " + description);
+    }
+
     Console.WriteLine("PASS: " + description);
     checks++;
 }
@@ -48,8 +52,10 @@ try
     }
     var start = new ProcessStartInfo("dotnet")
     {
-        UseShellExecute = false, CreateNoWindow = true,
-        RedirectStandardOutput = true, RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
         WorkingDirectory = AppContext.BaseDirectory
     };
     start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "AccountingService.API.dll"));
@@ -58,19 +64,28 @@ try
     start.Environment["ConnectionStrings__DefaultConnection"] = connection.ConnectionString;
     start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
     server = new Process { StartInfo = start };
-    server.OutputDataReceived += (_, e) => { if (e.Data != null) lock(output) output.AppendLine(e.Data); };
-    server.ErrorDataReceived += (_, e) => { if (e.Data != null) lock(output) output.AppendLine(e.Data); };
-    server.Start(); server.BeginOutputReadLine(); server.BeginErrorReadLine();
+    server.OutputDataReceived += (_, e) => { if (e.Data != null) { lock (output) output.AppendLine(e.Data); } };
+    server.ErrorDataReceived += (_, e) => { if (e.Data != null) { lock (output) output.AppendLine(e.Data); } };
+    server.Start();
+    server.BeginOutputReadLine();
+    server.BeginErrorReadLine();
     using var client = new HttpClient { BaseAddress = new Uri("http://127.0.0.1:5419"), Timeout = TimeSpan.FromSeconds(15) };
-    for (var attempt = 0;; attempt++)
+    for (var attempt = 0; ; attempt++)
     {
         try
         {
             using var ping = await client.GetAsync("/api/tax-settings/lookups");
-            if (ping.IsSuccessStatusCode) break;
+            if (ping.IsSuccessStatusCode)
+            {
+                break;
+            }
         }
         catch (HttpRequestException) { }
-        if (attempt > 50 || server.HasExited) throw new Exception("Test API failed to start.");
+        if (attempt > 50 || server.HasExited)
+        {
+            throw new Exception("Test API failed to start.");
+        }
+
         await Task.Delay(200);
     }
     var setupData = JsonNode.Parse(await client.GetStringAsync("/api/tax-settings/lookups"))!;
@@ -84,12 +99,17 @@ try
     {
         return new JsonObject
         {
-            ["companyId"] = companyId, ["taxTypeId"] = type["id"]!.GetValue<int>(),
-            ["code"] = code, ["name"] = "Illustrative test configuration", ["effectiveFrom"] = "2026-11-01",
-            ["effectiveTo"] = null, ["isActive"] = true,
+            ["companyId"] = companyId,
+            ["taxTypeId"] = type["id"]!.GetValue<int>(),
+            ["code"] = code,
+            ["name"] = "Illustrative test configuration",
+            ["effectiveFrom"] = "2026-11-01",
+            ["effectiveTo"] = null,
+            ["isActive"] = true,
             ["components"] = new JsonArray(type["components"]!.AsArray().Select(name => (JsonNode)new JsonObject
             {
-                ["name"] = name!.GetValue<string>(), ["rate"] = 1.25m
+                ["name"] = name!.GetValue<string>(),
+                ["rate"] = 1.25m
             }).ToArray())
         };
     }
@@ -108,20 +128,25 @@ try
         Check(india.IsSuccessStatusCode, "Turbhe keeps a separate rate using the same tax code");
     using (var duplicate = await client.PostAsJsonAsync("/api/tax-settings", draft))
         Check(duplicate.StatusCode == HttpStatusCode.BadRequest, "Overlapping versions of a company tax code are rejected");
-    var reversed = Draft(1, vat, "DATES"); reversed["effectiveTo"] = "2026-10-31";
+    var reversed = Draft(1, vat, "DATES");
+    reversed["effectiveTo"] = "2026-10-31";
     using (var bad = await client.PostAsJsonAsync("/api/tax-settings", reversed))
         Check(bad.StatusCode == HttpStatusCode.BadRequest, "Reversed effective dates are rejected");
-    var invalidRate = Draft(1, vat, "RATE"); invalidRate["components"]![0]!["rate"] = -1;
+    var invalidRate = Draft(1, vat, "RATE");
+    invalidRate["components"]![0]!["rate"] = -1;
     using (var bad = await client.PostAsJsonAsync("/api/tax-settings", invalidRate))
         Check(bad.StatusCode == HttpStatusCode.BadRequest, "Negative rates are rejected");
-    var incomplete = Draft(2, local, "COMPONENTS"); incomplete["components"]!.AsArray().RemoveAt(1);
+    var incomplete = Draft(2, local, "COMPONENTS");
+    incomplete["components"]!.AsArray().RemoveAt(1);
     using (var bad = await client.PostAsJsonAsync("/api/tax-settings", incomplete))
         Check(bad.StatusCode == HttpStatusCode.BadRequest, "Missing configured components are rejected");
     var edited = (JsonObject)draft.DeepClone();
-    edited["rowVersion"] = saved["rowVersion"]!.GetValue<string>(); edited["isActive"] = false;
+    edited["rowVersion"] = saved["rowVersion"]!.GetValue<string>();
+    edited["isActive"] = false;
     using (var changed = await client.PutAsJsonAsync($"/api/tax-settings/{id}", edited))
         Check(changed.IsSuccessStatusCode, "A saved rate can be deactivated");
-    var missingVersion = (JsonObject)edited.DeepClone(); missingVersion["rowVersion"] = null;
+    var missingVersion = (JsonObject)edited.DeepClone();
+    missingVersion["rowVersion"] = null;
     using (var badVersion = await client.PutAsJsonAsync($"/api/tax-settings/{id}", missingVersion))
         Check(badVersion.StatusCode == HttpStatusCode.BadRequest, "Missing edit versions are rejected cleanly");
     using (var stale = await client.PutAsJsonAsync($"/api/tax-settings/{id}", edited))
@@ -137,7 +162,11 @@ catch
 }
 finally
 {
-    if (server is { HasExited: false }) { server.Kill(true); await server.WaitForExitAsync(); }
+    if (server is { HasExited: false })
+    {
+        server.Kill(true);
+        await server.WaitForExitAsync();
+    }
     server?.Dispose();
     if (created && database.StartsWith("FinanceTaxTests_") && database.Length == 48)
     {

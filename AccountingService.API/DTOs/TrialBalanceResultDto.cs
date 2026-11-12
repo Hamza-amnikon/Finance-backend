@@ -19,37 +19,20 @@
 
         public string? CostCenter { get; set; }
 
-        public decimal TotalDebitMovement
-        {
-            get;
-            set;
-        }
+        public decimal TotalDebitMovement { get; set; }
 
-        public decimal TotalCreditMovement
-        {
-            get;
-            set;
-        }
+        public decimal TotalCreditMovement { get; set; }
 
-        public decimal TotalDebitBalance
-        {
-            get;
-            set;
-        }
+        public decimal TotalDebitBalance { get; set; }
 
-        public decimal TotalCreditBalance
-        {
-            get;
-            set;
-        }
+        public decimal TotalCreditBalance { get; set; }
 
         public decimal Difference { get; set; }
 
         public bool IsBalanced { get; set; }
 
         public IReadOnlyList<TrialBalanceLineDto>
-            Data
-        { get; set; }
+            Data { get; set; }
                 = Array.Empty<
                     TrialBalanceLineDto>();
 

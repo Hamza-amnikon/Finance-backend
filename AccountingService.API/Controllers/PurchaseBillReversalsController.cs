@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using AccountingService.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -22,13 +23,17 @@ namespace AccountingService.API.Controllers
             {
                 return Ok(await _service.ReverseAsync(billId, cancellationToken));
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
             catch (ValidationException exception)
             {
-                return Conflict(new { message = exception.Message });
+                return Conflict(new
+                {
+                    message = exception.Message
+                });
             }
         }
     }

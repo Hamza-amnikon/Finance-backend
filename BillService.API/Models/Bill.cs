@@ -16,10 +16,12 @@ namespace BillService.API.Models
         public Guid RequestId { get; set; }
         [MaxLength(64)] public string RequestFingerprint { get; set; } = "";
         public int? SourcePurchaseOrderId { get; set; }
-        [MaxLength(50)] public string? SourcePurchaseOrderNumber { get; set; }
+        [MaxLength(50)]
+        public string? SourcePurchaseOrderNumber { get; set; }
         [MaxLength(200)] public string VendorInvoiceNumber { get; set; } = "";
         public Guid VendorId { get; set; }
-        [MaxLength(50)] public string? BillNumber { get; set; }
+        [MaxLength(50)]
+        public string? BillNumber { get; set; }
         [Required, MaxLength(200)] public string VendorName { get; set; } = "";
         [MaxLength(200)] public string CompanyName { get; set; } = "";
         [MaxLength(1000)] public string BillingAddress { get; set; } = "";

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
+    <Compile Include="../Shared/Http/RequestCancellation.cs" Link="Shared/RequestCancellation.cs" />
+    <ProjectReference Include="../SalesInvoiceService.API/SalesInvoiceService.API.csproj" />
+    <ProjectReference Include="../SalesEstimateService.API/SalesEstimateService.API.csproj" />
+    <ProjectReference Include="../PurchaseOrderService.API/PurchaseOrderService.API.csproj" />
+  </ItemGroup>
+</Project>

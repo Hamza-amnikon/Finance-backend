@@ -1,4 +1,5 @@
-﻿using ClientService.API.DTOs;
+﻿using SparkFinance.Http;
+using ClientService.API.DTOs;
 using ClientService.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -75,7 +76,10 @@ namespace ClientService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = client.Id },
+                    new
+                    {
+                        id = client.Id
+                    },
                     client);
             }, cancellationToken);
         }
@@ -138,14 +142,8 @@ namespace ClientService.API.Controllers
             {
                 return await action();
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                return StatusCode(499);
-            }
-            catch (SqlException exception)
-                when (cancellationToken.IsCancellationRequested &&
-                      exception.Number == 0)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -177,8 +175,8 @@ namespace ClientService.API.Controllers
                             "Check that the branch API is running."
                     });
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

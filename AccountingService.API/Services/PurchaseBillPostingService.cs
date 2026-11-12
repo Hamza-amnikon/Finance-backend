@@ -220,21 +220,36 @@ namespace AccountingService.API.Services
 
         private static void Validate(PostPurchaseBillDto dto)
         {
-            if (dto.BillDate == default) throw new ValidationException("Bill date is required.");
-            if (dto.VendorId == Guid.Empty) throw new ValidationException("Vendor ID is required.");
-            if (dto.ExchangeRate <= 0) throw new ValidationException("Exchange rate must be greater than zero.");
-            if (string.IsNullOrWhiteSpace(dto.Branch)) throw new ValidationException("Branch is required.");
+            if (dto.BillDate == default)
+            {
+                throw new ValidationException("Bill date is required.");
+            }
+
+            if (dto.VendorId == Guid.Empty)
+            {
+                throw new ValidationException("Vendor ID is required.");
+            }
+
+            if (dto.ExchangeRate <= 0)
+            {
+                throw new ValidationException("Exchange rate must be greater than zero.");
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.Branch))
+            {
+                throw new ValidationException("Branch is required.");
+            }
         }
 
         private static List<PurchaseBillTaxPostingDto> NormalizeTaxes(
             IEnumerable<PurchaseBillTaxPostingDto> values)
         {
             return values.Select(item => new PurchaseBillTaxPostingDto
-                {
-                    SystemKey = item.SystemKey.Trim().ToUpperInvariant(),
-                    Description = item.Description.Trim(),
-                    Amount = RoundAmount(item.Amount)
-                })
+            {
+                SystemKey = item.SystemKey.Trim().ToUpperInvariant(),
+                Description = item.Description.Trim(),
+                Amount = RoundAmount(item.Amount)
+            })
                 .Where(item => item.Amount > 0)
                 .GroupBy(item => item.SystemKey, StringComparer.OrdinalIgnoreCase)
                 .Select(group =>

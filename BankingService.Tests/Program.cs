@@ -26,7 +26,10 @@ void Check(
 )
 {
     if (!condition)
+    {
         throw new Exception("FAILED: " + name);
+    }
+
     Console.WriteLine("PASS: " + name);
     checks++;
 }
@@ -98,7 +101,10 @@ try
 {
     created = await context.Database.EnsureCreatedAsync();
     if (!created)
+    {
         throw new Exception("Refusing to use an existing test database.");
+    }
+
     await context.Database.ExecuteSqlRawAsync("IF SCHEMA_ID('expenses') IS NULL EXEC('CREATE SCHEMA expenses')");
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA purchases");
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA sales");

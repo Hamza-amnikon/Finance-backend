@@ -44,8 +44,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.ErrorDataReceived += (
         _,
@@ -53,8 +55,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.Start();
     server.BeginOutputReadLine();
@@ -64,20 +68,25 @@ try
         BaseAddress = new Uri("http://127.0.0.1:5398/api/expenses"),
         Timeout = TimeSpan.FromSeconds(15)
     };
-    for (var attempt = 0;; attempt++)
+    for (var attempt = 0; ; attempt++)
     {
         try
         {
             using var ping = await client.GetAsync("/api/expenses/companies");
             if (ping.IsSuccessStatusCode)
+            {
                 break;
+            }
         }
         catch (HttpRequestException)
         {
         }
 
         if (attempt == 60 || server.HasExited)
+        {
             throw new Exception("Test server did not start. " + output);
+        }
+
         await Task.Delay(250);
     }
 
@@ -90,11 +99,17 @@ try
     {
         using var request = new HttpRequestMessage(method, "/api/expenses" + path);
         if (body != null)
+        {
             request.Content = JsonContent.Create(body);
+        }
+
         using var response = await client.SendAsync(request);
         var text = await response.Content.ReadAsStringAsync();
         if (response.StatusCode != expected)
+        {
             throw new Exception(method + " " + path + ": expected " + expected + ", got " + response.StatusCode + ": " + text);
+        }
+
         return JsonNode.Parse(text)!;
     }
 
@@ -104,7 +119,10 @@ try
     )
     {
         if (!condition)
+        {
             throw new Exception("FAIL: " + name);
+        }
+
         Console.WriteLine("PASS: " + name);
         count++;
     }
@@ -132,8 +150,16 @@ try
         ["notes"] = "Test only",
         ["reference"] = "Test"
     };
-    var india = await Send(HttpMethod.Post, "/companies", new { name = "India", country = "IN" }, HttpStatusCode.Created);
-    var dubai = await Send(HttpMethod.Post, "/companies", new { name = "Dubai", country = "AE" }, HttpStatusCode.Created);
+    var india = await Send(HttpMethod.Post, "/companies", new
+    {
+        name = "India",
+        country = "IN"
+    }, HttpStatusCode.Created);
+    var dubai = await Send(HttpMethod.Post, "/companies", new
+    {
+        name = "Dubai",
+        country = "AE"
+    }, HttpStatusCode.Created);
     int indiaId = india["id"]!.GetValue<int>(), dubaiId = dubai["id"]!.GetValue<int>();
     Check(
         india["currency"]!.GetValue<string>() == "INR" && dubai["currency"]!.GetValue<string>() == "AED",
@@ -142,25 +168,46 @@ try
     var indiaBank = await Send(
         HttpMethod.Post,
         "/bank-accounts",
-        new { companyId = indiaId, name = "HDFC", currency = "INR", lastFour = "1234" },
+        new
+        {
+            companyId = indiaId,
+            name = "HDFC",
+            currency = "INR",
+            lastFour = "1234"
+        },
         HttpStatusCode.Created
     );
     var indiaBank2 = await Send(
         HttpMethod.Post,
         "/bank-accounts",
-        new { companyId = indiaId, name = "ICICI", currency = "INR" },
+        new
+        {
+            companyId = indiaId,
+            name = "ICICI",
+            currency = "INR"
+        },
         HttpStatusCode.Created
     );
     var dubaiBank = await Send(
         HttpMethod.Post,
         "/bank-accounts",
-        new { companyId = dubaiId, name = "Emirates NBD", currency = "AED" },
+        new
+        {
+            companyId = dubaiId,
+            name = "Emirates NBD",
+            currency = "AED"
+        },
         HttpStatusCode.Created
     );
     await Send(
         HttpMethod.Post,
         "/bank-accounts",
-        new { companyId = dubaiId, name = "ADCB", currency = "AED" },
+        new
+        {
+            companyId = dubaiId,
+            name = "ADCB",
+            currency = "AED"
+        },
         HttpStatusCode.Created
     );
     int bankId = indiaBank["id"]!.GetValue<int>(), dubaiBankId = dubaiBank["id"]!.GetValue<int>();
@@ -296,19 +343,31 @@ try
     await Send(
         HttpMethod.Post,
         "/" + id + "/void",
-        new { rowVersion = stale, reason = "Duplicate" },
+        new
+        {
+            rowVersion = stale,
+            reason = "Duplicate"
+        },
         HttpStatusCode.Conflict
     );
     await Send(
         HttpMethod.Post,
         "/" + id + "/void",
-        new { rowVersion = recorded["rowVersion"]!.GetValue<string>(), reason = " " },
+        new
+        {
+            rowVersion = recorded["rowVersion"]!.GetValue<string>(),
+            reason = " "
+        },
         HttpStatusCode.BadRequest
     );
     await Send(
         HttpMethod.Post,
         "/" + id + "/void",
-        new { rowVersion = recorded["rowVersion"]!.GetValue<string>(), reason = "Duplicate" }
+        new
+        {
+            rowVersion = recorded["rowVersion"]!.GetValue<string>(),
+            reason = "Duplicate"
+        }
     );
     var afterVoid = await Send(HttpMethod.Get, "?displayCurrency=AED");
     var voided = await Send(HttpMethod.Get, "/" + id);
@@ -318,11 +377,20 @@ try
     );
     var constraints = await context.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS [Value] FROM sys.foreign_keys WHERE name LIKE 'FK_Expenses_BankAccounts%'").SingleAsync();
     Check(constraints == 1, "Database enforces company/account ownership foreign key");
-    await Send(HttpMethod.Post, "/companies", new { name = "India", country = "IN" }, HttpStatusCode.Conflict);
+    await Send(HttpMethod.Post, "/companies", new
+    {
+        name = "India",
+        country = "IN"
+    }, HttpStatusCode.Conflict);
     await Send(
         HttpMethod.Post,
         "/bank-accounts",
-        new { companyId = indiaId, name = "HDFC", currency = "INR" },
+        new
+        {
+            companyId = indiaId,
+            name = "HDFC",
+            currency = "INR"
+        },
         HttpStatusCode.Conflict
     );
     Check(true, "Duplicate company/account names produce clear conflict responses");
@@ -338,7 +406,9 @@ try
         using var ui = Process.Start(uiStart)!;
         await ui.WaitForExitAsync();
         if (ui.ExitCode != 0)
+        {
             throw new Exception("Browser tests failed.");
+        }
     }
 
     Console.WriteLine("All " + count + " integration checks passed.");
@@ -354,7 +424,12 @@ finally
     server?.Dispose();
     // Only this uniquely named database, created above, may be removed.
     if (!database.StartsWith("OrbitExpenseTests_", StringComparison.Ordinal) || database.Length != 50)
+    {
         throw new InvalidOperationException("Unexpected test database name.");
+    }
+
     if (created)
+    {
         await context.Database.EnsureDeletedAsync();
+    }
 }

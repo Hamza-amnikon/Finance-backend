@@ -18,7 +18,11 @@ namespace RoleService.API
                 .RequireRateLimiting("development-login");
 
             routes.MapGet("/session", (ClaimsPrincipal user) =>
-                Results.Ok(new { name = user.Identity?.Name, role = AdminRole }))
+                Results.Ok(new
+                {
+                    name = user.Identity?.Name,
+                    role = AdminRole
+                }))
                 .RequireAuthorization();
 
             routes.MapPost("/logout", async (HttpContext context) =>
@@ -39,7 +43,10 @@ namespace RoleService.API
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
                 return Results.Json(
-                    new { message = "Set the local admin credentials in RoleService.API User Secrets." },
+                    new
+                    {
+                        message = "Set the local admin credentials in RoleService.API User Secrets."
+                    },
                     statusCode: StatusCodes.Status503ServiceUnavailable);
             }
 
@@ -47,7 +54,10 @@ namespace RoleService.API
                 || !MatchesPassword(password, request.Password))
             {
                 return Results.Json(
-                    new { message = "Invalid username or password." },
+                    new
+                    {
+                        message = "Invalid username or password."
+                    },
                     statusCode: StatusCodes.Status401Unauthorized);
             }
 
@@ -63,7 +73,11 @@ namespace RoleService.API
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(identity));
 
-            return Results.Ok(new { name = username, role = AdminRole });
+            return Results.Ok(new
+            {
+                name = username,
+                role = AdminRole
+            });
         }
 
         private static bool MatchesPassword(string expected, string? supplied)

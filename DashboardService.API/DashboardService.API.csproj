@@ -15,4 +15,7 @@
   <ItemGroup>
     <Compile Include="..\Shared\Auditing\FinanceAudit.cs" Link="Shared\FinanceAudit.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Http/RequestCancellation.cs" Link="Shared/RequestCancellation.cs" />
+  </ItemGroup>
 </Project>

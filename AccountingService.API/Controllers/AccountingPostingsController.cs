@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using AccountingService.API.DTOs;
 using AccountingService.API.Services;
@@ -69,10 +70,8 @@ namespace AccountingService.API.Controllers
                             dto,
                             cancellationToken));
             }
-            catch (OperationCanceledException)
-                when (
-                    cancellationToken
-                        .IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -152,10 +151,8 @@ namespace AccountingService.API.Controllers
                             dto,
                             cancellationToken));
             }
-            catch (OperationCanceledException)
-                when (
-                    cancellationToken
-                        .IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -235,10 +232,8 @@ namespace AccountingService.API.Controllers
                             dto,
                             cancellationToken));
             }
-            catch (OperationCanceledException)
-                when (
-                    cancellationToken
-                        .IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -316,20 +311,26 @@ namespace AccountingService.API.Controllers
                     dto,
                     cancellationToken));
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
             catch (ValidationException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (DbUpdateException exception)
                 when (exception.InnerException is SqlException sqlException &&
                       (sqlException.Number == 2601 || sqlException.Number == 2627))
             {
-                return Conflict(new { message = "This purchase bill was already posted." });
+                return Conflict(new
+                {
+                    message = "This purchase bill was already posted."
+                });
             }
             catch (SqlException exception)
             {
@@ -362,10 +363,8 @@ namespace AccountingService.API.Controllers
 
                 return Ok(result);
             }
-            catch (OperationCanceledException)
-                when (
-                    cancellationToken
-                        .IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

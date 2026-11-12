@@ -72,7 +72,10 @@ namespace RoleService.API.Controllers
 
             if (result == RoleChangeResult.DuplicateName)
             {
-                return Conflict(new { message = "A role with this name already exists." });
+                return Conflict(new
+                {
+                    message = "A role with this name already exists."
+                });
             }
 
             if (role is null)
@@ -80,7 +83,10 @@ namespace RoleService.API.Controllers
                 throw new InvalidOperationException("The service did not return a created role.");
             }
 
-            return CreatedAtAction(nameof(GetRole), new { id = role.RoleId }, role);
+            return CreatedAtAction(nameof(GetRole), new
+            {
+                id = role.RoleId
+            }, role);
         }
 
         [Authorize(Roles = DevelopmentAdminEndpoints.AdminRole)]
@@ -92,12 +98,18 @@ namespace RoleService.API.Controllers
         {
             if (request.RoleId.HasValue && request.RoleId.Value != id)
             {
-                return BadRequest(new { message = "The role ID must match the URL." });
+                return BadRequest(new
+                {
+                    message = "The role ID must match the URL."
+                });
             }
 
             if (request.RowVersion is not { Length: 8 })
             {
-                return BadRequest(new { message = "Include the role's current row version." });
+                return BadRequest(new
+                {
+                    message = "Include the role's current row version."
+                });
             }
 
             var result = await _service.UpdateAsync(
@@ -127,9 +139,15 @@ namespace RoleService.API.Controllers
                 RoleChangeResult.Success => NoContent(),
                 RoleChangeResult.NotFound => NotFound(),
                 RoleChangeResult.DuplicateName =>
-                    Conflict(new { message = "A role with this name already exists." }),
+                    Conflict(new
+                    {
+                        message = "A role with this name already exists."
+                    }),
                 RoleChangeResult.ConcurrencyConflict =>
-                    Conflict(new { message = "The role changed. Reload it and try again." }),
+                    Conflict(new
+                    {
+                        message = "The role changed. Reload it and try again."
+                    }),
                 _ => throw new InvalidOperationException("Unexpected role change result.")
             };
         }

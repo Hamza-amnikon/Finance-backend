@@ -105,7 +105,7 @@ namespace ExchangeRateService.API.Services
                         saved.RetrievedAtUtc = _timeProvider.GetUtcNow();
                         await _context.SaveChangesAsync(cancellationToken);
                     }
-                    catch (Exception exception)when (exception is HttpRequestException or ValidationException or OperationCanceledException)
+                    catch (Exception exception) when (exception is HttpRequestException or ValidationException or OperationCanceledException)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var reason = exception switch
@@ -126,7 +126,7 @@ namespace ExchangeRateService.API.Services
                 check.Error = errors.Count == 0 ? null : errorText[..Math.Min(1000, errorText.Length)];
                 await _context.SaveChangesAsync(cancellationToken);
             }
-            catch (Exception)when (!cancellationToken.IsCancellationRequested)
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
                 // Record an interrupted check when SQL is still available; never discard saved rates.
                 try
@@ -141,7 +141,7 @@ namespace ExchangeRateService.API.Services
                         await _context.SaveChangesAsync(cancellationToken);
                     }
                 }
-                catch (Exception)when (!cancellationToken.IsCancellationRequested)
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
                 { /* The worker logs the original failure. */
                 }
 
@@ -150,10 +150,13 @@ namespace ExchangeRateService.API.Services
             finally
             {
                 if (locked)
+                {
                     await _context.Database.ExecuteSqlRawAsync(
-                        "EXEC sys.sp_releaseapplock @Resource=N'FinanceDailyExchangeRates', @LockOwner='Session'",
-                        CancellationToken.None
-                    );
+                                        "EXEC sys.sp_releaseapplock @Resource=N'FinanceDailyExchangeRates', @LockOwner='Session'",
+                                        CancellationToken.None
+                                    );
+                }
+
                 await _context.Database.CloseConnectionAsync();
             }
         }

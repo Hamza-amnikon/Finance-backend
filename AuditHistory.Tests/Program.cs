@@ -25,7 +25,10 @@ void Check(
 )
 {
     if (!condition)
+    {
         throw new Exception("FAIL: " + name);
+    }
+
     Console.WriteLine("PASS: " + name);
     checks++;
 }
@@ -163,20 +166,34 @@ try
     };
     context.AuditEvents.AddRange(new AuditEvent
     {
-        EntityId = "activity-reordered", EntityType = "PaymentBankingLink", Action = "Updated",
-        ActorKind = "System", Service = "BankingService.API", AtUtc = DateTimeOffset.UtcNow,
+        EntityId = "activity-reordered",
+        EntityType = "PaymentBankingLink",
+        Action = "Updated",
+        ActorKind = "System",
+        Service = "BankingService.API",
+        AtUtc = DateTimeOffset.UtcNow,
         BeforeJson = "{\"Amount\":85,\"Currency\":\"USD\"}",
         AfterJson = "{\"Currency\":\"USD\",\"Amount\":85,\"Other fields changed (values excluded)\":\"UpdatedAtUtc\"}"
     }, new AuditEvent
     {
-        EntityId = "activity-invalid", EntityType = "PaymentBankingLink", Action = "Updated",
-        ActorKind = "System", Service = "BankingService.API", AtUtc = DateTimeOffset.UtcNow,
-        BeforeJson = "invalid JSON", AfterJson = null
+        EntityId = "activity-invalid",
+        EntityType = "PaymentBankingLink",
+        Action = "Updated",
+        ActorKind = "System",
+        Service = "BankingService.API",
+        AtUtc = DateTimeOffset.UtcNow,
+        BeforeJson = "invalid JSON",
+        AfterJson = null
     }, new AuditEvent
     {
-        EntityId = "activity-case", EntityType = "PaymentBankingLink", Action = "Updated",
-        ActorKind = "System", Service = "BankingService.API", AtUtc = DateTimeOffset.UtcNow,
-        BeforeJson = "{\"Currency\":\"usd\"}", AfterJson = "{\"Currency\":\"USD\"}"
+        EntityId = "activity-case",
+        EntityType = "PaymentBankingLink",
+        Action = "Updated",
+        ActorKind = "System",
+        Service = "BankingService.API",
+        AtUtc = DateTimeOffset.UtcNow,
+        BeforeJson = "{\"Currency\":\"usd\"}",
+        AfterJson = "{\"Currency\":\"USD\"}"
     });
     context.AuditEvents.AddRange(activityFixtures);
     await context.SaveChangesAsync();
@@ -225,8 +242,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.ErrorDataReceived += (
         _,
@@ -234,8 +253,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.Start();
     server.BeginOutputReadLine();
@@ -245,20 +266,25 @@ try
         BaseAddress = new Uri("http://127.0.0.1:5403"),
         Timeout = TimeSpan.FromSeconds(15)
     };
-    for (var attempt = 0;; attempt++)
+    for (var attempt = 0; ; attempt++)
     {
         try
         {
             using var ping = await client.GetAsync("/api/audit-history");
             if (ping.StatusCode == HttpStatusCode.Forbidden)
+            {
                 break;
+            }
         }
         catch (HttpRequestException)
         {
         }
 
         if (attempt >= 60 || server.HasExited)
+        {
             throw new Exception("Test server did not start: " + output);
+        }
+
         await Task.Delay(200);
     }
 
@@ -313,7 +339,16 @@ try
     client.DefaultRequestHeaders.Add("X-Claim-Operator", "Local Reviewer");
     using (var response = await client.PostAsJsonAsync(
         "/api/accounts",
-        new { companyId, code = "TEST-HTTP", name = "Local audit test", type = "Expense", normalBalance = "Debit", isPostingAccount = true, isActive = true }
+        new
+        {
+            companyId,
+            code = "TEST-HTTP",
+            name = "Local audit test",
+            type = "Expense",
+            normalBalance = "Debit",
+            isPostingAccount = true,
+            isActive = true
+        }
     ))
         Check(response.IsSuccessStatusCode, "Existing account creation API still works with audit recording");
     var local = await context.AuditEvents.AsNoTracking().OrderByDescending(row => row.Id).FirstAsync();
@@ -338,7 +373,12 @@ finally
 
     server?.Dispose();
     if (!database.StartsWith("OrbitAuditTests_", StringComparison.Ordinal) || database.Length != 48)
+    {
         throw new Exception("Unexpected test database name.");
+    }
+
     if (created)
+    {
         await expenses.Database.EnsureDeletedAsync();
+    }
 }

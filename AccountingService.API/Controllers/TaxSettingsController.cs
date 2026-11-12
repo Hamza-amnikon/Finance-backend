@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using AccountingService.API.Data;
@@ -28,19 +29,45 @@ namespace AccountingService.API.Controllers
             }
             catch (ValidationException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (DbUpdateConcurrencyException)
             {
-                return Conflict(new { message = "This tax rate changed. Refresh before editing again." });
+                return Conflict(new
+                {
+                    message = "This tax rate changed. Refresh before editing again."
+                });
             }
             catch (DbUpdateException exception) when (exception.InnerException is SqlException sql && sql.Number is 2601 or 2627)
             {
-                return Conflict(new { message = "This company already has that tax code and start date." });
+                return Conflict(new
+                {
+                    message = "This company already has that tax code and start date."
+                });
+            }
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    HttpContext?.RequestAborted ?? CancellationToken.None))
+            {
+                return StatusCode(499);
             }
             catch (SqlException exception) when (exception.Number == 1205)
             {
-                return Conflict(new { message = "Another tax setting is being saved. Refresh and retry." });
+                return Conflict(new
+                {
+                    message = "Another tax setting is being saved. Refresh and retry."
+                });
+            }
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    HttpContext?.RequestAborted ?? CancellationToken.None))
+            {
+                return StatusCode(499);
             }
             catch (SqlException exception) when (exception.Number == 208)
             {
@@ -61,7 +88,12 @@ namespace AccountingService.API.Controllers
                 companies,
                 types = types.Select(row => new
                 {
-                    row.Id, row.Code, row.Name, row.CountryCode, row.Treatment, row.IsActive,
+                    row.Id,
+                    row.Code,
+                    row.Name,
+                    row.CountryCode,
+                    row.Treatment,
+                    row.IsActive,
                     components = JsonSerializer.Deserialize<string[]>(row.ComponentNamesJson)
                 })
             });
@@ -84,8 +116,16 @@ namespace AccountingService.API.Controllers
         {
             return new
             {
-                row.Id, row.CompanyId, row.TaxTypeId, row.Code, row.Name, row.Rate,
-                row.EffectiveFrom, row.EffectiveTo, row.IsActive, row.RowVersion,
+                row.Id,
+                row.CompanyId,
+                row.TaxTypeId,
+                row.Code,
+                row.Name,
+                row.Rate,
+                row.EffectiveFrom,
+                row.EffectiveTo,
+                row.IsActive,
+                row.RowVersion,
                 components = JsonSerializer.Deserialize<List<TaxComponentDto>>(row.ComponentsJson)
             };
         }
@@ -180,7 +220,10 @@ namespace AccountingService.API.Controllers
 
                 if (!row.RowVersion.SequenceEqual(version))
                 {
-                    return Conflict(new { message = "This tax rate changed. Refresh before editing again." });
+                    return Conflict(new
+                    {
+                        message = "This tax rate changed. Refresh before editing again."
+                    });
                 }
             }
 

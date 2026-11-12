@@ -56,10 +56,28 @@ try
             await accounting.Database.ExecuteSqlRawAsync(batch);
         }
     }
-    var expense = new A.Account { CompanyId = 1, Code = "5290", Name = "Test expense", Type = A.AccountType.Expense,
-        NormalBalance = A.AccountNormalBalance.Debit, IsActive = true, IsPostingAccount = true };
-    var payable = new A.Account { CompanyId = 1, Code = "2110", Name = "Test payable", Type = A.AccountType.Liability,
-        NormalBalance = A.AccountNormalBalance.Credit, IsActive = true, IsPostingAccount = true, SystemKey = "ACCOUNTS_PAYABLE", IsSystemAccount = true };
+    var expense = new A.Account
+    {
+        CompanyId = 1,
+        Code = "5290",
+        Name = "Test expense",
+        Type = A.AccountType.Expense,
+        NormalBalance = A.AccountNormalBalance.Debit,
+        IsActive = true,
+        IsPostingAccount = true
+    };
+    var payable = new A.Account
+    {
+        CompanyId = 1,
+        Code = "2110",
+        Name = "Test payable",
+        Type = A.AccountType.Liability,
+        NormalBalance = A.AccountNormalBalance.Credit,
+        IsActive = true,
+        IsPostingAccount = true,
+        SystemKey = "ACCOUNTS_PAYABLE",
+        IsSystemAccount = true
+    };
     accounting.Accounts.AddRange(expense, payable);
     await accounting.SaveChangesAsync();
     var adapter = new AccountingAdapter(accountingOptions);
@@ -71,11 +89,17 @@ try
     {
         var bill = new B.Bill
         {
-            RequestId = Guid.NewGuid(), VendorId = Guid.NewGuid(), VendorName = "Test vendor", Branch = "Dubai", Currency = "USD",
-            BillDate = new DateOnly(2026, 11, 10), DueDate = new DateOnly(2026, 11, 11),
+            RequestId = Guid.NewGuid(),
+            VendorId = Guid.NewGuid(),
+            VendorName = "Test vendor",
+            Branch = "Dubai",
+            Currency = "USD",
+            BillDate = new DateOnly(2026, 11, 10),
+            DueDate = new DateOnly(2026, 11, 11),
             BillNumber = issued ? "TEST-" + Guid.NewGuid().ToString("N")[..8] : null,
             Status = issued ? B.BillStatus.Issued : B.BillStatus.Draft,
-            SubTotal = 100, GrandTotal = 100,
+            SubTotal = 100,
+            GrandTotal = 100,
             Items = [new B.BillItem { LineNumber = 1, ItemName = "Test", AccountCode = "5290", Quantity = 1, UnitPrice = 100, LineSubTotal = 100, LineTotal = 100 }]
         };
         bills.Bills.Add(bill);
@@ -87,9 +111,17 @@ try
         var posting = new AS.PurchaseBillPostingService(new JournalEntryRepository(accounting), accounting);
         var result = await posting.PostAsync(new AD.PostPurchaseBillDto
         {
-            CompanyId = 1, BillId = bill.Id, BillNumber = bill.BillNumber!, BillDate = bill.BillDate,
-            Branch = "Dubai", Currency = "USD", ExchangeRate = 3.67m,
-            VendorId = bill.VendorId, VendorName = bill.VendorName, NetAmount = 100, TotalAmount = 100,
+            CompanyId = 1,
+            BillId = bill.Id,
+            BillNumber = bill.BillNumber!,
+            BillDate = bill.BillDate,
+            Branch = "Dubai",
+            Currency = "USD",
+            ExchangeRate = 3.67m,
+            VendorId = bill.VendorId,
+            VendorName = bill.VendorName,
+            NetAmount = 100,
+            TotalAmount = 100,
             Expenses = [new AD.PurchaseBillExpensePostingDto { AccountCode = "5290", Description = "Test expense", Amount = 100 }]
         }, default);
         return await accounting.JournalEntries.Include(row => row.Lines).SingleAsync(row => row.Id == result.JournalEntryId);
@@ -224,7 +256,8 @@ try
     await new AS.JournalEntryService(new JournalEntryRepository(accounting)).ReverseAsync(
         manuallyReversedOriginal.Id, 1, new AD.JournalEntryActionDto
         {
-            RowVersion = Convert.ToBase64String(manuallyReversedOriginal.RowVersion), Reason = "Test manual correction"
+            RowVersion = Convert.ToBase64String(manuallyReversedOriginal.RowVersion),
+            Reason = "Test manual correction"
         }, default);
     bills.ChangeTracker.Clear();
     await Service(bills).ChangeStatusAsync(manuallyReversedBill.Id, B.BillStatus.Cancelled, manuallyReversedBill.RowVersion, default);

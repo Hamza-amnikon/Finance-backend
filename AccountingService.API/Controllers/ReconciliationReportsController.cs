@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using AccountingService.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -31,17 +32,24 @@ namespace AccountingService.API.Controllers
             {
                 return Ok(await _service.GetAsync(companyId, asOf, cancellationToken));
             }
-            catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
             catch (ValidationException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
             catch (KeyNotFoundException exception)
             {
-                return NotFound(new { message = exception.Message });
+                return NotFound(new
+                {
+                    message = exception.Message
+                });
             }
             catch (SqlException exception)
             {

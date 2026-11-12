@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using ExpenseService.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -36,8 +37,8 @@ namespace ExpenseService.API.Controllers
 
                 return Ok(rate);
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

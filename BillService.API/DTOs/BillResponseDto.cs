@@ -9,7 +9,8 @@ namespace BillService.API.DTOs
         public int Id { get; set; }
         public Guid RequestId { get; set; }
         public int? SourcePurchaseOrderId { get; set; }
-        [MaxLength(50)] public string? SourcePurchaseOrderNumber { get; set; }
+        [MaxLength(50)]
+        public string? SourcePurchaseOrderNumber { get; set; }
         [MaxLength(200)] public string VendorInvoiceNumber { get; set; } = "";
         public Guid VendorId { get; set; }
         public string? BillNumber { get; set; }

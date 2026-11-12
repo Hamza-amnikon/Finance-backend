@@ -17,7 +17,9 @@ namespace SalesInvoiceService.API.Services
             using var response = await _httpClient.GetAsync($"api/sales-estimates/{id}", cancellationToken);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
+            {
                 return null;
+            }
 
             response.EnsureSuccessStatusCode();
 

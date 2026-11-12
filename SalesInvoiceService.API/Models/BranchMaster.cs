@@ -15,6 +15,9 @@ namespace SalesInvoiceService.API.Models
 
         public bool IsActive { get; set; } = true;
 
+        [MaxLength(10)]
+        public string InvoiceNumberPrefix { get; set; } = string.Empty;
+
         [MaxLength(200)]
         public string CompanyName { get; set; } = string.Empty;
 

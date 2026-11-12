@@ -21,12 +21,18 @@ namespace AccountingService.API.Services
         )
         {
             if (companyId < 1 || asOf == default || asOf > DateOnly.FromDateTime(DateTime.Today))
+            {
                 throw new ValidationException("Select a company and a cutoff date on or before today.");
+            }
+
             var company = await _context.Companies.AsNoTracking().SingleOrDefaultAsync(row => row.Id == companyId, cancellationToken) ?? throw new KeyNotFoundException("Accounting company was not found.");
             var precisionRows = await _context.Database.SqlQueryRaw<CurrencyPrecisionRow>("SELECT CurrencyCode AS Currency, DecimalPlaces AS Precision FROM sales.CurrencyMasters").ToListAsync(cancellationToken);
             var precisions = precisionRows.Where(row => row.Precision is >= 0 and <= 4).ToDictionary(row => row.Currency, row => row.Precision, StringComparer.OrdinalIgnoreCase);
             if (!precisions.TryGetValue(company.Currency, out var precision))
+            {
                 throw new ValidationException("Configure the company currency and its decimal precision in the currency master.");
+            }
+
             SqlParameter[] Parameters() => [new("@company", companyId), new("@asOf", asOf.ToDateTime(TimeOnly.MinValue)), new("@nextDay", asOf.AddDays(1).ToDateTime(TimeOnly.MinValue))];
             var report = new ReconciliationReportDto
             {
@@ -90,7 +96,10 @@ namespace AccountingService.API.Services
                 GROUP BY j.Id,j.EntryNumber,j.Currency,j.TotalDebit,j.TotalCredit";
             var journals = await _context.Database.SqlQueryRaw<ReconciliationJournalRow>(journalSql, Parameters()).ToListAsync(cancellationToken);
             if (documents.Count == 0 && journals.Count == 0)
+            {
                 report.Checks.Add(new ReconciliationCheckDto { Id = "empty-coverage", Group = "Ledger controls", Title = "Data coverage", Status = "Review", Explanation = "No eligible source documents or posted journals exist through this cutoff. Zero balances do not establish posting completeness." });
+            }
+
             foreach (var journal in journals)
             {
                 var known = precisions.TryGetValue(journal.Currency, out var digits);

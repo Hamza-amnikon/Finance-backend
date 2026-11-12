@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using SparkFinance.Http;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -86,7 +87,10 @@ namespace VendorService.API.Controllers
 
                 return CreatedAtAction(
                     nameof(GetById),
-                    new { id = vendor.Id },
+                    new
+                    {
+                        id = vendor.Id
+                    },
                     vendor);
             });
         }
@@ -185,6 +189,13 @@ namespace VendorService.API.Controllers
                 return Problem(
                     statusCode: StatusCodes.Status500InternalServerError,
                     title: "Unable to save vendor changes.");
+            }
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    HttpContext?.RequestAborted ?? CancellationToken.None))
+            {
+                return StatusCode(499);
             }
             catch (SqlException exception)
             {

@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 
 using System.ComponentModel.DataAnnotations;
 using DashboardService.API.DTOs;
@@ -45,10 +46,13 @@ namespace DashboardService.API.Controllers
             }
             catch (ValidationException exception)
             {
-                return BadRequest(new { message = exception.Message });
+                return BadRequest(new
+                {
+                    message = exception.Message
+                });
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }
@@ -70,8 +74,8 @@ namespace DashboardService.API.Controllers
 
                 return Ok(activity);
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

@@ -21,11 +21,7 @@ namespace AccountingService.API.Repositories
 
     public class GeneralLedgerPageData
     {
-        public IReadOnlyList<GeneralLedgerDataRow> Rows
-        {
-            get;
-            set;
-        } = [];
+        public IReadOnlyList<GeneralLedgerDataRow> Rows { get; set; } = [];
 
         public int Total { get; set; }
 

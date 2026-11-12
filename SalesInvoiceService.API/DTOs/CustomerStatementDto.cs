@@ -10,6 +10,12 @@ namespace SalesInvoiceService.API.DTOs
 
         public string Currency { get; set; } = string.Empty;
 
+        public DateOnly? FromDate { get; set; }
+
+        public DateOnly? ToDate { get; set; }
+
+        public decimal OpeningBalance { get; set; }
+
         public decimal InvoiceTotal { get; set; }
 
         public decimal CreditNoteTotal { get; set; }

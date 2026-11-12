@@ -444,7 +444,11 @@ namespace BankingService.API.Services
 
             var accountId = await _repository.Query().Where(row => row.Id == id)
                 .Select(row => (int?)row.BankAccountId).SingleOrDefaultAsync(cancellationToken);
-            if (accountId == null) return null;
+            if (accountId == null)
+            {
+                return null;
+            }
+
             await BankingPaymentLock.AcquireAsync(_context, "Account." + accountId.Value, cancellationToken);
 
             var reconciliation = await _repository.GetByIdAsync(

@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using SparkFinance.Http;
+using System.ComponentModel.DataAnnotations;
 using BankingService.API.DTOs;
 using BankingService.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -78,7 +79,10 @@ namespace BankingService.API.Controllers
 
                     return CreatedAtAction(
                         nameof(GetById),
-                        new { id = result.Id },
+                        new
+                        {
+                            id = result.Id
+                        },
                         result);
                 },
                 cancellationToken);
@@ -201,8 +205,8 @@ namespace BankingService.API.Controllers
             {
                 return await action();
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

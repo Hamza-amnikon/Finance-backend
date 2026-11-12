@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -61,6 +62,13 @@ namespace VendorService.API.Controllers
                 when (HttpContext.RequestAborted.IsCancellationRequested)
             {
                 return new StatusCodeResult(499);
+            }
+            catch (Exception cancellationException)
+                when (RequestCancellation.IsCancellation(
+                    cancellationException,
+                    HttpContext?.RequestAborted ?? CancellationToken.None))
+            {
+                return StatusCode(499);
             }
             catch (SqlException exception)
             {

@@ -19,35 +19,18 @@ namespace AccountingService.API.Repositories
     public class TrialBalancePageData
     {
         public IReadOnlyList<TrialBalanceDataRow>
-            Rows
-        { get; set; }
+            Rows { get; set; }
                 = [];
 
         public int Total { get; set; }
 
-        public decimal TotalDebitMovement
-        {
-            get;
-            set;
-        }
+        public decimal TotalDebitMovement { get; set; }
 
-        public decimal TotalCreditMovement
-        {
-            get;
-            set;
-        }
+        public decimal TotalCreditMovement { get; set; }
 
-        public decimal TotalDebitBalance
-        {
-            get;
-            set;
-        }
+        public decimal TotalDebitBalance { get; set; }
 
-        public decimal TotalCreditBalance
-        {
-            get;
-            set;
-        }
+        public decimal TotalCreditBalance { get; set; }
     }
 
     public class TrialBalanceDataRow
@@ -62,25 +45,13 @@ namespace AccountingService.API.Repositories
 
         public AccountType AccountType { get; set; }
 
-        public AccountNormalBalance NormalBalance
-        {
-            get;
-            set;
-        }
+        public AccountNormalBalance NormalBalance { get; set; }
 
         public int? ParentAccountId { get; set; }
 
-        public string? ParentAccountCode
-        {
-            get;
-            set;
-        }
+        public string? ParentAccountCode { get; set; }
 
-        public string? ParentAccountName
-        {
-            get;
-            set;
-        }
+        public string? ParentAccountName { get; set; }
 
         public bool IsControlAccount { get; set; }
 
@@ -90,16 +61,8 @@ namespace AccountingService.API.Repositories
 
         public decimal CreditMovement { get; set; }
 
-        public decimal DebitBalance
-        {
-            get;
-            set;
-        }
+        public decimal DebitBalance { get; set; }
 
-        public decimal CreditBalance
-        {
-            get;
-            set;
-        }
+        public decimal CreditBalance { get; set; }
     }
 }

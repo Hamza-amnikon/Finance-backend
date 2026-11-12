@@ -39,8 +39,15 @@ namespace SalesInvoiceService.API.Services
             Guid clientId,
             string branch,
             string currency,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            DateOnly? fromDate = null,
+            DateOnly? toDate = null)
         {
+            if (fromDate.HasValue && toDate.HasValue && fromDate.Value > toDate.Value)
+            {
+                throw new ArgumentException("From date must be on or before To date.");
+            }
+
             if (clientId == Guid.Empty ||
                 string.IsNullOrWhiteSpace(branch) ||
                 string.IsNullOrWhiteSpace(currency))
@@ -74,7 +81,9 @@ namespace SalesInvoiceService.API.Services
                 ClientId = clientId,
                 ClientName = invoices.FirstOrDefault()?.ClientName ?? string.Empty,
                 Branch = branch,
-                Currency = currency
+                Currency = currency,
+                FromDate = fromDate,
+                ToDate = toDate
             };
 
             if (invoices.Count == 0)
@@ -198,9 +207,16 @@ namespace SalesInvoiceService.API.Services
                 }));
             }
 
-            decimal balance = 0;
+            statement.OpeningBalance = lines
+                .Where(item => fromDate.HasValue && item.Line.Date < fromDate.Value)
+                .Sum(item => item.Line.BalanceChange);
+
+            var balance = statement.OpeningBalance;
 
             foreach (var item in lines
+                .Where(item =>
+                    (!fromDate.HasValue || item.Line.Date >= fromDate.Value) &&
+                    (!toDate.HasValue || item.Line.Date <= toDate.Value))
                 .OrderBy(item => item.Line.Date)
                 .ThenBy(item => item.Order)
                 .ThenBy(item => item.Id))
@@ -210,9 +226,15 @@ namespace SalesInvoiceService.API.Services
                 statement.Lines.Add(item.Line);
             }
 
-            statement.InvoiceTotal = invoices.Sum(invoice => invoice.GrandTotal);
-            statement.CreditNoteTotal = creditNotes.Sum(note => note.GrandTotal);
-            statement.CashPaymentTotal = payments.Sum(payment => payment.Amount);
+            statement.InvoiceTotal = statement.Lines
+                .Where(line => line.Type == "Invoice")
+                .Sum(line => line.Amount);
+            statement.CreditNoteTotal = statement.Lines
+                .Where(line => line.Type == "CreditNote")
+                .Sum(line => line.Amount);
+            statement.CashPaymentTotal = statement.Lines
+                .Where(line => line.Type == "CashPayment")
+                .Sum(line => line.Amount);
             statement.NetBalance = balance;
 
             return statement;

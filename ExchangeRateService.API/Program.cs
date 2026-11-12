@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using ExchangeRateService.API.Data;
 using ExchangeRateService.API.Services;
 using Microsoft.EntityFrameworkCore;
@@ -34,22 +35,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Exchange Rates API"));
 }
-else app.UseHttpsRedirection();
-app.Use(async (context, next) =>
+else
 {
-    try
-    {
-        await next();
-    }
-    catch (OperationCanceledException)
-        when (context.RequestAborted.IsCancellationRequested)
-    {
-        if (!context.Response.HasStarted)
-        {
-            context.Response.StatusCode = 499;
-        }
-    }
-});
+    app.UseHttpsRedirection();
+}
+
+app.UseFinanceRequestCancellation();
 
 app.MapControllers();
 app.Run();

@@ -20,7 +20,10 @@ namespace BillService.API.Services
             var from = fromCurrency.Trim().ToUpperInvariant();
             var to = toCurrency.Trim().ToUpperInvariant();
 
-            if (from == to) return 1m;
+            if (from == to)
+            {
+                return 1m;
+            }
 
             using var response = await _httpClient.GetAsync(
                 $"api/exchange-rates/rate/{from}/{to}?date={rateDate:yyyy-MM-dd}",
@@ -39,7 +42,9 @@ namespace BillService.API.Services
                 ?? throw new HttpRequestException("ExchangeRateService returned an empty response.");
 
             if (result.Rate <= 0)
+            {
                 throw new HttpRequestException("ExchangeRateService returned an invalid rate.");
+            }
 
             return decimal.Round(result.Rate, 8, MidpointRounding.AwayFromZero);
         }

@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using Microsoft.AspNetCore.Mvc;
 using SalesInvoiceService.API.Services;
 
@@ -28,6 +29,8 @@ namespace SalesInvoiceService.API.Controllers
             [FromQuery] Guid clientId,
             [FromQuery] string branch,
             [FromQuery] string currency,
+            [FromQuery] DateOnly? fromDate,
+            [FromQuery] DateOnly? toDate,
             CancellationToken cancellationToken)
         {
             try
@@ -36,7 +39,9 @@ namespace SalesInvoiceService.API.Controllers
                     clientId,
                     branch,
                     currency,
-                    cancellationToken));
+                    cancellationToken,
+                    fromDate,
+                    toDate));
             }
             catch (ArgumentException exception)
             {
@@ -45,8 +50,8 @@ namespace SalesInvoiceService.API.Controllers
                     message = exception.Message
                 });
             }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

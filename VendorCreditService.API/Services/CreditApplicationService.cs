@@ -121,7 +121,11 @@ namespace VendorCreditService.API.Services
             var fingerprint = Convert.ToHexString(
                 SHA256.HashData(
                     Encoding.UTF8.GetBytes(
-                        JsonSerializer.Serialize(new { creditId, dto }))));
+                        JsonSerializer.Serialize(new
+                        {
+                            creditId,
+                            dto
+                        }))));
 
             var existing = await _repository.GetByRequestIdAsync(
                 dto.RequestId,

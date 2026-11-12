@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using AccountingService.API.Data;
 using AccountingService.API.DTOs;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +29,13 @@ namespace AccountingService.API.Controllers
         )
         {
             if (asOf == default || asOf > DateOnly.FromDateTime(DateTime.Today))
-                return BadRequest(new { message = "Choose an As of date on or before today." });
+            {
+                return BadRequest(new
+                {
+                    message = "Choose an As of date on or before today."
+                });
+            }
+
             const string sql = @"
                 WITH balances AS
                 (
@@ -66,9 +73,14 @@ namespace AccountingService.API.Controllers
                     new SqlParameter("@asOf", asOf.ToDateTime(TimeOnly.MinValue)),
                     new SqlParameter("@nextDay", asOf.AddDays(1).ToDateTime(TimeOnly.MinValue))
                 ).ToListAsync(cancellationToken);
-                return Ok(new { asOf, rows });
+                return Ok(new
+                {
+                    asOf,
+                    rows
+                });
             }
-            catch (OperationCanceledException)when (cancellationToken.IsCancellationRequested)
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
             {
                 return StatusCode(499);
             }

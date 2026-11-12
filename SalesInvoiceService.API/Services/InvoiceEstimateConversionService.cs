@@ -40,23 +40,31 @@ namespace SalesInvoiceService.API.Services
         {
             var errors = new List<ValidationResult>();
             if (!Validator.TryValidateObject(dto, new ValidationContext(dto), errors, true))
+            {
                 throw new ArgumentException(string.Join(" ", errors.Select(error => error.ErrorMessage)));
+            }
 
             var existing = await FindAsync(dto.EstimateId, cancellationToken);
             if (existing != null)
+            {
                 return Replay(existing, dto);
+            }
 
             // No database lock is held during calls to other services.
             var source = await _estimateApi.GetByIdAsync(dto.EstimateId, cancellationToken);
             if (source == null)
+            {
                 throw new ArgumentException("Estimate not found.");
+            }
 
             // Another request may have completed conversion during the lookup.
             if (source.Status != 2 || !source.RowVersion.SequenceEqual(dto.RowVersion))
             {
                 existing = await FindAsync(dto.EstimateId, cancellationToken);
                 if (existing != null)
+                {
                     return Replay(existing, dto);
+                }
 
                 throw new InvalidOperationException("Only the current accepted estimate can be converted. Reload it first.");
             }
@@ -67,26 +75,37 @@ namespace SalesInvoiceService.API.Services
                 source.CompanyName.Length > 200 || source.BillingAddress.Length > 1000 ||
                 source.Notes.Length > 2000 || source.AdditionalTerms.Length > 2000 ||
                 source.Items == null || source.Items.Count == 0 || source.Items.Any(item => item == null))
+            {
                 throw new HttpRequestException("Estimate service returned incomplete estimate details.");
+            }
 
             var client = await _clientApi.GetByIdAsync(source.ClientId, cancellationToken);
             if (client == null || !client.IsActive || client.Id != source.ClientId)
+            {
                 throw new ArgumentException("The estimate client must be active before conversion.");
+            }
 
             if (!string.Equals(client.Branch.Trim(), source.Branch, StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(client.Currency.Trim(), source.Currency, StringComparison.OrdinalIgnoreCase))
+            {
                 throw new InvalidOperationException("The client's branch or currency changed. Review the accepted estimate before conversion.");
+            }
 
             var currency = await _currencyService.GetByCodeAsync(source.Currency, cancellationToken);
             if (currency == null)
+            {
                 throw new ArgumentException("The estimate currency must be active before conversion.");
+            }
 
             var preferredPaymentMode = string.Empty;
             if (!string.IsNullOrWhiteSpace(dto.PreferredPaymentMode))
             {
                 var mode = await _paymentModeService.GetByNameAsync(dto.PreferredPaymentMode.Trim(), cancellationToken);
                 if (mode == null)
+                {
                     throw new ArgumentException("Preferred payment mode must be active.");
+                }
+
                 preferredPaymentMode = mode.Name;
             }
 
@@ -150,7 +169,9 @@ namespace SalesInvoiceService.API.Services
                 !source.Items.OrderBy(item => item.LineNumber).Zip(invoice.Items, (saved, calculated) =>
                     saved.LineSubTotal == calculated.LineSubTotal && saved.TaxAmount == calculated.TaxAmount &&
                     saved.LineTotal == calculated.LineTotal && saved.DiscountAmount == calculated.DiscountAmount).All(match => match))
+            {
                 throw new InvalidOperationException("Invoice totals do not match the accepted estimate. Review the estimate before conversion.");
+            }
 
             await using var transaction = await _context.Database.BeginTransactionAsync(
                 System.Data.IsolationLevel.Serializable, cancellationToken);
@@ -188,7 +209,9 @@ namespace SalesInvoiceService.API.Services
                 !string.Equals(invoice.PreferredPaymentMode, dto.PreferredPaymentMode?.Trim() ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
                 (!invoice.UsesTaxSettings && invoice.TaxTreatment != dto.TaxTreatment) ||
                 invoice.SourceEstimateRowVersion == null || !invoice.SourceEstimateRowVersion.SequenceEqual(dto.RowVersion))
+            {
                 throw new InvalidOperationException("This estimate already has an invoice from a different conversion request. Open the existing invoice.");
+            }
 
             return SalesInvoiceService.ToResponse(invoice);
         }

@@ -10,7 +10,10 @@ void Check(
 )
 {
     if (!condition)
+    {
         throw new Exception("FAILED: " + name);
+    }
+
     Console.WriteLine("PASS: " + name);
     passed++;
 }
@@ -261,7 +264,10 @@ finally
 {
     SqlConnection.ClearAllPools();
     if (!databaseName.StartsWith("FinancePaymentBankingChecks_") || databaseName.Length != 60)
+    {
         throw new Exception("Refusing to drop unexpected database name.");
+    }
+
     await using var drop = master.CreateCommand();
     drop.CommandText = $"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}]";
     await drop.ExecuteNonQueryAsync();

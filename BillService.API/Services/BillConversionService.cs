@@ -32,7 +32,10 @@ namespace BillService.API.Services
         )
         {
             if (purchaseOrderId < 1 || rowVersion == null || rowVersion.Length != 8)
+            {
                 throw new ArgumentException("A valid purchase order ID and row version are required.");
+            }
+
             await using var transaction = _context.Database.CurrentTransaction == null ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken) : null;
             var source = await _context.Database.SqlQuery<PurchaseOrderSnapshot>($"""
                 SELECT [Id],[Status],[RowVersion],[PurchaseOrderNumber],[VendorId],[VendorName],[CompanyName],
@@ -41,20 +44,32 @@ namespace BillService.API.Services
                 FROM [purchases].[PurchaseOrders] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {purchaseOrderId}
                 """).SingleOrDefaultAsync(cancellationToken);
             if (source == null)
+            {
                 return null;
-            var existing = await _context.Bills.AsNoTracking().Where(row => row.SourcePurchaseOrderId == purchaseOrderId).Select(row => (int? )row.Id).SingleOrDefaultAsync(cancellationToken);
+            }
+
+            var existing = await _context.Bills.AsNoTracking().Where(row => row.SourcePurchaseOrderId == purchaseOrderId).Select(row => (int?)row.Id).SingleOrDefaultAsync(cancellationToken);
             if (existing.HasValue)
             {
                 var result = await _billService.GetByIdAsync(existing.Value, cancellationToken);
                 if (transaction != null)
+                {
                     await transaction.CommitAsync(cancellationToken);
+                }
+
                 return result;
             }
 
             if (source.Status != "Issued")
+            {
                 throw new InvalidOperationException("Only issued purchase orders can be converted to bills.");
+            }
+
             if (!source.RowVersion.SequenceEqual(rowVersion))
+            {
                 throw new DbUpdateConcurrencyException();
+            }
+
             var lines = await _context.Database.SqlQuery<PurchaseOrderItemSnapshot>($"""
                 SELECT [LineNumber],[ItemName],[Description],[Unit],[Quantity],[UnitPrice],[DiscountEnabled],[DiscountAmount],[DiscountType],[DiscountValue],[TaxRate],[TaxSettingId],[TaxSettingSnapshotJson]
                 FROM [purchases].[PurchaseOrderItems] WHERE [PurchaseOrderId] = {purchaseOrderId}
@@ -110,12 +125,18 @@ namespace BillService.API.Services
             }
             _calculator.Calculate(bill, bill.CurrencyDecimalPlaces);
             if (bill.GrandTotal != source.GrandTotal)
+            {
                 throw new InvalidOperationException("The purchase order totals could not be reproduced. Review the purchase order before converting.");
+            }
+
             _context.Bills.Add(bill);
             await _context.SaveChangesAsync(cancellationToken);
             var response = await _billService.GetByIdAsync(bill.Id, cancellationToken);
             if (transaction != null)
+            {
                 await transaction.CommitAsync(cancellationToken);
+            }
+
             return response;
         }
     }

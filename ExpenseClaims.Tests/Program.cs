@@ -24,7 +24,10 @@ void Check(
 )
 {
     if (!condition)
+    {
         throw new Exception("FAIL: " + message);
+    }
+
     Console.WriteLine("PASS: " + message);
     checks++;
 }
@@ -98,8 +101,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.ErrorDataReceived += (
         _,
@@ -107,8 +112,10 @@ try
     ) =>
     {
         if (e.Data != null)
+        {
             lock (output)
                 output.AppendLine(e.Data);
+        }
     };
     server.Start();
     server.BeginOutputReadLine();
@@ -118,20 +125,25 @@ try
         BaseAddress = new Uri("http://127.0.0.1:5399"),
         Timeout = TimeSpan.FromSeconds(15)
     };
-    for (var attempt = 0;; attempt++)
+    for (var attempt = 0; ; attempt++)
     {
         try
         {
             using var ping = await client.GetAsync("/api/expense-claims");
             if (ping.StatusCode == HttpStatusCode.Unauthorized)
+            {
                 break;
+            }
         }
         catch (HttpRequestException)
         {
         }
 
         if (attempt >= 60 || server.HasExited)
+        {
             throw new Exception("Test server failed to start: " + output);
+        }
+
         await Task.Delay(200);
     }
 
@@ -148,11 +160,17 @@ try
         request.Headers.Add("X-Claim-Operator", actor);
         request.Headers.Add("X-Claim-Role", role);
         if (body != null)
+        {
             request.Content = JsonContent.Create(body);
+        }
+
         using var response = await client.SendAsync(request);
         var text = await response.Content.ReadAsStringAsync();
         if (response.StatusCode != expected)
+        {
             throw new Exception($"{method} {path}: expected {expected}, got {response.StatusCode}: {text}\n{output}");
+        }
+
         return JsonNode.Parse(text)!;
     }
 
@@ -340,7 +358,12 @@ finally
 
     server?.Dispose();
     if (!database.StartsWith("OrbitClaimTests_", StringComparison.Ordinal) || database.Length != 48)
+    {
         throw new Exception("Unexpected test database name.");
+    }
+
     if (created)
+    {
         await expenses.Database.EnsureDeletedAsync();
+    }
 }
