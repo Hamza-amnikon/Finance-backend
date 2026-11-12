@@ -46,9 +46,9 @@ try
     await expenses.Database.ExecuteSqlRawAsync("""
         CREATE TABLE sales.CurrencyMasters (CurrencyCode nvarchar(3) NOT NULL, CurrencyName nvarchar(100) NOT NULL, DecimalPlaces int NOT NULL, IsActive bit NOT NULL);
         INSERT INTO sales.CurrencyMasters VALUES ('INR','Indian Rupee',2,1);
-        CREATE TABLE sales.BranchMasters (Name nvarchar(100), CompanyName nvarchar(200), IsActive bit, AccountingCompanyId int);
+        IF SCHEMA_ID(N'amnikon') IS NULL EXEC(N'CREATE SCHEMA amnikon'); CREATE TABLE amnikon.Branches (Name nvarchar(100), CompanyName nvarchar(200), IsActive bit, AccountingCompanyId int);
         """);
-    await expenses.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO sales.BranchMasters VALUES ('Claim Test Office','Claim Test Office',1,{companyId})");
+    await expenses.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO amnikon.Branches VALUES ('Claim Test Office','Claim Test Office',1,{companyId})");
     var expense = new Account
     {
         CompanyId = companyId,

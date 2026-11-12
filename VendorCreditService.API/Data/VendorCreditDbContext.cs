@@ -188,8 +188,8 @@ namespace VendorCreditService.API.Data
             builder.Entity<PurchaseBranchLookup>()
                 .HasNoKey()
                 .ToView(
-                    "BranchMasters",
-                    "sales");
+                    "Branches",
+                    "amnikon");
 
             builder.Entity<PurchaseBillLookup>(entity =>
             {

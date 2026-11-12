@@ -313,7 +313,7 @@ namespace BillService.API.Migrations
 
                     b.ToTable((string)null);
 
-                    b.ToView("BranchMasters", "sales");
+                    b.ToView("Branches", "amnikon");
                 });
 
             modelBuilder.Entity("BillService.API.Models.PurchaseCurrencyLookup", b =>

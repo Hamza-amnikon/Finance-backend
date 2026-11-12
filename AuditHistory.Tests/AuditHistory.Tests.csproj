@@ -8,5 +8,6 @@
   <ItemGroup>
     <ProjectReference Include="../AccountingService.API/AccountingService.API.csproj" />
     <ProjectReference Include="../ExpenseService.API/ExpenseService.API.csproj" />
+    <ProjectReference Include="../BankingService.API/BankingService.API.csproj" />
   </ItemGroup>
 </Project>

@@ -45,7 +45,7 @@ try
         baseline.Action == "Snapshot" && baseline.BeforeJson == null && baseline.AfterJson!.Contains("INV-BASELINE"),
         "Existing data is an explicit baseline snapshot, not fake history"
     );
-    await expenses.Database.ExecuteSqlRawAsync("CREATE TABLE sales.BranchMasters (Name nvarchar(100), AccountingCompanyId int); INSERT INTO sales.BranchMasters VALUES ('Dubai',1),('Turbhe',2);");
+    await expenses.Database.ExecuteSqlRawAsync("IF SCHEMA_ID(N'amnikon') IS NULL EXEC(N'CREATE SCHEMA amnikon'); CREATE TABLE amnikon.Branches (Name nvarchar(100), AccountingCompanyId int); INSERT INTO amnikon.Branches VALUES ('Dubai',1),('Turbhe',2);");
     expenses.Companies.Add(new Company { Name = "Audit company", Country = "IN", Currency = "INR" });
     await expenses.SaveChangesAsync();
     var companyId = expenses.Companies.Single().Id;
@@ -210,7 +210,7 @@ try
         })!;
         var mapped = await context.AuditEvents.AsNoTracking().OrderByDescending(row => row.Id).FirstAsync();
         Check(mapped.Branch == "Turbhe", "New accounting events resolve a uniquely mapped Turbhe company");
-        await context.Database.ExecuteSqlRawAsync("INSERT INTO sales.BranchMasters VALUES ('Other branch',2)");
+        await context.Database.ExecuteSqlRawAsync("INSERT INTO amnikon.Branches VALUES ('Other branch',2)");
         await (Task)writer.Invoke(null, new object?[]
         {
             context, "Account", "ambiguous-test", "Updated", null,
@@ -218,6 +218,69 @@ try
         })!;
         var ambiguous = await context.AuditEvents.AsNoTracking().OrderByDescending(row => row.Id).FirstAsync();
         Check(ambiguous.Branch == null, "Shared company mappings do not guess a branch");
+
+        await using var banking = new BankingService.API.Data.BankingDbContext(
+            new DbContextOptionsBuilder<BankingService.API.Data.BankingDbContext>()
+                .UseSqlServer(connection)
+                .Options
+        );
+        var bankingWriter = typeof(BankingService.API.Data.BankingDbContext).Assembly
+            .GetType("SparkFinance.Auditing.FinanceAudit")!
+            .GetMethod("WriteAsync")!;
+
+        async Task WriteBankingEvent(
+            string entityType,
+            string id,
+            Dictionary<string, object?> values)
+        {
+            await (Task)bankingWriter.Invoke(null, new object?[]
+            {
+                banking, entityType, id, "Updated", null, values, CancellationToken.None
+            })!;
+        }
+
+        await WriteBankingEvent("BankTransaction", "bank-unique", new Dictionary<string, object?>
+        {
+            ["CompanyId"] = 1
+        });
+        var bankEvent = await context.AuditEvents.AsNoTracking().OrderByDescending(row => row.Id).FirstAsync();
+        Check(bankEvent.Branch == "Dubai", "Bank transactions save their uniquely mapped branch");
+
+        await WriteBankingEvent("BankReconciliation", "bank-ambiguous", new Dictionary<string, object?>
+        {
+            ["CompanyId"] = 2
+        });
+        bankEvent = await context.AuditEvents.AsNoTracking().OrderByDescending(row => row.Id).FirstAsync();
+        Check(bankEvent.Branch == null, "Bank reconciliation does not guess among multiple branches");
+
+        await banking.Database.ExecuteSqlRawAsync("EXEC(N'CREATE SCHEMA banking'); CREATE TABLE banking.BankReconciliations (Id int, CompanyId int); INSERT INTO banking.BankReconciliations VALUES (91,1)");
+        await WriteBankingEvent("BankStatementLine", "statement-line", new Dictionary<string, object?>
+        {
+            ["BankReconciliationId"] = 91
+        });
+        bankEvent = await context.AuditEvents.AsNoTracking().OrderByDescending(row => row.Id).FirstAsync();
+        Check(bankEvent.Branch == "Dubai" && bankEvent.CompanyId == 1,
+            "Statement lines resolve company and branch through their parent reconciliation");
+
+        var legacyEvent = new AuditEvent
+        {
+            AtUtc = DateTimeOffset.UtcNow,
+            Service = "BankingService.API",
+            EntityType = "BankTransaction",
+            EntityId = "legacy-banking-branch",
+            CompanyId = 1,
+            Action = "Created",
+            AfterJson = "{\"Amount\":100}"
+        };
+        context.AuditEvents.Add(legacyEvent);
+        await context.SaveChangesAsync();
+
+        var resolved = await AccountingService.API.Services.AuditActivityFilter.Apply(context, "All")
+            .SingleAsync(row => row.Id == legacyEvent.Id && row.Branch == "Dubai");
+        Check(resolved.Branch == "Dubai", "Existing banking events support branch display and filtering");
+        var original = await context.AuditEvents.AsNoTracking().SingleAsync(row => row.Id == legacyEvent.Id);
+        Check(original.Branch == null && original.AfterJson == "{\"Amount\":100}",
+            "Branch display fallback leaves original audit history unchanged");
     }
     var start = new ProcessStartInfo("dotnet")
     {

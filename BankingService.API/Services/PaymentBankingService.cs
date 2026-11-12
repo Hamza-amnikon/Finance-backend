@@ -154,7 +154,7 @@ namespace BankingService.API.Services
                     p.[PaymentMode], p.[Reference], p.[PaymentDate], p.[CreatedDate],
                     p.[VoidedDate], p.[Status]
                     FROM [purchases].[PaymentsMade] p WITH (UPDLOCK,HOLDLOCK)
-                    LEFT JOIN [sales].[BranchMasters] b
+                    LEFT JOIN [amnikon].[Branches] b
                         ON b.[Name] = p.[Branch]
                         AND b.[IsActive] = 1
                     WHERE p.[Id] = {id}
@@ -197,7 +197,7 @@ namespace BankingService.API.Services
                 p.[VoidedDate], p.[Status]
                 FROM [sales].[SalesInvoicePayments] p WITH (UPDLOCK,HOLDLOCK)
                 JOIN [sales].[SalesInvoices] i ON i.[Id] = p.[SalesInvoiceId]
-                LEFT JOIN [sales].[BranchMasters] b ON b.[Name] = i.[Branch] AND b.[IsActive] = 1
+                LEFT JOIN [amnikon].[Branches] b ON b.[Name] = i.[Branch] AND b.[IsActive] = 1
                 WHERE p.[Id] = {id}
                 """).ToListAsync(cancellationToken)).SingleOrDefault();
         }

@@ -55,8 +55,8 @@ try
         """);
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA sales");
     await context.Database.ExecuteSqlRawAsync("""
-        CREATE TABLE sales.BranchMasters(Id int PRIMARY KEY,Name nvarchar(20),CountryCode nvarchar(2),AccountingCompanyId int NULL,IsActive bit);
-        INSERT INTO sales.BranchMasters VALUES(1,'Dubai','AE',1,1),(2,'Turbhe','IN',2,1);
+        IF SCHEMA_ID(N'amnikon') IS NULL EXEC(N'CREATE SCHEMA amnikon'); CREATE TABLE amnikon.Branches(Id int PRIMARY KEY,Name nvarchar(20),CountryCode nvarchar(2),AccountingCompanyId int NULL,IsActive bit);
+        INSERT INTO amnikon.Branches VALUES(1,'Dubai','AE',1,1),(2,'Turbhe','IN',2,1);
         """);
     var service = new BillTaxSettingsService(context);
     var date = new DateOnly(2026, 11, 10);

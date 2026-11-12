@@ -51,18 +51,36 @@ namespace AccountingService.API.Services
 
         public static IQueryable<AuditEvent> Apply(AccountingDbContext context, string? activity)
         {
-            return activity switch
+            var predicate = activity switch
             {
-                null or "" or "All" => context.AuditEvents.AsNoTracking(),
-                "Business" => context.AuditEvents.FromSqlRaw(
-                    "SELECT e.* FROM audit.Events e WHERE e.Action <> N'Snapshot' AND NOT (" + Technical + ")"
-                ).AsNoTracking(),
-                "Technical" => context.AuditEvents.FromSqlRaw(
-                    "SELECT e.* FROM audit.Events e WHERE " + Technical
-                ).AsNoTracking(),
-                "Snapshots" => context.AuditEvents.AsNoTracking().Where(row => row.Action == "Snapshot"),
+                null or "" or "All" => "1 = 1",
+                "Business" => "e.Action <> N'Snapshot' AND NOT (" + Technical + ")",
+                "Technical" => Technical,
+                "Snapshots" => "e.Action = N'Snapshot'",
                 _ => throw new ValidationException("Select Business, Technical, Snapshots or All activity.")
             };
+
+            // Display fallback uses the recorded company and a unique current mapping.
+            // Original audit events, snapshots and recorded branches remain unchanged.
+            var sql = """
+                SELECT e.Id, e.AtUtc, e.Service, e.EntityType, e.EntityId,
+                    e.Action, e.Actor, e.ActorKind,
+                    CASE WHEN e.Service = N'BankingService.API'
+                        AND NULLIF(LTRIM(RTRIM(e.Branch)), N'') IS NULL
+                        THEN mapped.Name ELSE e.Branch END AS Branch,
+                    e.CompanyId, e.CorrelationId, e.BeforeJson, e.AfterJson
+                FROM audit.Events e
+                LEFT JOIN
+                (
+                    SELECT AccountingCompanyId, MIN(Name) AS Name
+                    FROM amnikon.Branches
+                    GROUP BY AccountingCompanyId
+                    HAVING COUNT(*) = 1
+                ) mapped ON mapped.AccountingCompanyId = e.CompanyId
+                WHERE
+                """ + " " + predicate;
+
+            return context.AuditEvents.FromSqlRaw(sql).AsNoTracking();
         }
     }
 }

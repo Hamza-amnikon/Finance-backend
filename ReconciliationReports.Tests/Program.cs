@@ -68,8 +68,8 @@ try
         INSERT INTO expenses.Companies VALUES(1,'Company A','AE','AED'),(2,'Company B','IN','INR'),(3,'Empty company','AE','AED');
         CREATE TABLE sales.CurrencyMasters(CurrencyCode nvarchar(3),DecimalPlaces int);
         INSERT INTO sales.CurrencyMasters VALUES('AED',2),('INR',2),('USD',2);
-        CREATE TABLE sales.BranchMasters(Name nvarchar(100),AccountingCompanyId int);
-        INSERT INTO sales.BranchMasters VALUES('Office A',1),('Office B',2);
+        IF SCHEMA_ID(N'amnikon') IS NULL EXEC(N'CREATE SCHEMA amnikon'); CREATE TABLE amnikon.Branches(Name nvarchar(100),AccountingCompanyId int);
+        INSERT INTO amnikon.Branches VALUES('Office A',1),('Office B',2);
         CREATE TABLE sales.SalesInvoices(Id int,InvoiceNumber nvarchar(50),Branch nvarchar(100),Currency nvarchar(3),GrandTotal decimal(18,4),Status nvarchar(20),InvoiceDate date);
         INSERT INTO sales.SalesInvoices VALUES(1,'INV-POSTED','Office A','AED',100,'Issued','2026-10-01'),(2,'INV-MISSING','Office A','AED',50,'Issued','2026-10-03'),(3,'INV-FUTURE','Office A','AED',9,'Issued','2026-12-01'),(4,'INV-OTHER','Office B','INR',9999,'Issued','2026-10-01'),(5,'INV-DRAFT','Office A','AED',10,'Draft','2026-10-01');
         CREATE TABLE sales.SalesInvoicePayments(Id int,SalesInvoiceId int,Currency nvarchar(3),Amount decimal(18,4),PaymentDate date,Status nvarchar(20) NOT NULL DEFAULT 'Recorded');

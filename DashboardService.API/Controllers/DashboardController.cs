@@ -65,12 +65,14 @@ namespace DashboardService.API.Controllers
         [HttpGet("activity")]
         [ProducesResponseType<List<DashboardActivityDto>>(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetActivity(
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            [FromQuery] string? branch = null)
         {
             try
             {
                 var activity = await _dashboardService.GetActivityAsync(
-                    cancellationToken);
+                    cancellationToken,
+                    branch);
 
                 return Ok(activity);
             }

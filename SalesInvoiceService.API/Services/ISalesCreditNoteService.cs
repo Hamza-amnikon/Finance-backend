@@ -1,4 +1,4 @@
-﻿using SalesInvoiceService.API.DTOs;
+using SalesInvoiceService.API.DTOs;
 using SalesInvoiceService.API.Models;
 
 namespace SalesInvoiceService.API.Services
@@ -24,7 +24,8 @@ namespace SalesInvoiceService.API.Services
                 int pageSize,
                 string? search,
                 SalesCreditNoteStatus? status,
-                CancellationToken cancellationToken);
+                CancellationToken cancellationToken,
+                string? branch = null);
 
         Task<SalesCreditNoteResponseDto?> IssueAsync(
             int id,

@@ -12,6 +12,7 @@ namespace DashboardService.API.Services
             CancellationToken cancellationToken);
 
         Task<List<DashboardActivityDto>> GetActivityAsync(
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            string? branch = null);
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.Data;
 using SalesInvoiceService.API.Models;
@@ -93,9 +93,16 @@ namespace SalesInvoiceService.API.Repositories
             GetAllAsync(
                 int page,
                 int pageSize,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                string? branch = null)
         {
             var query = _context.SalesInvoices.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(branch))
+            {
+                var billingBranch = branch.Trim();
+                query = query.Where(invoice => invoice.Branch == billingBranch);
+            }
 
             var total = await query.CountAsync(cancellationToken);
 

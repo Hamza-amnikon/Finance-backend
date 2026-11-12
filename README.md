@@ -1,5 +1,22 @@
 # SparkFinance backend
 
+## Branch master table
+
+Branches are stored in `amnikon.Branches`. SalesInvoiceService.API owns the
+`MoveBranchesToAmnikon` migration; the other APIs use the same branch rows through
+read-only mappings or queries. The move preserves branch IDs, company links,
+invoice prefixes, saved details, identity values and row versions.
+
+Apply the migration before restarting the updated services. It keeps
+`sales.BranchMasters` as a compatibility synonym pointing to `amnikon.Branches`
+so older running services use the same physical rows during deployment. It is
+not a second table. Do not insert or copy another set of branch records.
+
+The reviewed idempotent deployment script is `tools/MoveBranchesToAmnikon.sql`.
+It assumes the preceding `AddBranchInvoiceNumberPrefix` migration is applied.
+`BranchTableMigration.Tests` checks data preservation, old/new name access,
+concurrency and rollback against a disposable database.
+
 The backend contains 12 independently running ASP.NET Core APIs targeting .NET 10.
 They use the existing SparkFinance database on `(localdb)\MSSQLLocalDB`.
 

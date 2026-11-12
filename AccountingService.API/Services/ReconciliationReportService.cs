@@ -47,27 +47,27 @@ namespace AccountingService.API.Services
                     SELECT i.Id, N'Sales invoice' AS Kind, COALESCE(i.InvoiceNumber,N'') AS Number, i.Currency,
                         i.GrandTotal AS Total, N'SalesInvoice' AS Source, CONVERT(nvarchar(100),i.Id) AS SourceId
                     FROM sales.SalesInvoices i WHERE i.Status=N'Issued' AND i.InvoiceDate<=@asOf
-                        AND EXISTS(SELECT 1 FROM sales.BranchMasters b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
+                        AND EXISTS(SELECT 1 FROM amnikon.Branches b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
                     UNION ALL
                     SELECT c.Id,N'Sales credit note',COALESCE(c.CreditNoteNumber,N''),c.Currency,c.GrandTotal,N'SalesCreditNote',CONVERT(nvarchar(100),c.Id)
                     FROM sales.SalesCreditNotes c INNER JOIN sales.SalesInvoices i ON i.Id=c.SalesInvoiceId
-                    WHERE c.Status=N'Issued' AND c.CreditNoteDate<=@asOf AND EXISTS(SELECT 1 FROM sales.BranchMasters b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
+                    WHERE c.Status=N'Issued' AND c.CreditNoteDate<=@asOf AND EXISTS(SELECT 1 FROM amnikon.Branches b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
                     UNION ALL
                     SELECT p.Id,N'Customer payment',CONCAT(N'Payment ',p.Id),p.Currency,p.Amount,N'PaymentReceived',CONVERT(nvarchar(100),p.Id)
                     FROM sales.SalesInvoicePayments p INNER JOIN sales.SalesInvoices i ON i.Id=p.SalesInvoiceId
-                    WHERE p.Status=N'Recorded' AND p.PaymentDate<=@asOf AND EXISTS(SELECT 1 FROM sales.BranchMasters b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
+                    WHERE p.Status=N'Recorded' AND p.PaymentDate<=@asOf AND EXISTS(SELECT 1 FROM amnikon.Branches b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
                     UNION ALL
                     SELECT b.Id,N'Purchase bill',COALESCE(b.BillNumber,N''),b.Currency,b.GrandTotal,N'PurchaseBill',CONVERT(nvarchar(100),b.Id)
                     FROM purchases.Bills b WHERE b.Status=N'Issued' AND b.BillDate<=@asOf
-                        AND EXISTS(SELECT 1 FROM sales.BranchMasters s WHERE s.Name=b.Branch AND s.AccountingCompanyId=@company)
+                        AND EXISTS(SELECT 1 FROM amnikon.Branches s WHERE s.Name=b.Branch AND s.AccountingCompanyId=@company)
                     UNION ALL
                     SELECT p.Id,N'Vendor payment',p.PaymentNumber,p.Currency,p.Amount,N'PaymentMade',CONVERT(nvarchar(100),p.Id)
                     FROM purchases.PaymentsMade p WHERE p.Status=N'Recorded' AND p.PaymentDate<=@asOf
-                        AND EXISTS(SELECT 1 FROM sales.BranchMasters b WHERE b.Name=p.Branch AND b.AccountingCompanyId=@company)
+                        AND EXISTS(SELECT 1 FROM amnikon.Branches b WHERE b.Name=p.Branch AND b.AccountingCompanyId=@company)
                     UNION ALL
                     SELECT c.Id,N'Vendor credit',COALESCE(c.VendorCreditNumber,N''),c.Currency,c.GrandTotal,N'VendorCredit',CONVERT(nvarchar(100),c.Id)
                     FROM purchases.VendorCredits c WHERE c.Status=N'Issued' AND c.CreditDate<=@asOf
-                        AND EXISTS(SELECT 1 FROM sales.BranchMasters b WHERE b.Name=c.Branch AND b.AccountingCompanyId=@company)
+                        AND EXISTS(SELECT 1 FROM amnikon.Branches b WHERE b.Name=c.Branch AND b.AccountingCompanyId=@company)
                     UNION ALL
                     SELECT e.Id,N'Recorded expense',e.Reference,e.Currency,e.Amount,N'Expense',CONVERT(nvarchar(100),e.Id)
                     FROM expenses.Expenses e WHERE e.CompanyId=@company AND e.Status=N'Recorded' AND e.Date<=@asOf
@@ -115,14 +115,14 @@ namespace AccountingService.API.Services
                 OUTER APPLY(SELECT SUM(GrandTotal) AS Credits FROM sales.SalesCreditNotes WHERE SalesInvoiceId=i.Id AND Status=N'Issued' AND CreditNoteDate<=@asOf)c
                 OUTER APPLY(SELECT SUM(Amount) AS Applied FROM sales.CustomerCreditApplications WHERE TargetInvoiceId=i.Id AND AppliedAtUtc<@nextDay)a
                 OUTER APPLY(SELECT MAX(ExchangeRate) AS ExchangeRate FROM accounting.JournalEntries WHERE CompanyId=@company AND Source=N'SalesInvoice' AND SourceDocumentId=CONVERT(nvarchar(100),i.Id) AND Status IN(N'Posted',N'Reversed') AND EntryDate<=@asOf)j
-                WHERE i.Status=N'Issued' AND i.InvoiceDate<=@asOf AND EXISTS(SELECT 1 FROM sales.BranchMasters b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
+                WHERE i.Status=N'Issued' AND i.InvoiceDate<=@asOf AND EXISTS(SELECT 1 FROM amnikon.Branches b WHERE b.Name=i.Branch AND b.AccountingCompanyId=@company)
                 UNION ALL
                 SELECT N'Payables',b.GrandTotal-COALESCE(p.Paid,0)-COALESCE(a.Applied,0),j.ExchangeRate
                 FROM purchases.Bills b
                 OUTER APPLY(SELECT SUM(Amount) AS Paid FROM purchases.PaymentsMade WHERE BillId=b.Id AND Status=N'Recorded' AND PaymentDate<=@asOf)p
                 OUTER APPLY(SELECT SUM(Amount) AS Applied FROM purchases.VendorCreditApplications WHERE BillId=b.Id AND Status=N'Applied' AND ApplicationDate<=@asOf)a
                 OUTER APPLY(SELECT MAX(ExchangeRate) AS ExchangeRate FROM accounting.JournalEntries WHERE CompanyId=@company AND Source=N'PurchaseBill' AND SourceDocumentId=CONVERT(nvarchar(100),b.Id) AND Status IN(N'Posted',N'Reversed') AND EntryDate<=@asOf)j
-                WHERE b.Status=N'Issued' AND b.BillDate<=@asOf AND EXISTS(SELECT 1 FROM sales.BranchMasters s WHERE s.Name=b.Branch AND s.AccountingCompanyId=@company)";
+                WHERE b.Status=N'Issued' AND b.BillDate<=@asOf AND EXISTS(SELECT 1 FROM amnikon.Branches s WHERE s.Name=b.Branch AND s.AccountingCompanyId=@company)";
             var balances = await _context.Database.SqlQueryRaw<ReconciliationBalanceRow>(balanceSql, Parameters()).ToListAsync(cancellationToken);
             const string controlSql = @"
                 SELECT a.SystemKey AS Kind,COUNT(DISTINCT a.Id) AS AccountCount,

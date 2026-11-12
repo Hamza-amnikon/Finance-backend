@@ -6,7 +6,7 @@ Standalone purchase-order API using the existing SparkFinance database. It reads
 
 Start PurchaseOrderService.API with the https launch profile. Swagger: https://localhost:7191/swagger/index.html. The frontend Vite proxy routes /api/purchase-orders to this port. Restart Vite after changing its proxy configuration.
 
-Use the existing DefaultConnection in appsettings.json. Apply migrations explicitly with PurchaseOrderDbContext; this service never migrates or seeds automatically. Its migration history is purchases.__PurchaseOrderMigrationsHistory. Owned tables are purchases.PurchaseOrders, PurchaseOrderItems, and PurchaseOrderNumberCounters. Existing purchases.VendorMaster, sales.CurrencyMasters, and sales.BranchMasters are keyless read-only lookup mappings and are not managed by these migrations.
+Use the existing DefaultConnection in appsettings.json. Apply migrations explicitly with PurchaseOrderDbContext; this service never migrates or seeds automatically. Its migration history is purchases.__PurchaseOrderMigrationsHistory. Owned tables are purchases.PurchaseOrders, PurchaseOrderItems, and PurchaseOrderNumberCounters. Existing purchases.VendorMaster, sales.CurrencyMasters, and amnikon.Branches are keyless read-only lookup mappings and are not managed by these migrations.
 
 ## Workflow
 

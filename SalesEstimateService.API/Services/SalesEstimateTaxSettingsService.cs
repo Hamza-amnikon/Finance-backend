@@ -53,7 +53,7 @@ namespace SalesEstimateService.API.Services
             }
 
             var branch = await _context.Database.SqlQuery<EstimateTaxBranch>($"""
-                SELECT AccountingCompanyId, CountryCode FROM sales.BranchMasters
+                SELECT AccountingCompanyId, CountryCode FROM amnikon.Branches
                 WHERE Name = {branchName} AND IsActive = 1
                 """).SingleOrDefaultAsync(cancellationToken);
 
