@@ -130,10 +130,12 @@ try
     await invoices.Database.ExecuteSqlRawAsync("""
         EXEC(N'CREATE SCHEMA expenses');
         EXEC(N'CREATE SCHEMA purchases');
-        CREATE TABLE expenses.Expenses (Id int, Amount decimal(18,2), Currency nvarchar(3), Category nvarchar(50), Supplier nvarchar(100), Date date, Status nvarchar(20), Branch nvarchar(20));
+        CREATE TABLE expenses.Companies (Id int, Name nvarchar(160));
+        CREATE TABLE expenses.Expenses (Id int, Amount decimal(18,2), Currency nvarchar(3), Category nvarchar(50), Supplier nvarchar(100), Date date, Status nvarchar(20), CompanyId int);
         CREATE TABLE purchases.Bills (Id int, GrandTotal decimal(18,2), Currency nvarchar(3), VendorName nvarchar(100), BillDate date, Status nvarchar(20), Branch nvarchar(20));
         CREATE TABLE purchases.PaymentsMade (Id int, Amount decimal(18,2), Currency nvarchar(3), VendorName nvarchar(100), PaymentDate date, Status nvarchar(20), Branch nvarchar(20));
-        INSERT INTO expenses.Expenses VALUES (1,10,'USD','Test','Same name','2026-11-12','Recorded','Office North'),(2,20,'USD','Test','Same name','2026-11-12','Recorded','Office South');
+        INSERT INTO expenses.Companies VALUES (71,'Test Company - Office North'),(92,'Test Company - Office South');
+        INSERT INTO expenses.Expenses VALUES (1,10,'USD','Test','Same name','2026-11-12','Recorded',71),(2,20,'USD','Test','Same name','2026-11-12','Recorded',92);
         INSERT INTO purchases.Bills VALUES (3,30,'USD','Same name','2026-11-12','Issued','Office South');
         INSERT INTO purchases.PaymentsMade VALUES (4,40,'USD','Same name','2026-11-12','Recorded','Office North');
         """);
@@ -144,6 +146,11 @@ try
     var northActivity = await dashboardService.GetActivityAsync(default, "Office North");
     Check(northActivity.Count == 2 && northActivity.All(row => row.Id is "expense-1" or "supplier-payment-4"),
         "Dashboard activity is filtered on the server by Billing Branch");
+    var southActivity = await dashboardService.GetActivityAsync(default, "Office South");
+    Check(southActivity.Count == 2 && southActivity.All(row => row.Id is "expense-2" or "bill-3"),
+        "Expense activity follows CompanyId using the same company filter as dashboard totals");
+    Check((await dashboardService.GetActivityAsync(default, "Missing")).Count == 0,
+        "Unknown activity branches do not expose other branches");
     Check((await dashboardService.GetActivityAsync(default)).Count == 4,
         "Dashboard All branches retains combined activity");
     Console.WriteLine($"All {checks} branch scope checks passed.");

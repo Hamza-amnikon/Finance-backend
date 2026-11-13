@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Include="../PermissionService.API/Authentication/*.cs" Link="Authentication/%(Filename)%(Extension)" />
+        <Compile Include="../PermissionService.API/CallOtherApis/ILoginSessionClient.cs" Link="ILoginSessionClient.cs" />
+        <Compile Include="../PermissionService.API/CallOtherApis/LoginSessionClient.cs" Link="LoginSessionClient.cs" />
+        <Compile Include="../PermissionService.API/DTOs/LoginSessionResponse.cs" Link="LoginSessionResponse.cs" />
+    </ItemGroup>
+</Project>

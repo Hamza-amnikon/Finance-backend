@@ -91,7 +91,15 @@ namespace DashboardService.API.Controllers
         {
             _logger.LogWarning(
                 exception,
-                "The dashboard could not reach the finance database.");
+                "Dashboard database request failed with SQL error {SqlErrorNumber}.",
+                exception.Number);
+
+            if (!exception.IsTransient && exception.Class < 20 && exception.Number != -2)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status500InternalServerError,
+                    title: "Dashboard data could not be loaded. Check the Dashboard Service logs.");
+            }
 
             return Problem(
                 statusCode: StatusCodes.Status503ServiceUnavailable,
