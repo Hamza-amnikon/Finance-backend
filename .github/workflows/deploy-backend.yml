@@ -254,6 +254,11 @@ jobs:
             if (-not $verified) { throw "API smoke check failed: $endpoint" }
           }
 
+          $anonymousSession = Invoke-WebRequest -Uri 'http://127.0.0.1/api/development-admin/session' -UseBasicParsing -TimeoutSec 20
+          if ($anonymousSession.StatusCode -ne 204) {
+            throw "Anonymous session check returned $($anonymousSession.StatusCode) instead of 204."
+          }
+
           try {
             $response = Invoke-WebRequest -Uri 'http://127.0.0.1/api/role-permissions/1' -UseBasicParsing -TimeoutSec 20
             throw "Unauthenticated role permissions returned $($response.StatusCode)"

@@ -17,19 +17,27 @@ namespace RoleService.API
             routes.MapPost("/login", LoginAsync)
                 .RequireRateLimiting("development-login");
 
-            routes.MapGet("/session", (ClaimsPrincipal user) =>
-                Results.Ok(new
-                {
-                    name = user.Identity?.Name,
-                    role = AdminRole
-                }))
-                .RequireAuthorization();
+            routes.MapGet("/session", GetSession);
 
             routes.MapPost("/logout", async (HttpContext context) =>
             {
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.NoContent();
             }).RequireAuthorization();
+        }
+
+        private static IResult GetSession(ClaimsPrincipal user)
+        {
+            if (user.Identity?.IsAuthenticated != true || !user.IsInRole(AdminRole))
+            {
+                return Results.NoContent();
+            }
+
+            return Results.Ok(new
+            {
+                name = user.Identity.Name,
+                role = AdminRole
+            });
         }
 
         private static async Task<IResult> LoginAsync(
