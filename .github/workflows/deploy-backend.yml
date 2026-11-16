@@ -160,16 +160,42 @@ jobs:
           $backupRoot = Join-Path 'C:\ProgramData\SparkFinance\deploy-backups' $env:GITHUB_RUN_ID
           $deploymentError = $null
 
+          $servicesToDeploy = @()
+          foreach ($service in $services) {
+            $source = Join-Path $outputRoot $service
+            $target = Join-Path $publishRoot $service
+            $changed = $false
+
+            foreach ($file in (Get-ChildItem -LiteralPath $source -Recurse -File)) {
+              if ($file.Name -eq 'web.config' -or $file.Name -like 'appsettings*.json') {
+                continue
+              }
+
+              $relative = $file.FullName.Substring($source.Length).TrimStart('\')
+              $destination = Join-Path $target $relative
+              if (-not (Test-Path -LiteralPath $destination) -or
+                  (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash -ne
+                  (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash) {
+                $changed = $true
+                break
+              }
+            }
+
+            if ($changed) { $servicesToDeploy += $service }
+          }
+
+          Write-Host "Services with changed files: $($servicesToDeploy -join ', ')"
+
           try {
-            foreach ($service in $services) {
+            foreach ($service in $servicesToDeploy) {
               $target = Join-Path $publishRoot $service
               $offlinePath = Join-Path $target 'app_offline.htm'
               Set-Content -LiteralPath $offlinePath -Value 'Deployment in progress' -Encoding UTF8 -ErrorAction Stop
               $offlineFiles += $offlinePath
             }
-            Start-Sleep -Seconds 5
+            if ($servicesToDeploy.Count -gt 0) { Start-Sleep -Seconds 5 }
 
-            foreach ($service in $services) {
+            foreach ($service in $servicesToDeploy) {
               $source = Join-Path $outputRoot $service
               $target = Join-Path $publishRoot $service
               $files = Get-ChildItem -LiteralPath $source -Recurse -File
@@ -233,6 +259,7 @@ jobs:
       - name: Verify Roles and Permissions APIs
         run: |
           $endpoints = @(
+            'http://127.0.0.1/api/dashboard/activity',
             'http://127.0.0.1/api/role',
             'http://127.0.0.1/api/permissions'
           )
