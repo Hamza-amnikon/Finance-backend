@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using RoleService.API.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using RoleService.API;
 using RoleService.API.Repositories;
@@ -15,6 +16,19 @@ builder.Services.AddOpenApi();
 
 var testAdminEnabled = builder.Environment.IsDevelopment() ||
     builder.Environment.IsEnvironment("Testing");
+
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    var keysPath = builder.Configuration["DataProtection:KeysPath"];
+    if (string.IsNullOrWhiteSpace(keysPath))
+    {
+        throw new InvalidOperationException("Configure DataProtection:KeysPath for Testing.");
+    }
+
+    builder.Services.AddDataProtection()
+        .SetApplicationName("SparkFinance.RoleService.Testing")
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+}
 
 if (testAdminEnabled)
 {
