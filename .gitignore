@@ -6,3 +6,4 @@ backups/
 *.user
 *.tmp
 Finance-backend/
+PermissionService.API/appsettings.Local.json

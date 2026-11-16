@@ -192,7 +192,7 @@ namespace ExpenseService.API.Controllers
             }
 
             var company = await _context.Companies.AsNoTracking().SingleOrDefaultAsync(row => row.Id == dto.CompanyId, cancellationToken) ?? throw new ValidationException("Select an existing company.");
-            var branchMatches = await _context.Database.SqlQuery<int>($@"SELECT COUNT(*) AS Value FROM sales.BranchMasters
+            var branchMatches = await _context.Database.SqlQuery<int>($@"SELECT COUNT(*) AS Value FROM amnikon.Branches
                 WHERE Name = {dto.Branch} AND IsActive = 1 AND AccountingCompanyId = {dto.CompanyId}").SingleAsync(cancellationToken);
             if (branchMatches != 1)
             {

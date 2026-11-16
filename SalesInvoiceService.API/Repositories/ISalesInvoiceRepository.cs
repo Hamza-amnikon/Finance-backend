@@ -1,4 +1,4 @@
-﻿using SalesInvoiceService.API.Models;
+using SalesInvoiceService.API.Models;
 
 namespace SalesInvoiceService.API.Repositories
 {
@@ -20,6 +20,7 @@ namespace SalesInvoiceService.API.Repositories
         Task<(List<SalesInvoice> Data, int Total)> GetAllAsync(
             int page,
             int pageSize,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            string? branch = null);
     }
 }

@@ -111,7 +111,8 @@ namespace SalesEstimateService.API.Services
                 query.PageSize,
                 query.Search,
                 query.Status,
-                cancellationToken);
+                cancellationToken,
+                query.Branch);
 
             return (result.Data.Select(ToResponse).ToList(), result.Total);
         }

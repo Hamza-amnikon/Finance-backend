@@ -43,7 +43,7 @@ namespace PurchaseOrderService.API.Migrations
 
                     b.ToTable((string)null);
 
-                    b.ToView("BranchMasters", "sales");
+                    b.ToView("Branches", "amnikon");
                 });
 
             modelBuilder.Entity("PurchaseOrderService.API.Models.PurchaseCurrencyLookup", b =>

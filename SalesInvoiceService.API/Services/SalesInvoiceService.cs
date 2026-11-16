@@ -259,7 +259,8 @@ namespace SalesInvoiceService.API.Services
                 ResolveTaxTreatment(
                     invoice.TaxTreatment,
                     branch.CountryCode,
-                    invoice.TaxTotal);
+                    invoice.TaxTotal,
+                    invoice.UsesTaxSettings);
 
             var issuer = new BranchInvoiceProfileFieldsDto
             {
@@ -309,12 +310,14 @@ namespace SalesInvoiceService.API.Services
             GetAllAsync(
                 int page,
                 int pageSize,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                string? branch = null)
         {
             var result = await _repository.GetAllAsync(
                 page,
                 pageSize,
-                cancellationToken);
+                cancellationToken,
+                branch);
 
             return (
                 result.Data.Select(ToResponse).ToList(),
@@ -355,7 +358,8 @@ namespace SalesInvoiceService.API.Services
                 ResolveTaxTreatment(
                     invoice.TaxTreatment,
                     branch.CountryCode,
-                    invoice.TaxTotal);
+                    invoice.TaxTotal,
+                    invoice.UsesTaxSettings);
 
             var invoiceNumber =
                 Clean(invoice.InvoiceNumber);
@@ -404,7 +408,8 @@ namespace SalesInvoiceService.API.Services
                 return new();
             }
 
-            if (taxTreatment == SalesInvoiceTaxTreatment.UaeVat)
+            if (taxTreatment == SalesInvoiceTaxTreatment.UaeVat ||
+                taxTreatment == SalesInvoiceTaxTreatment.GeneralVat)
             {
                 return new()
                 {
@@ -555,7 +560,8 @@ namespace SalesInvoiceService.API.Services
             ResolveTaxTreatment(
                 SalesInvoiceTaxTreatment? selected,
                 string countryCode,
-                decimal taxTotal)
+                decimal taxTotal,
+                bool usesTaxSettings)
         {
             if (taxTotal == 0)
             {
@@ -594,6 +600,12 @@ namespace SalesInvoiceService.API.Services
                 }
 
                 return selected.Value;
+            }
+
+            if (usesTaxSettings &&
+                selected == SalesInvoiceTaxTreatment.GeneralVat)
+            {
+                return SalesInvoiceTaxTreatment.GeneralVat;
             }
 
             throw new ArgumentException(

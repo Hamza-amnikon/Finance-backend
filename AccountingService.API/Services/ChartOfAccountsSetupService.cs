@@ -40,8 +40,13 @@ namespace AccountingService.API.Services
                     "Select an existing company.");
             }
 
+            var hasGeneralVat = await _repository.HasGeneralVatAsync(
+                company.Country,
+                cancellationToken);
+
             var templates = GetTemplates(
-                company.Country);
+                company.Country,
+                hasGeneralVat);
 
             var existingAccounts =
                 (await _repository.GetTreeAsync(
@@ -316,7 +321,8 @@ namespace AccountingService.API.Services
 
         private static IReadOnlyList<AccountTemplate>
             GetTemplates(
-                string country)
+                string country,
+                bool hasGeneralVat)
         {
             var templates =
                 GetCommonTemplates()
@@ -337,10 +343,12 @@ namespace AccountingService.API.Services
                     break;
 
                 default:
-                    throw new ValidationException(
-                        "A standard Chart of Accounts " +
-                        "template is not available for " +
-                        $"country {country}.");
+                    if (hasGeneralVat)
+                    {
+                        templates.AddRange(GetAeTaxTemplates());
+                    }
+
+                    break;
             }
 
             return templates

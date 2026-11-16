@@ -32,7 +32,8 @@ namespace SalesInvoiceService.API.Controllers
         public async Task<IActionResult> GetAll(
             CancellationToken cancellationToken,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? branch = null)
         {
             if (page < 1 || pageSize < 1 || pageSize > 100)
             {
@@ -49,7 +50,8 @@ namespace SalesInvoiceService.API.Controllers
                 var result = await _invoiceService.GetAllAsync(
                     page,
                     pageSize,
-                    cancellationToken);
+                    cancellationToken,
+                    branch);
 
                 return Ok(new
                 {

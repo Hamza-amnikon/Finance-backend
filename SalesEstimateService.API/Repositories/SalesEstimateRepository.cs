@@ -50,7 +50,8 @@ namespace SalesEstimateService.API.Repositories
                 int pageSize,
                 string? search,
                 SalesEstimateStatus? status,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                string? branch = null)
         {
             if (page < 1 || pageSize < 1 || pageSize > 100)
             {
@@ -58,6 +59,12 @@ namespace SalesEstimateService.API.Repositories
             }
 
             var query = _context.SalesEstimates.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(branch))
+            {
+                var billingBranch = branch.Trim();
+                query = query.Where(estimate => estimate.Branch == billingBranch);
+            }
 
             if (!string.IsNullOrWhiteSpace(search))
             {

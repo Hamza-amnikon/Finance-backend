@@ -39,6 +39,14 @@ builder.Services.AddScoped<
     IExpenseLookupService,
     ExpenseLookupService>();
 
+builder.Services.AddDbContext<CompanySetupDbContext>(options =>
+{
+    options.UseSqlServer(connectionString);
+});
+
+builder.Services.AddScoped<CompanySetupRepository>();
+builder.Services.AddScoped<CompanySetupService>();
+
 builder.Services.AddMemoryCache();
 
 builder.Services.AddSingleton(TimeProvider.System);

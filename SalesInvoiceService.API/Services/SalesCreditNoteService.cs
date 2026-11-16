@@ -127,14 +127,16 @@ namespace SalesInvoiceService.API.Services
                 int pageSize,
                 string? search,
                 SalesCreditNoteStatus? status,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                string? branch = null)
         {
             var result = await _repository.GetPagedAsync(
                 page,
                 pageSize,
                 search,
                 status,
-                cancellationToken);
+                cancellationToken,
+                branch);
 
             return (
                 result.Items.Select(ToResponse).ToList(),
@@ -266,7 +268,8 @@ namespace SalesInvoiceService.API.Services
             }
 
             if (taxTreatment ==
-                SalesInvoiceTaxTreatment.UaeVat)
+                SalesInvoiceTaxTreatment.UaeVat ||
+                taxTreatment == SalesInvoiceTaxTreatment.GeneralVat)
             {
                 return new()
                 {

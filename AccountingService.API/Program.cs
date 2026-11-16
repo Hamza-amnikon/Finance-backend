@@ -54,6 +54,8 @@ builder.Services.AddScoped<
     IChartOfAccountsSetupService,
     ChartOfAccountsSetupService>();
 
+builder.Services.AddScoped<GeneralVatSetupService>();
+
 builder.Services.AddScoped<
     IJournalEntryRepository,
     JournalEntryRepository>();

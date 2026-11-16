@@ -7,7 +7,8 @@ namespace BillService.API.Models
         NoTax,
         UaeVat,
         IndiaCgstSgst,
-        IndiaIgst
+        IndiaIgst,
+        GeneralVat
     }
 
     public class Bill

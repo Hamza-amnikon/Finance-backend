@@ -17,7 +17,8 @@ namespace SalesEstimateService.API.Repositories
             int pageSize,
             string? search,
             SalesEstimateStatus? status,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            string? branch = null);
 
         Task<SalesEstimate?> CompleteConversionAsync(
             int id,

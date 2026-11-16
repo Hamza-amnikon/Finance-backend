@@ -84,6 +84,13 @@ namespace SalesInvoiceService.API.Services
                 throw new ArgumentException("The selected tax setting has inconsistent components. Review Tax Settings.");
             }
 
+            if (treatment == SalesInvoiceTaxTreatment.GeneralVat &&
+                components.Count != 1)
+            {
+                throw new ArgumentException(
+                    "General VAT requires one configured VAT component.");
+            }
+
             if (treatment == SalesInvoiceTaxTreatment.IndiaCgstSgst &&
                 (components.Count != 2 || components[0].Rate != components[1].Rate))
             {

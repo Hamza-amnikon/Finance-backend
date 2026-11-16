@@ -133,7 +133,7 @@ namespace PurchaseOrderService.API.Data
 
             builder.Entity<PurchaseBranchLookup>()
                 .HasNoKey()
-                .ToView("BranchMasters", "sales");
+                .ToView("Branches", "amnikon");
 
             builder.Entity<PurchasePaymentModeLookup>(entity =>
             {

@@ -188,7 +188,7 @@ namespace AccountingService.API.Controllers
         {
             var rows = AuditActivityFilter.Apply(_context, activity);
             var savedBranches = await _context.Database
-                .SqlQueryRaw<string>("SELECT Name AS Value FROM sales.BranchMasters")
+                .SqlQueryRaw<string>("SELECT Name AS Value FROM amnikon.Branches")
                 .ToListAsync(cancellationToken);
             var metadata = await rows.Select(row => new
             {

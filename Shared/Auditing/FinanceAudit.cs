@@ -85,6 +85,7 @@ namespace SparkFinance.Auditing
             "BankCurrency",
             "SettlementType",
             "BankAccountId",
+            "BankReconciliationId",
             "SourceAccountId",
             "DestinationAccountId",
             "FromBankAccountId",
@@ -198,16 +199,28 @@ namespace SparkFinance.Auditing
             var snapshot = after ?? before;
             var branch = snapshot?.GetValueOrDefault("Branch")?.ToString();
             int? companyId = int.TryParse(snapshot?.GetValueOrDefault("CompanyId")?.ToString(), out var company) ? company : null;
+            var service = context.GetType().Assembly.GetName().Name ?? "Unknown service";
+
+            if (service == "BankingService.API" && !companyId.HasValue &&
+                entityType == "BankStatementLine" &&
+                int.TryParse(snapshot?.GetValueOrDefault("BankReconciliationId")?.ToString(), out var reconciliationId))
+            {
+                companyId = await context.Database.SqlQueryRaw<int>(
+                    "SELECT CompanyId AS Value FROM banking.BankReconciliations WHERE Id = {0}",
+                    reconciliationId
+                ).Select(value => (int?)value).SingleOrDefaultAsync(cancellationToken);
+            }
+
             // Accounting company IDs can resolve a branch only when the mapping is unique.
             // Never infer a branch from currency or from an unrelated service's company ID.
             if (string.IsNullOrWhiteSpace(branch) && companyId.HasValue &&
-                context.GetType().Assembly.GetName().Name == "AccountingService.API")
+                (service == "AccountingService.API" || service == "BankingService.API"))
             {
                 var mappedBranches = await context.Database.SqlQueryRaw<string>(
                     """
-                    IF COL_LENGTH(N'sales.BranchMasters', N'AccountingCompanyId') IS NOT NULL
+                    IF COL_LENGTH(N'amnikon.Branches', N'AccountingCompanyId') IS NOT NULL
                         EXEC sp_executesql
-                            N'SELECT DISTINCT Name AS Value FROM sales.BranchMasters WHERE AccountingCompanyId = @CompanyId',
+                            N'SELECT MIN(Name) AS Value FROM amnikon.Branches WHERE AccountingCompanyId = @CompanyId GROUP BY AccountingCompanyId HAVING COUNT(*) = 1',
                             N'@CompanyId int', @CompanyId = {0};
                     ELSE
                         SELECT CAST(NULL AS nvarchar(100)) AS Value WHERE 1 = 0;
@@ -219,7 +232,6 @@ namespace SparkFinance.Auditing
                     branch = mappedBranches[0];
                 }
             }
-            var service = context.GetType().Assembly.GetName().Name ?? "Unknown service";
             var beforeJson = before == null ? null : JsonSerializer.Serialize(before, JsonOptions);
             var afterJson = after == null ? null : JsonSerializer.Serialize(after, JsonOptions);
             var correlation = http?.TraceIdentifier;

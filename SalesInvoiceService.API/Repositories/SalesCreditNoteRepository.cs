@@ -77,7 +77,8 @@ namespace SalesInvoiceService.API.Repositories
                 int pageSize,
                 string? search,
                 SalesCreditNoteStatus? status,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                string? branch = null)
         {
             if (page < 1 || pageSize < 1 || pageSize > 100)
             {
@@ -97,6 +98,12 @@ namespace SalesInvoiceService.API.Repositories
             var query = _context.SalesCreditNotes
                 .AsNoTracking()
                 .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(branch))
+            {
+                var billingBranch = branch.Trim();
+                query = query.Where(credit => credit.SalesInvoice.Branch == billingBranch);
+            }
 
             var term = search?.Trim();
 

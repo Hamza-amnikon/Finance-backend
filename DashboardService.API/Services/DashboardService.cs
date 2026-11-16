@@ -257,7 +257,8 @@ namespace DashboardService.API.Services
         }
 
         public async Task<List<DashboardActivityDto>> GetActivityAsync(
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string? branch = null)
         {
             const string sql = @"
                 SELECT TOP (10) Id, EntityType, Action, Actor, At
@@ -271,29 +272,36 @@ namespace DashboardService.API.Services
                     FROM sales.SalesInvoicePayments p
                     INNER JOIN sales.SalesInvoices i ON i.Id = p.SalesInvoiceId
                     WHERE p.Status = N'Recorded' AND i.Status = N'Issued'
+                        AND (@branch = N'' OR i.Branch = @branch)
                     UNION ALL
                     SELECT CONCAT(N'expense-', e.Id), N'Expense',
                         CONCAT(e.Amount, N' ', e.Currency, N' · ', e.Category),
                         e.Supplier, CAST(e.Date AS datetime2)
                     FROM expenses.Expenses e
+                    INNER JOIN expenses.Companies c ON c.Id = e.CompanyId
                     WHERE e.Status = N'Recorded'
+                        AND (@branch = N'' OR c.Name LIKE N'%' + @branch + N'%')
                     UNION ALL
                     SELECT CONCAT(N'bill-', b.Id), N'Purchase bill',
                         CONCAT(N'Issued ', b.GrandTotal, N' ', b.Currency),
                         b.VendorName, CAST(b.BillDate AS datetime2)
                     FROM purchases.Bills b
                     WHERE b.Status = N'Issued'
+                        AND (@branch = N'' OR b.Branch = @branch)
                     UNION ALL
                     SELECT CONCAT(N'supplier-payment-', p.Id), N'Payment made',
                         CONCAT(N'Paid ', p.Amount, N' ', p.Currency),
                         p.VendorName, CAST(p.PaymentDate AS datetime2)
                     FROM purchases.PaymentsMade p
                     WHERE p.Status = N'Recorded'
+                        AND (@branch = N'' OR p.Branch = @branch)
                 ) recentActivity
                 ORDER BY At DESC, Id DESC";
 
             return await _context.Database
-                .SqlQueryRaw<DashboardActivityDto>(sql)
+                .SqlQueryRaw<DashboardActivityDto>(
+                    sql,
+                    new SqlParameter("@branch", branch?.Trim() ?? string.Empty))
                 .ToListAsync(cancellationToken);
         }
     }

@@ -75,7 +75,7 @@ namespace ExpenseService.API.Controllers
                 FROM expenses.Expenses e
                 INNER JOIN expenses.Companies c ON c.Id = e.CompanyId
                 OUTER APPLY (SELECT COUNT(*) AS Matches, MIN(b.Name) AS Branch
-                    FROM sales.BranchMasters b
+                    FROM amnikon.Branches b
                     WHERE b.Name = c.Name OR b.CompanyName = c.Name OR CHARINDEX(b.Name, c.Name) > 0) m
                 WHERE e.Status = N'Recorded' AND e.Date BETWEEN @from AND @to
                 UNION ALL

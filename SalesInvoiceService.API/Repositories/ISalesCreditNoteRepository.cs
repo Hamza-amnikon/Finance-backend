@@ -1,4 +1,4 @@
-﻿using SalesInvoiceService.API.Models;
+using SalesInvoiceService.API.Models;
 
 namespace SalesInvoiceService.API.Repositories
 {
@@ -25,7 +25,8 @@ namespace SalesInvoiceService.API.Repositories
             int pageSize,
             string? search,
             SalesCreditNoteStatus? status,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            string? branch = null);
 
         Task<SalesCreditNote> CreateDraftAsync(
             SalesCreditNote creditNote,

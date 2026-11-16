@@ -14,6 +14,9 @@ namespace SalesEstimateService.API.DTOs
         [MaxLength(200)]
         public string? Search { get; set; }
 
+        [MaxLength(100)]
+        public string? Branch { get; set; }
+
         [EnumDataType(typeof(SalesEstimateStatus))]
         public SalesEstimateStatus? Status { get; set; }
     }

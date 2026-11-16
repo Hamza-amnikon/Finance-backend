@@ -215,7 +215,11 @@ namespace BillService.API.Services
             }
 
             await _taxSettings.ValidateDraftAsync(bill, cancellationToken);
-            bill.TaxTreatment = ResolveTaxTreatment(bill.TaxTreatment, branch.CountryCode, bill.TaxTotal);
+            bill.TaxTreatment = ResolveTaxTreatment(
+                bill.TaxTreatment,
+                branch.CountryCode,
+                bill.TaxTotal,
+                bill.UsesTaxSettings);
             if (bill.Items.Any(item => string.IsNullOrWhiteSpace(item.AccountCode)))
             {
                 throw new ArgumentException("Select an expense or asset account for every bill line before issuing.");
@@ -247,7 +251,11 @@ namespace BillService.API.Services
             }
 
             var exchangeRate = await _exchangeRateService.GetRateAsync(bill.Currency, company.Currency, bill.BillDate, cancellationToken);
-            var treatment = ResolveTaxTreatment(bill.TaxTreatment, branch.CountryCode, bill.TaxTotal);
+            var treatment = ResolveTaxTreatment(
+                bill.TaxTreatment,
+                branch.CountryCode,
+                bill.TaxTotal,
+                bill.UsesTaxSettings);
             var posting = new BillAccountingPostingDto
             {
                 CompanyId = company.Id,
@@ -270,7 +278,8 @@ namespace BillService.API.Services
         private static BillTaxTreatment ResolveTaxTreatment(
             BillTaxTreatment? selected,
             string countryCode,
-            decimal taxTotal
+            decimal taxTotal,
+            bool usesTaxSettings
         )
         {
             if (taxTotal == 0)
@@ -299,6 +308,11 @@ namespace BillService.API.Services
                 return selected.Value;
             }
 
+            if (usesTaxSettings && selected == BillTaxTreatment.GeneralVat)
+            {
+                return BillTaxTreatment.GeneralVat;
+            }
+
             throw new ArgumentException("Tax treatment is not configured for the branch country.");
         }
 
@@ -312,7 +326,8 @@ namespace BillService.API.Services
                 return new();
             }
 
-            if (treatment == BillTaxTreatment.UaeVat)
+            if (treatment == BillTaxTreatment.UaeVat ||
+                treatment == BillTaxTreatment.GeneralVat)
             {
                 return new()
                 {

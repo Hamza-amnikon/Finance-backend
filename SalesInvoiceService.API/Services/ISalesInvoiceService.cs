@@ -1,4 +1,4 @@
-﻿using SalesInvoiceService.API.DTOs;
+using SalesInvoiceService.API.DTOs;
 
 namespace SalesInvoiceService.API.Services
 {
@@ -21,6 +21,7 @@ namespace SalesInvoiceService.API.Services
             GetAllAsync(
                 int page,
                 int pageSize,
-                CancellationToken cancellationToken);
+                CancellationToken cancellationToken,
+                string? branch = null);
     }
 }

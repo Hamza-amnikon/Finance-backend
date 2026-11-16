@@ -29,7 +29,8 @@ namespace SalesInvoiceService.API.Controllers
             [FromQuery] int pageSize = 25,
             [FromQuery] string? search = null,
             [FromQuery] SalesCreditNoteStatus? status = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            [FromQuery] string? branch = null)
         {
             return HandleAsync(async () =>
             {
@@ -38,7 +39,8 @@ namespace SalesInvoiceService.API.Controllers
                     pageSize,
                     search,
                     status,
-                    cancellationToken);
+                    cancellationToken,
+                    branch);
 
                 return Ok(new
                 {

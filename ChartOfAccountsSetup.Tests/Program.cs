@@ -4,6 +4,8 @@ using AccountingService.API.Models;
 using AccountingService.API.Repositories;
 using AccountingService.API.Services;
 
+await GeneralVatSetupChecks.RunAsync();
+
 var repository = new SetupRepository();
 var service = new ChartOfAccountsSetupService(repository);
 
@@ -35,6 +37,56 @@ catch (ValidationException)
     Check(repository.Accounts.Count == total, "Unknown companies are rejected without creating accounts.");
 }
 
+var generalAccounts = await service.SetupAsync(
+    305,
+    CancellationToken.None);
+
+Check(
+    generalAccounts.Count == firstCompany.Count - 2,
+    "Oman receives the common accounts without the Dubai VAT accounts.");
+Check(
+    generalAccounts.All(account =>
+        account.CompanyId == 305 && account.Currency == "OMR"),
+    "General accounts use the selected company's identity and currency.");
+Check(
+    generalAccounts.Select(account => account.Type).Distinct().Count() == 5,
+    "General accounts cover assets, liabilities, equity, income and expenses.");
+Check(
+    generalAccounts.All(account =>
+        account.SystemKey != "INPUT_VAT" &&
+        account.SystemKey != "OUTPUT_VAT" &&
+        account.SystemKey != "INPUT_CGST" &&
+        account.SystemKey != "INPUT_SGST" &&
+        account.SystemKey != "OUTPUT_CGST" &&
+        account.SystemKey != "OUTPUT_SGST"),
+    "No country-specific VAT or GST accounts are assumed for Oman.");
+
+var generalIds = generalAccounts.Select(account => account.Id).ToArray();
+var repeatedGeneral = await service.SetupAsync(
+    305,
+    CancellationToken.None);
+
+Check(
+    generalIds.SequenceEqual(repeatedGeneral.Select(account => account.Id)),
+    "Repeating general setup preserves account IDs without duplicates.");
+
+var arbitraryCountry = await service.SetupAsync(
+    406,
+    CancellationToken.None);
+
+Check(
+    generalAccounts.Select(account => account.Code).SequenceEqual(
+        arbitraryCountry.Select(account => account.Code)),
+    "Another new country receives the same general account structure.");
+Check(
+    repository.Accounts.All(account =>
+        !account.ParentAccountId.HasValue ||
+        repository.Accounts.Any(parent =>
+            parent.Id == account.ParentAccountId &&
+            parent.CompanyId == account.CompanyId &&
+            !parent.IsPostingAccount)),
+    "Parent groups remain within each company's accounts.");
+
 static void Check(bool condition, string description)
 {
     if (!condition)
@@ -47,6 +99,13 @@ static void Check(bool condition, string description)
 
 internal sealed class SetupRepository : IAccountRepository
 {
+    public Task<bool> HasGeneralVatAsync(
+        string country,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(false);
+    }
+
     public List<Account> Accounts { get; } = [];
 
     private readonly List<AccountingCompanyLookup> _companies =
@@ -64,6 +123,20 @@ internal sealed class SetupRepository : IAccountRepository
             Name = "Second test company",
             Country = "IN",
             Currency = "INR"
+        },
+        new()
+        {
+            Id = 305,
+            Name = "Oman test company",
+            Country = "OM",
+            Currency = "OMR"
+        },
+        new()
+        {
+            Id = 406,
+            Name = "Arbitrary new country test company",
+            Country = "ZZ",
+            Currency = "XYZ"
         }
     ];
 

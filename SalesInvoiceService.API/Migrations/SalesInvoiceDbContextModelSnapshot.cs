@@ -145,12 +145,13 @@ namespace SalesInvoiceService.API.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasDefaultValue("");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("PK_BranchMasters");
 
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("BranchMasters", "sales");
+                    b.ToTable("Branches", "amnikon");
                 });
 
             modelBuilder.Entity("SalesInvoiceService.API.Models.CreditNoteNumberCounter", b =>

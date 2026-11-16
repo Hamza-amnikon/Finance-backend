@@ -53,7 +53,7 @@ namespace SalesEstimateService.API.Services
             }
 
             var branch = await _context.Database.SqlQuery<EstimateTaxBranch>($"""
-                SELECT AccountingCompanyId, CountryCode FROM sales.BranchMasters
+                SELECT AccountingCompanyId, CountryCode FROM amnikon.Branches
                 WHERE Name = {branchName} AND IsActive = 1
                 """).SingleOrDefaultAsync(cancellationToken);
 
@@ -90,6 +90,13 @@ namespace SalesEstimateService.API.Services
                 components.Sum(row => row.Rate) != choice.Rate || choice.Rate < 0 || choice.Rate > 100)
             {
                 throw new ArgumentException("The selected tax setting has inconsistent components. Review Tax Settings.");
+            }
+
+            if (treatment == SalesEstimateTaxTreatment.GeneralVat &&
+                components.Count != 1)
+            {
+                throw new ArgumentException(
+                    "General VAT requires one configured VAT component.");
             }
 
             if (treatment == SalesEstimateTaxTreatment.IndiaCgstSgst &&

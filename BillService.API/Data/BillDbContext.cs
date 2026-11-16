@@ -65,7 +65,7 @@ namespace BillService.API.Data
             // Read-only mappings over existing shared tables; migrations do not own them.
             builder.Entity<PurchaseVendorLookup>().HasNoKey().ToView("VendorMaster", "purchases");
             builder.Entity<PurchaseCurrencyLookup>().HasNoKey().ToView("CurrencyMasters", "sales");
-            builder.Entity<PurchaseBranchLookup>().HasNoKey().ToView("BranchMasters", "sales");
+            builder.Entity<PurchaseBranchLookup>().HasNoKey().ToView("Branches", "amnikon");
         }
     }
 }
