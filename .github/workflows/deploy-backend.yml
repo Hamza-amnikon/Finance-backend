@@ -25,6 +25,7 @@ jobs:
       - name: Check out the pushed commit
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Restore .NET solution
@@ -160,28 +161,41 @@ jobs:
           $backupRoot = Join-Path 'C:\ProgramData\SparkFinance\deploy-backups' $env:GITHUB_RUN_ID
           $deploymentError = $null
 
+          $before = '${{ github.event.before }}'
           $servicesToDeploy = @()
-          foreach ($service in $services) {
-            $source = Join-Path $outputRoot $service
-            $target = Join-Path $publishRoot $service
-            $changed = $false
+          if ($before -match '^0+$') {
+            $servicesToDeploy = $services
+          }
+          else {
+            $changedPaths = @(& git diff --name-only $before $env:GITHUB_SHA --)
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not compare backend commits $before and $env:GITHUB_SHA"
+            }
 
-            foreach ($file in (Get-ChildItem -LiteralPath $source -Recurse -File)) {
-              if ($file.Name -eq 'web.config' -or $file.Name -like 'appsettings*.json') {
+            $changedServices = @{}
+            $deployAll = $false
+            foreach ($path in $changedPaths) {
+              $normalized = $path.Replace('\', '/')
+              $folder = ($normalized -split '/')[0]
+
+              if ($services -contains $folder) {
+                $changedServices[$folder] = $true
+              }
+              elseif ($folder -eq '.github' -or $folder -like '*.Tests' -or
+                      $normalized -like '*.md') {
                 continue
               }
-
-              $relative = $file.FullName.Substring($source.Length).TrimStart('\')
-              $destination = Join-Path $target $relative
-              if (-not (Test-Path -LiteralPath $destination) -or
-                  (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash -ne
-                  (Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash) {
-                $changed = $true
+              else {
+                $deployAll = $true
                 break
               }
             }
 
-            if ($changed) { $servicesToDeploy += $service }
+            $servicesToDeploy = if ($deployAll) {
+              $services
+            } else {
+              @($services | Where-Object { $changedServices.ContainsKey($_) })
+            }
           }
 
           Write-Host "Services with changed files: $($servicesToDeploy -join ', ')"
