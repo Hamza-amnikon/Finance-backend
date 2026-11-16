@@ -229,3 +229,35 @@ jobs:
           }
 
           Write-Host "Published backend commit $env:GITHUB_SHA to $publishRoot"
+
+      - name: Verify Roles and Permissions APIs
+        run: |
+          $endpoints = @(
+            'http://127.0.0.1/api/role',
+            'http://127.0.0.1/api/permissions'
+          )
+
+          foreach ($endpoint in $endpoints) {
+            $verified = $false
+            for ($attempt = 1; $attempt -le 6; $attempt++) {
+              try {
+                $response = Invoke-WebRequest -Uri $endpoint -UseBasicParsing -TimeoutSec 20
+                if ($response.StatusCode -eq 200 -and $response.Headers['Content-Type'] -match 'application/json') {
+                  $verified = $true
+                  break
+                }
+              }
+              catch {
+                Start-Sleep -Seconds 5
+              }
+            }
+            if (-not $verified) { throw "API smoke check failed: $endpoint" }
+          }
+
+          try {
+            $response = Invoke-WebRequest -Uri 'http://127.0.0.1/api/role-permissions/1' -UseBasicParsing -TimeoutSec 20
+            throw "Unauthenticated role permissions returned $($response.StatusCode)"
+          }
+          catch {
+            if ([int]$_.Exception.Response.StatusCode -ne 401) { throw }
+          }
