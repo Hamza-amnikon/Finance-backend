@@ -13,7 +13,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-if (builder.Environment.IsDevelopment())
+var testAdminEnabled = builder.Environment.IsDevelopment() ||
+    builder.Environment.IsEnvironment("Testing");
+
+if (testAdminEnabled)
 {
     builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
         .AddCookie(options =>
@@ -21,7 +24,9 @@ if (builder.Environment.IsDevelopment())
             options.Cookie.Name = "Finance.DevelopmentAdmin";
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+                ? CookieSecurePolicy.Always
+                : CookieSecurePolicy.SameAsRequest;
             options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.SlidingExpiration = false;
             options.Events.OnRedirectToLogin = context =>
@@ -78,20 +83,23 @@ app.UseFinanceRequestCancellation();
 
 app.UseHttpsRedirection();
 
-if (app.Environment.IsDevelopment())
+if (testAdminEnabled)
 {
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseRateLimiter();
     app.MapDevelopmentAdmin();
-    app.MapOpenApi();
-
-    app.UseSwaggerUI(options =>
+    if (app.Environment.IsDevelopment())
     {
-        options.SwaggerEndpoint(
-            "../openapi/v1.json",
-            "Finance Role Service v1");
-    });
+        app.MapOpenApi();
+
+        app.UseSwaggerUI(options =>
+        {
+            options.SwaggerEndpoint(
+                "../openapi/v1.json",
+                "Finance Role Service v1");
+        });
+    }
 
     app.MapControllers();
 }

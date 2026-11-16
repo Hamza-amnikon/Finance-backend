@@ -19,8 +19,11 @@ namespace PermissionService.API.Authentication
             services.AddOptions<LoginSessionSettings>()
                 .Bind(section)
                 .Validate(options => !options.UseDevelopmentSession ||
-                    (environment.IsDevelopment() &&
-                     roleServiceUri.Scheme == Uri.UriSchemeHttps &&
+                    ((environment.IsDevelopment() || environment.IsEnvironment("Testing")) &&
+                     (roleServiceUri.Scheme == Uri.UriSchemeHttps ||
+                      (environment.IsEnvironment("Testing") &&
+                       roleServiceUri.IsLoopback &&
+                       roleServiceUri.Scheme == Uri.UriSchemeHttp)) &&
                      !string.IsNullOrWhiteSpace(options.SessionCookieName) &&
                      options.SessionCookieName.All(character =>
                          char.IsAsciiLetterOrDigit(character) ||
@@ -28,7 +31,7 @@ namespace PermissionService.API.Authentication
                      options.ManageRolePermissionsRoles.Length > 0 &&
                      options.ManageRolePermissionsRoles.All(role =>
                          !string.IsNullOrWhiteSpace(role))),
-                    "Development session authentication requires Development, HTTPS Role Service, a cookie name and management roles.")
+                    "Test session authentication requires Development with HTTPS or Testing with a loopback Role Service, a cookie name and management roles.")
                 .ValidateOnStart();
 
             services.AddHttpClient<ILoginSessionClient, LoginSessionClient>(client =>

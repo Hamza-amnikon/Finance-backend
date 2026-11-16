@@ -32,7 +32,8 @@ namespace PermissionService.API.Authentication
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            if (!_environment.IsDevelopment() ||
+            if ((!_environment.IsDevelopment() &&
+                 !_environment.IsEnvironment("Testing")) ||
                 !_settings.UseDevelopmentSession)
             {
                 return AuthenticateResult.NoResult();
