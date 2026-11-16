@@ -26,6 +26,7 @@ await using var orders = new PurchaseOrderDbContext(new DbContextOptionsBuilder<
 await using var bills = new BillDbContext(new DbContextOptionsBuilder<BillDbContext>().UseSqlServer(connection).Options);
 var created = false;
 var checks = DiscountCalculationChecks.Run();
+GeneralVatPostingChecks.Run();
 void Check(bool condition, string message)
 {
     if (!condition)
@@ -227,6 +228,64 @@ try
     }, default);
     Check(indiaInvoice.TaxTreatment == I.SalesInvoiceTaxTreatment.IndiaIgst && indiaInvoice.GrandTotal == 1050,
         "Turbhe IGST carries through estimate conversion without a manual treatment");
+    client.Branch = "Dubai";
+
+    await invoices.Database.ExecuteSqlRawAsync("""
+        INSERT INTO expenses.Companies VALUES(3,'OM');
+        INSERT INTO accounting.TaxTypes VALUES(4,'OM','GeneralVat',1);
+        INSERT INTO accounting.TaxRates(Id,CompanyId,TaxTypeId,Code,Name,Rate,ComponentsJson,EffectiveFrom,EffectiveTo,IsActive)
+        VALUES(4,3,4,'OM-TEST','Illustrative configurable VAT',7.5,'[{{"Name":"VAT","Rate":7.5}}]','2020-01-01','2099-12-31',1);
+        """);
+    invoices.BranchMasters.Add(new I.BranchMaster
+    {
+        Name = "Muscat",
+        CountryCode = "OM",
+        AccountingCompanyId = 3,
+        IsActive = true
+    });
+    await invoices.SaveChangesAsync();
+
+    client.Branch = "Muscat";
+    var omanChoices = await estimateTax.ChoicesAsync("Muscat", date, default);
+    var omanChoice = omanChoices.Single();
+    Check(omanChoice.Treatment == "GeneralVat", "Oman reads the configured general VAT treatment");
+    var omanRequest = EstimateRequest();
+    omanRequest.Branch = "Muscat";
+    omanRequest.Items[0].TaxSettingId = omanChoice.Id;
+    omanRequest.Items[0].TaxSettingRowVersion = Convert.ToBase64String(omanChoice.RowVersion);
+    var omanEstimate = await estimateService.CreateAsync(omanRequest, default);
+    Check(omanEstimate.TaxTotal == 75 && omanEstimate.GrandTotal == 1075,
+        "Oman calculates the saved illustrative rate rather than a country default");
+    sent = (await estimateService.MarkAsSentAsync(omanEstimate.Id,
+        new ED.SalesEstimateActionDto { RowVersion = omanEstimate.RowVersion }, default))!;
+    accepted = (await estimateService.AcceptAsync(sent.Id,
+        new ED.SalesEstimateActionDto { RowVersion = sent.RowVersion }, default))!;
+    var omanInvoice = await converter.CreateAsync(new ID.CreateInvoiceFromEstimateDto
+    {
+        EstimateId = accepted.Id,
+        RowVersion = accepted.RowVersion,
+        InvoiceDate = date,
+        DueDate = date.AddDays(1)
+    }, default);
+    Check(omanInvoice.TaxTreatment == I.SalesInvoiceTaxTreatment.GeneralVat &&
+        omanInvoice.TaxTotal == 75 && omanInvoice.GrandTotal == 1075,
+        "Oman estimate conversion preserves general VAT and totals");
+    var omanOrderRequest = OrderRequest();
+    omanOrderRequest.Branch = "Muscat";
+    omanOrderRequest.Items[0].TaxSettingId = omanChoice.Id;
+    omanOrderRequest.Items[0].TaxSettingRowVersion = Convert.ToBase64String(omanChoice.RowVersion);
+    var omanOrder = await orderService.CreateAsync(omanOrderRequest, default);
+    orders.ChangeTracker.Clear();
+    var omanIssued = (await orderService.ChangeStatusAsync(omanOrder.Id,
+        P.PurchaseOrderStatus.Issued, omanOrder.RowVersion, default))!;
+    var omanBill = (await billConverter.ConvertAsync(omanOrder.Id, omanIssued.RowVersion, default))!;
+    Check(omanBill.TaxTreatment == B.BillTaxTreatment.GeneralVat &&
+        omanBill.TaxTotal == 75 && omanBill.GrandTotal == 1075,
+        "Oman purchase order conversion preserves general VAT and totals");
+    omanRequest.Items[0].TaxSettingId = choices.Single().Id;
+    omanRequest.Items[0].TaxSettingRowVersion = Convert.ToBase64String(choices.Single().RowVersion);
+    await Reject(() => estimateService.PreviewAsync(omanRequest, default),
+        "Oman rejects a Dubai company's tax setting");
     client.Branch = "Dubai";
 
     var expiredEstimate = await estimateService.CreateAsync(EstimateRequest(), default);

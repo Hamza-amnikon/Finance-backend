@@ -144,6 +144,42 @@ namespace ExpenseService.API.Controllers
             }, cancellationToken);
         }
 
+        [HttpGet("company-setup")]
+        public Task<IActionResult> CompanySetup(
+            [FromServices] CompanySetupService setup,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync(async () =>
+            {
+                return Ok(await setup.GetAllAsync(cancellationToken));
+            }, cancellationToken);
+        }
+
+        [HttpPost("company-setup")]
+        public Task<IActionResult> CreateCompanySetup(
+            [FromBody] CompanySetupRequest request,
+            [FromServices] CompanySetupService setup,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync(async () =>
+            {
+                try
+                {
+                    var result = await setup.CreateAsync(request, cancellationToken);
+                    return StatusCode(201, result);
+                }
+                catch (InvalidOperationException exception)
+                    when (exception.Message == "A company with this name already exists." ||
+                          exception.Message == "A branch with this name already exists.")
+                {
+                    return Conflict(new
+                    {
+                        message = exception.Message
+                    });
+                }
+            }, cancellationToken);
+        }
+
         [HttpGet("companies")]
         public Task<IActionResult> Companies(
             CancellationToken cancellationToken)

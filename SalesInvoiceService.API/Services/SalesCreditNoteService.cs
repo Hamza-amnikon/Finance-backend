@@ -268,7 +268,8 @@ namespace SalesInvoiceService.API.Services
             }
 
             if (taxTreatment ==
-                SalesInvoiceTaxTreatment.UaeVat)
+                SalesInvoiceTaxTreatment.UaeVat ||
+                taxTreatment == SalesInvoiceTaxTreatment.GeneralVat)
             {
                 return new()
                 {

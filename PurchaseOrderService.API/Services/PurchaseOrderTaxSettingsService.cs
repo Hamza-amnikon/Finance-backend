@@ -84,6 +84,13 @@ namespace PurchaseOrderService.API.Services
                 throw new ArgumentException("The selected tax setting has inconsistent components. Review Tax Settings.");
             }
 
+            if (treatment == PurchaseOrderTaxTreatment.GeneralVat &&
+                components.Count != 1)
+            {
+                throw new ArgumentException(
+                    "General VAT requires one configured VAT component.");
+            }
+
             if (treatment == PurchaseOrderTaxTreatment.IndiaCgstSgst &&
                 (components.Count != 2 || components[0].Rate != components[1].Rate))
             {

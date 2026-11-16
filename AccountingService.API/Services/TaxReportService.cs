@@ -40,6 +40,13 @@ namespace AccountingService.API.Services
                     "Accounting company was not found.");
             }
 
+            var hasGeneralVat = await _context.TaxTypes
+                .AsNoTracking()
+                .AnyAsync(
+                    type => type.CountryCode == company.Country &&
+                        type.Treatment == "GeneralVat",
+                    cancellationToken);
+
             var taxKeys = company.Country == "AE"
                 ? new[] { "INPUT_VAT", "OUTPUT_VAT" }
                 : company.Country == "IN"
@@ -49,7 +56,9 @@ namespace AccountingService.API.Services
                         "OUTPUT_CGST", "OUTPUT_SGST", "OUTPUT_IGST",
                         "TDS_RECEIVABLE", "TDS_PAYABLE"
                     }
-                    : [];
+                    : hasGeneralVat
+                        ? new[] { "INPUT_VAT", "OUTPUT_VAT" }
+                        : [];
 
             var accounts = await _context.Accounts
                 .AsNoTracking()

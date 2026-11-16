@@ -14,7 +14,8 @@ namespace SalesInvoiceService.API.Models
         NoTax = 0,
         UaeVat = 1,
         IndiaCgstSgst = 2,
-        IndiaIgst = 3
+        IndiaIgst = 3,
+        GeneralVat = 4
     }
 
     public class SalesInvoice

@@ -39,6 +39,10 @@ namespace AccountingService.API.Repositories
         Task<List<AccountingCompanyLookup>> GetCompaniesAsync(
             CancellationToken cancellationToken);
 
+        Task<bool> HasGeneralVatAsync(
+            string country,
+            CancellationToken cancellationToken);
+
         Task AddAsync(
             Account account,
             CancellationToken cancellationToken);

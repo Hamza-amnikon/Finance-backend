@@ -92,6 +92,21 @@ namespace AccountingService.API.Repositories
                     cancellationToken);
         }
 
+        public Task<bool> HasGeneralVatAsync(
+            string country,
+            CancellationToken cancellationToken)
+        {
+            var countryCode = country.Trim().ToUpperInvariant();
+
+            return _context.TaxTypes
+                .AsNoTracking()
+                .AnyAsync(
+                    type => type.CountryCode == countryCode &&
+                        type.Treatment == "GeneralVat" &&
+                        type.IsActive,
+                    cancellationToken);
+        }
+
         public Task<bool> CompanyExistsAsync(
             int companyId,
             CancellationToken cancellationToken)

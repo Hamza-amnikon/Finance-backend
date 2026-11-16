@@ -5,6 +5,7 @@ namespace SalesEstimateService.API.Models
         NoTax,
         UaeVat,
         IndiaCgstSgst,
-        IndiaIgst
+        IndiaIgst,
+        GeneralVat
     }
 }

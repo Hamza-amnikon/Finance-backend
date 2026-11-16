@@ -5,6 +5,7 @@ namespace PurchaseOrderService.API.Models
         NoTax,
         UaeVat,
         IndiaCgstSgst,
-        IndiaIgst
+        IndiaIgst,
+        GeneralVat
     }
 }
