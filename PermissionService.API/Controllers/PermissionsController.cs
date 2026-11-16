@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,7 @@ namespace PermissionService.API.Controllers
             });
         }
 
+        [Authorize(Policy = "ManageRolePermissions")]
         [HttpPost]
         public Task<IActionResult> Create(
             [FromBody] PermissionRequest request,
@@ -76,6 +78,7 @@ namespace PermissionService.API.Controllers
             });
         }
 
+        [Authorize(Policy = "ManageRolePermissions")]
         [HttpPut("{permissionId:int:min(1)}")]
         public Task<IActionResult> Update(
             int permissionId,
