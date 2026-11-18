@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using RoleService.API;
+using RoleService.API.Authentication;
 using RoleService.API.Repositories;
 using RoleService.API.Services;
 using RoleServiceImplementation = RoleService.API.Services.RoleService;
@@ -91,16 +92,44 @@ builder.Services.AddDbContext<RoleDbContext>(options =>
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IRoleService, RoleServiceImplementation>();
 
+builder.Services.AddScoped<
+    IUserRepository,
+    UserRepository>();
+
+builder.Services.AddScoped<
+    IUserService,
+    UserService>();
+
+var microsoftSsoEnabled = builder.Configuration.GetValue<bool>("MicrosoftWeb:Enabled");
+if (microsoftSsoEnabled)
+{
+    builder.Services.AddFinanceMicrosoftAuthentication(
+        builder.Configuration,
+        builder.Environment);
+}
+
 var app = builder.Build();
+
+var requiredMicrosoftScopes = builder.Configuration
+    .GetSection("AzureAd:RequiredScopes")
+    .Get<string[]>();
+
+if (microsoftSsoEnabled && (requiredMicrosoftScopes == null || requiredMicrosoftScopes.Length == 0))
+{
+    app.Logger.LogWarning(
+        "Microsoft JWT access is blocked until AzureAd:RequiredScopes contains the API scope configured in Entra. " +
+        "The development Admin cookie login remains available.");
+}
 
 app.UseFinanceRequestCancellation();
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (testAdminEnabled)
 {
-    app.UseAuthentication();
-    app.UseAuthorization();
     app.UseRateLimiter();
     app.MapDevelopmentAdmin();
     if (app.Environment.IsDevelopment())
@@ -115,6 +144,10 @@ if (testAdminEnabled)
         });
     }
 
+}
+
+if (testAdminEnabled || microsoftSsoEnabled)
+{
     app.MapControllers();
 }
 

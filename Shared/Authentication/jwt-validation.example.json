@@ -1,0 +1,9 @@
+{
+  "JwtValidation": {
+    "Issuer": "",
+    "Audience": "",
+    "PublicKey": "",
+    "ClockSkewSeconds": 0,
+    "CookieName": "Finance.Jwt"
+  }
+}

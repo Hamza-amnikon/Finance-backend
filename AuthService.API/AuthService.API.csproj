@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <!-- MERIT AuthService and RoleService share their existing development configuration. -->
+        <UserSecretsId>c8b7ba33-dfe4-4fa5-8c1a-4a57fd368d59</UserSecretsId>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+        <PackageReference Include="Microsoft.Identity.Web" Version="4.18.0" />
+        <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.0" />
+        <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
+    </ItemGroup>
+    <ItemGroup>
+        <!-- Reuse the validated implementation while keeping RoleService's existing endpoints compatible. -->
+        <Compile Include="../RoleService.API/Authentication/*.cs" Link="Authentication/%(Filename)%(Extension)" />
+        <Compile Include="../RoleService.API/Controllers/AuthController.cs" Link="Controllers/AuthController.cs" />
+        <Compile Include="../RoleService.API/DTOs/UserSessionResponse.cs" Link="DTOs/UserSessionResponse.cs" />
+        <Compile Include="../RoleService.API/Services/IJwtService.cs" Link="Services/IJwtService.cs" />
+        <Compile Include="../RoleService.API/Services/JwtService.cs" Link="Services/JwtService.cs" />
+        <Compile Include="../RoleService.API/Data/RoleDbContext.cs" Link="Data/RoleDbContext.cs" />
+        <Compile Include="../RoleService.API/Models/*.cs" Link="Models/%(Filename)%(Extension)" />
+        <Compile Include="../RoleService.API/Repositories/*.cs" Link="Repositories/%(Filename)%(Extension)" />
+        <Compile Include="../Shared/Http/RequestCancellation.cs" Link="Shared/RequestCancellation.cs" />
+    </ItemGroup>
+</Project>

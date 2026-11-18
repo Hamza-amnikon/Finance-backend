@@ -12,5 +12,7 @@ namespace ClientService.API.DTOs
 
         [MaxLength(200)]
         public string? Search { get; set; }
+
+        public bool? IsActive { get; set; }
     }
 }

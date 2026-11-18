@@ -116,6 +116,9 @@ namespace PermissionService.API.Migrations
                     b.Property<bool>("CanVoid")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("CompanyId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
@@ -136,7 +139,7 @@ namespace PermissionService.API.Migrations
 
                     b.HasKey("RolePermissionId");
 
-                    b.HasIndex("RoleId", "PermissionId")
+                    b.HasIndex("RoleId", "CompanyId", "PermissionId")
                         .IsUnique();
 
                     b.ToTable("RolePermissions", "security");

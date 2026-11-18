@@ -17,9 +17,15 @@ namespace ClientService.API.Repositories
             int page,
             int pageSize,
             string? search,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool? isActive = null)
         {
             var query = _context.Clients.AsNoTracking();
+
+            if (isActive.HasValue)
+            {
+                query = query.Where(client => client.IsActive == isActive.Value);
+            }
 
             if (!string.IsNullOrWhiteSpace(search))
             {

@@ -16,12 +16,14 @@ namespace PermissionService.API.Repositories
 
         public async Task<List<RolePermission>> GetByRoleIdAsync(
             int roleId,
+            int companyId,
             CancellationToken cancellationToken)
         {
             return await _context.RolePermissions
                 .AsNoTracking()
                 .Where(rolePermission =>
-                    rolePermission.RoleId == roleId)
+                    rolePermission.RoleId == roleId &&
+                    rolePermission.CompanyId == companyId)
                 .OrderBy(rolePermission =>
                     rolePermission.PermissionId)
                 .ToListAsync(cancellationToken);
@@ -42,6 +44,7 @@ namespace PermissionService.API.Repositories
 
         public async Task SaveAsync(
             int roleId,
+            int companyId,
             List<RolePermission> rolePermissions,
             CancellationToken cancellationToken)
         {
@@ -50,6 +53,13 @@ namespace PermissionService.API.Repositories
                 throw new ArgumentException(
                     "Select a valid role.",
                     nameof(roleId));
+            }
+
+            if (companyId <= 0)
+            {
+                throw new ArgumentException(
+                    "Select a valid company.",
+                    nameof(companyId));
             }
 
             if (rolePermissions == null)
@@ -62,10 +72,11 @@ namespace PermissionService.API.Repositories
 
             foreach (var rolePermission in rolePermissions)
             {
-                if (rolePermission.RoleId != roleId)
+                if (rolePermission.RoleId != roleId ||
+                    rolePermission.CompanyId != companyId)
                 {
                     throw new ArgumentException(
-                        "Every permission assignment must belong to the selected role.",
+                        "Every permission assignment must belong to the selected role and company.",
                         nameof(rolePermissions));
                 }
 
@@ -91,7 +102,8 @@ namespace PermissionService.API.Repositories
 
             var existingAssignments = await _context.RolePermissions
                 .Where(rolePermission =>
-                    rolePermission.RoleId == roleId)
+                    rolePermission.RoleId == roleId &&
+                    rolePermission.CompanyId == companyId)
                 .ToListAsync(cancellationToken);
 
             var existingAssignmentsByPermissionId =
@@ -132,6 +144,7 @@ namespace PermissionService.API.Repositories
                     var newAssignment = new RolePermission
                     {
                         RoleId = roleId,
+                        CompanyId = companyId,
                         PermissionId = requestedAssignment.PermissionId,
                         CreatedDate = savedAtUtc
                     };

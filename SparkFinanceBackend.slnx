@@ -1,5 +1,8 @@
 <Solution>
+  <Project Path="Shared/Authentication/SparkFinance.Authentication.csproj" />
   <Project Path="AccountingService.API/AccountingService.API.csproj" Id="a888b108-35d8-4089-8ede-430c8dd30f81" />
+  <Project Path="AuthService.API/AuthService.API.csproj" />
+  <Project Path="AzureADService/AzureADService.csproj" />
   <Project Path="BankingService.API/BankingService.API.csproj" Id="aa605ca9-b5df-4306-a1df-8914909a3fe0" />
   <Project Path="BillService.API/BillService.API.csproj" />
   <Project Path="ClientService.API/ClientService.API.csproj" />

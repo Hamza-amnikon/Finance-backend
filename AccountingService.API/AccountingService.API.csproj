@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>merit-accounting-service</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../Shared/Authentication/SparkFinance.Authentication.csproj" />
     <Compile Include="..\Shared\Auditing\FinanceAudit.cs" Link="Shared\FinanceAudit.cs" />
   </ItemGroup>
   <ItemGroup>

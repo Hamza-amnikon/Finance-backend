@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using PermissionService.API.DTOs;
@@ -27,6 +28,10 @@ namespace PermissionService.API.Controllers
         [HttpGet("{roleId:int:min(1)}")]
         public Task<IActionResult> GetByRoleId(
             int roleId,
+            [FromQuery]
+            [BindRequired]
+            [Range(1, int.MaxValue)]
+            int companyId,
             CancellationToken cancellationToken)
         {
             return HandleAsync(
@@ -34,6 +39,7 @@ namespace PermissionService.API.Controllers
                 {
                     var assignments = await _service.GetByRoleIdAsync(
                         roleId,
+                        companyId,
                         cancellationToken);
 
                     return Ok(assignments);
@@ -87,15 +93,15 @@ namespace PermissionService.API.Controllers
             {
                 _logger.LogError(
                     exception,
-                    "Role Service could not be used to validate the selected role.");
+                    "A lookup service could not validate the selected role or company.");
 
                 return StatusCode(
                     StatusCodes.Status503ServiceUnavailable,
                     new
                     {
                         message =
-                            "Role Service is unavailable or returned an unexpected response. " +
-                            "Check that it is running and try again."
+                            "Role Service or Company Service is unavailable or returned an unexpected response. " +
+                            "Check that both services are running and try again."
                     });
             }
             catch (OperationCanceledException exception)
@@ -131,7 +137,7 @@ namespace PermissionService.API.Controllers
                 return Conflict(new
                 {
                     message =
-                        "A permission assignment already exists for this role. " +
+                        "A permission assignment already exists for this role and company. " +
                         "Refresh the assignments before trying again."
                 });
             }

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 
 namespace RoleService.API
 {
@@ -23,7 +24,12 @@ namespace RoleService.API
             {
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.NoContent();
-            }).RequireAuthorization();
+            })
+                .RequireAuthorization(new AuthorizeAttribute
+                {
+                    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
+                    Roles = AdminRole
+                });
         }
 
         private static IResult GetSession(ClaimsPrincipal user)
@@ -80,6 +86,12 @@ namespace RoleService.API
             await context.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(identity));
+
+            if (configuration.GetValue<bool>("MicrosoftWeb:Enabled"))
+            {
+                await context.SignOutAsync(Authentication.FinanceAuthenticationSchemes.MicrosoftCookie);
+                Authentication.MeritJwtCookie.Clear(context.Response);
+            }
 
             return Results.Ok(new
             {

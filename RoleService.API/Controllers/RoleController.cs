@@ -148,6 +148,13 @@ namespace RoleService.API.Controllers
                     {
                         message = "The role changed. Reload it and try again."
                     }),
+                RoleChangeResult.RoleInUse =>
+                    Conflict(new
+                    {
+                        message =
+                            "This role is in use and cannot be deleted. " +
+                            "Reassign users to another role before deleting it."
+                    }),
                 _ => throw new InvalidOperationException("Unexpected role change result.")
             };
         }
