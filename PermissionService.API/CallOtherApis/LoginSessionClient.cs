@@ -56,8 +56,7 @@ namespace PermissionService.API.CallOtherApis
                 request,
                 cancellationToken);
 
-            if (response.StatusCode == HttpStatusCode.NoContent ||
-                response.StatusCode == HttpStatusCode.Unauthorized ||
+            if (response.StatusCode == HttpStatusCode.Unauthorized ||
                 response.StatusCode == HttpStatusCode.Forbidden)
             {
                 return null;

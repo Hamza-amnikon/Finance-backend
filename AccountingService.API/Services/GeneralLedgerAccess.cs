@@ -61,9 +61,7 @@ namespace AccountingService.API.Services
                 (requestedMethod != "admin" &&
                     (!string.IsNullOrWhiteSpace(authorization) || !string.IsNullOrWhiteSpace(microsoftCookie)));
 
-            if (!microsoft &&
-                (!(_environment.IsDevelopment() || _environment.IsEnvironment("Testing")) ||
-                 string.IsNullOrWhiteSpace(adminCookie)))
+            if (!microsoft && (!_environment.IsDevelopment() || string.IsNullOrWhiteSpace(adminCookie)))
             {
                 return new LedgerAccess(401, false, []);
             }
@@ -85,9 +83,7 @@ namespace AccountingService.API.Services
 
             var setting = microsoft ? "AuthSessionUrl" : "AdminSessionUrl";
             if (!Uri.TryCreate(_configuration["GeneralLedgerAccess:" + setting], UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttps &&
-                 !(_environment.IsEnvironment("Testing") && uri.IsLoopback &&
-                   uri.Scheme == Uri.UriSchemeHttp)))
+                uri.Scheme != Uri.UriSchemeHttps)
             {
                 throw new HttpRequestException("Configure the HTTPS session verification URL.");
             }

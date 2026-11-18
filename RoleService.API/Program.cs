@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using RoleService.API.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using RoleService.API;
 using RoleService.API.Authentication;
@@ -15,23 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-var testAdminEnabled = builder.Environment.IsDevelopment() ||
-    builder.Environment.IsEnvironment("Testing");
-
-if (builder.Environment.IsEnvironment("Testing"))
-{
-    var keysPath = builder.Configuration["DataProtection:KeysPath"];
-    if (string.IsNullOrWhiteSpace(keysPath))
-    {
-        throw new InvalidOperationException("Configure DataProtection:KeysPath for Testing.");
-    }
-
-    builder.Services.AddDataProtection()
-        .SetApplicationName("SparkFinance.RoleService.Testing")
-        .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
-}
-
-if (testAdminEnabled)
+if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
         .AddCookie(options =>
@@ -39,9 +22,7 @@ if (testAdminEnabled)
             options.Cookie.Name = "Finance.DevelopmentAdmin";
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
-            options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-                ? CookieSecurePolicy.Always
-                : CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.SlidingExpiration = false;
             options.Events.OnRedirectToLogin = context =>
@@ -100,13 +81,9 @@ builder.Services.AddScoped<
     IUserService,
     UserService>();
 
-var microsoftSsoEnabled = builder.Configuration.GetValue<bool>("MicrosoftWeb:Enabled");
-if (microsoftSsoEnabled)
-{
-    builder.Services.AddFinanceMicrosoftAuthentication(
-        builder.Configuration,
-        builder.Environment);
-}
+builder.Services.AddFinanceMicrosoftAuthentication(
+    builder.Configuration,
+    builder.Environment);
 
 var app = builder.Build();
 
@@ -114,7 +91,7 @@ var requiredMicrosoftScopes = builder.Configuration
     .GetSection("AzureAd:RequiredScopes")
     .Get<string[]>();
 
-if (microsoftSsoEnabled && (requiredMicrosoftScopes == null || requiredMicrosoftScopes.Length == 0))
+if (requiredMicrosoftScopes == null || requiredMicrosoftScopes.Length == 0)
 {
     app.Logger.LogWarning(
         "Microsoft JWT access is blocked until AzureAd:RequiredScopes contains the API scope configured in Entra. " +
@@ -128,26 +105,19 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-if (testAdminEnabled)
+if (app.Environment.IsDevelopment())
 {
     app.UseRateLimiter();
     app.MapDevelopmentAdmin();
-    if (app.Environment.IsDevelopment())
+    app.MapOpenApi();
+
+    app.UseSwaggerUI(options =>
     {
-        app.MapOpenApi();
+        options.SwaggerEndpoint(
+            "../openapi/v1.json",
+            "Finance Role Service v1");
+    });
 
-        app.UseSwaggerUI(options =>
-        {
-            options.SwaggerEndpoint(
-                "../openapi/v1.json",
-                "Finance Role Service v1");
-        });
-    }
-
-}
-
-if (testAdminEnabled || microsoftSsoEnabled)
-{
     app.MapControllers();
 }
 

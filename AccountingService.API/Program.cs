@@ -8,15 +8,10 @@ using AccountingService.API.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-var jwtValidation = builder.Configuration.GetSection("JwtValidation");
-var authentication = builder.Services.AddAuthentication();
-if (!builder.Environment.IsEnvironment("Testing") ||
-    !string.IsNullOrWhiteSpace(jwtValidation["PublicKey"]))
-{
-    authentication.AddMeritJwtValidation(
-        jwtValidation,
+builder.Services.AddAuthentication()
+    .AddMeritJwtValidation(
+        builder.Configuration.GetSection("JwtValidation"),
         AccountingAuthenticationSchemes.MeritJwt);
-}
 builder.Services.AddAuthorization();
 
 builder.Services.AddHttpContextAccessor();
