@@ -8,7 +8,8 @@ namespace RoleService.API.Services
         Success,
         NotFound,
         DuplicateName,
-        ConcurrencyConflict
+        ConcurrencyConflict,
+        RoleInUse
     }
 
     public interface IRoleService

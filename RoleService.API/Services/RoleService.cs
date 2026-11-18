@@ -114,6 +114,11 @@ namespace RoleService.API.Services
             {
                 return RoleChangeResult.ConcurrencyConflict;
             }
+            catch (DbUpdateException exception)
+                when (exception.InnerException is SqlException { Number: 547 })
+            {
+                return RoleChangeResult.RoleInUse;
+            }
 
             return RoleChangeResult.Success;
         }

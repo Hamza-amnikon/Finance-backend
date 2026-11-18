@@ -6,6 +6,8 @@
 
         public int RoleId { get; set; }
 
+        public int? CompanyId { get; set; }
+
         public int PermissionId { get; set; }
 
         public bool CanView { get; set; }

@@ -1,3 +1,4 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using ExchangeRateService.API.Data;
 using ExchangeRateService.API.Services;
@@ -104,7 +105,11 @@ namespace ExchangeRateService.API.Controllers
                 });
             }
             catch (Exception exception)
-                when (exception is not OperationCanceledException)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
+            {
+                return StatusCode(499);
+            }
+            catch (Exception exception)
             {
                 _logger.LogError(
                     exception,
@@ -149,7 +154,11 @@ namespace ExchangeRateService.API.Controllers
                 });
             }
             catch (Exception exception)
-                when (exception is not OperationCanceledException)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
+            {
+                return StatusCode(499);
+            }
+            catch (Exception exception)
             {
                 _logger.LogWarning(
                     exception,

@@ -10,25 +10,34 @@ namespace PermissionService.API.Services
     {
         private readonly IRolePermissionRepository _repository;
         private readonly IRoleServiceClient _roleServiceClient;
+        private readonly ICompanyServiceClient _companyServiceClient;
 
         public RolePermissionService(
             IRolePermissionRepository repository,
-            IRoleServiceClient roleServiceClient)
+            IRoleServiceClient roleServiceClient,
+            ICompanyServiceClient companyServiceClient)
         {
             _repository = repository;
             _roleServiceClient = roleServiceClient;
+            _companyServiceClient = companyServiceClient;
         }
 
         public async Task<List<RolePermissionResponse>> GetByRoleIdAsync(
             int roleId,
+            int companyId,
             CancellationToken cancellationToken)
         {
             await GetRequiredRoleAsync(
                 roleId,
                 cancellationToken);
 
+            await ValidateCompanyAsync(
+                companyId,
+                cancellationToken);
+
             var assignments = await _repository.GetByRoleIdAsync(
                 roleId,
+                companyId,
                 cancellationToken);
 
             return MapToResponses(assignments);
@@ -39,6 +48,10 @@ namespace PermissionService.API.Services
             CancellationToken cancellationToken)
         {
             ValidateRequest(request);
+
+            await ValidateCompanyAsync(
+                request.CompanyId,
+                cancellationToken);
 
             var role = await GetRequiredRoleAsync(
                 request.RoleId,
@@ -98,6 +111,7 @@ namespace PermissionService.API.Services
 
                 var assignment = MapToAssignment(
                     request.RoleId,
+                    request.CompanyId,
                     permissionRequest);
 
                 assignments.Add(assignment);
@@ -105,14 +119,37 @@ namespace PermissionService.API.Services
 
             await _repository.SaveAsync(
                 request.RoleId,
+                request.CompanyId,
                 assignments,
                 cancellationToken);
 
             var savedAssignments = await _repository.GetByRoleIdAsync(
                 request.RoleId,
+                request.CompanyId,
                 cancellationToken);
 
             return MapToResponses(savedAssignments);
+        }
+
+        private async Task ValidateCompanyAsync(
+            int companyId,
+            CancellationToken cancellationToken)
+        {
+            if (companyId <= 0)
+            {
+                throw new ValidationException(
+                    "Select a valid company.");
+            }
+
+            var company = await _companyServiceClient.GetByIdAsync(
+                companyId,
+                cancellationToken);
+
+            if (company == null)
+            {
+                throw new ValidationException(
+                    "The selected company was not found.");
+            }
         }
 
         private async Task<RoleLookupResponse> GetRequiredRoleAsync(
@@ -192,11 +229,13 @@ namespace PermissionService.API.Services
 
         private static RolePermission MapToAssignment(
             int roleId,
+            int companyId,
             RolePermissionRequest request)
         {
             return new RolePermission
             {
                 RoleId = roleId,
+                CompanyId = companyId,
                 PermissionId = request.PermissionId,
                 CanView = request.CanView,
                 CanCreate = request.CanCreate,
@@ -223,6 +262,7 @@ namespace PermissionService.API.Services
                 {
                     RolePermissionId = assignment.RolePermissionId,
                     RoleId = assignment.RoleId,
+                    CompanyId = assignment.CompanyId,
                     PermissionId = assignment.PermissionId,
                     CanView = assignment.CanView,
                     CanCreate = assignment.CanCreate,

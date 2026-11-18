@@ -8,7 +8,8 @@ namespace ClientService.API.Repositories
             int page,
             int pageSize,
             string? search,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            bool? isActive = null);
 
         Task<Client?> GetByIdAsync(
             Guid id,

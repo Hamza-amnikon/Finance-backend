@@ -1,4 +1,6 @@
 using SparkFinance.Http;
+using SparkFinance.Authentication;
+using AccountingService.API.Authentication;
 using System.Text.Json.Serialization;
 using AccountingService.API.Data;
 using AccountingService.API.Repositories;
@@ -6,7 +8,22 @@ using AccountingService.API.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddAuthentication()
+    .AddMeritJwtValidation(
+        builder.Configuration.GetSection("JwtValidation"),
+        AccountingAuthenticationSchemes.MeritJwt);
+builder.Services.AddAuthorization();
+
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<IGeneralLedgerAccess, GeneralLedgerAccess>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false,
+    AllowAutoRedirect = false
+});
+builder.Services.AddScoped<AccountingService.API.Controllers.GeneralLedgerAccessFilter>();
 builder.Services.AddScoped<IReconciliationReportService, ReconciliationReportService>();
 
 builder.Services
@@ -148,6 +165,9 @@ else
 app.UseCors("ReactPolicy");
 
 app.UseFinanceRequestCancellation();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

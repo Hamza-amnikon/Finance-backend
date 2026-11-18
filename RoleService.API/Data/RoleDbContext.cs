@@ -13,6 +13,8 @@ namespace RoleService.API.Data
 
         public DbSet<Roles> Roles => Set<Roles>();
 
+        public DbSet<User> Users => Set<User>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -23,6 +25,23 @@ namespace RoleService.API.Data
 
                 entity.HasIndex(role => role.Role)
                     .IsUnique();
+            });
+
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.ToTable("Users", "security");
+
+                entity.HasIndex(user => new
+                {
+                    user.TenantId,
+                    user.ObjectId
+                })
+                    .IsUnique();
+
+                entity.HasOne<Roles>()
+                    .WithMany()
+                    .HasForeignKey(user => user.RoleId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

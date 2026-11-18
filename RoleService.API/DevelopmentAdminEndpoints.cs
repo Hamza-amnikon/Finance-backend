@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 
 namespace RoleService.API
 {
@@ -23,13 +24,22 @@ namespace RoleService.API
                     name = user.Identity?.Name,
                     role = AdminRole
                 }))
-                .RequireAuthorization();
+                .RequireAuthorization(new AuthorizeAttribute
+                {
+                    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
+                    Roles = AdminRole
+                });
 
             routes.MapPost("/logout", async (HttpContext context) =>
             {
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.NoContent();
-            }).RequireAuthorization();
+            })
+                .RequireAuthorization(new AuthorizeAttribute
+                {
+                    AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
+                    Roles = AdminRole
+                });
         }
 
         private static async Task<IResult> LoginAsync(
@@ -72,6 +82,9 @@ namespace RoleService.API
             await context.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(identity));
+
+            await context.SignOutAsync(Authentication.FinanceAuthenticationSchemes.MicrosoftCookie);
+            Authentication.MeritJwtCookie.Clear(context.Response);
 
             return Results.Ok(new
             {

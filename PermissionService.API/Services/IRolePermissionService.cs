@@ -6,6 +6,7 @@ namespace PermissionService.API.Services
     {
         Task<List<RolePermissionResponse>> GetByRoleIdAsync(
             int roleId,
+            int companyId,
             CancellationToken cancellationToken);
 
         Task<List<RolePermissionResponse>> SaveAsync(

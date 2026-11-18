@@ -112,6 +112,45 @@ builder.Services.AddHttpClient<
             roleServiceTimeoutSeconds.Value);
     });
 
+var companyServiceSection =
+    builder.Configuration.GetSection("Services:CompanyService");
+
+var companyServiceBaseUrl =
+    companyServiceSection["BaseUrl"];
+
+if (!Uri.TryCreate(
+    companyServiceBaseUrl,
+    UriKind.Absolute,
+    out var companyServiceUri) ||
+    (companyServiceUri.Scheme != Uri.UriSchemeHttps &&
+     companyServiceUri.Scheme != Uri.UriSchemeHttp))
+{
+    throw new InvalidOperationException(
+        "Configure a valid Services:CompanyService:BaseUrl.");
+}
+
+var companyServiceTimeoutSeconds =
+    companyServiceSection.GetValue<int?>("TimeoutSeconds");
+
+if (!companyServiceTimeoutSeconds.HasValue ||
+    companyServiceTimeoutSeconds.Value <= 0 ||
+    companyServiceTimeoutSeconds.Value > 300)
+{
+    throw new InvalidOperationException(
+        "Configure Services:CompanyService:TimeoutSeconds between 1 and 300.");
+}
+
+builder.Services.AddHttpClient<
+    ICompanyServiceClient,
+    CompanyServiceClient>(client =>
+    {
+        client.BaseAddress = new Uri(
+            companyServiceUri.AbsoluteUri.TrimEnd('/') + "/");
+
+        client.Timeout = TimeSpan.FromSeconds(
+            companyServiceTimeoutSeconds.Value);
+    });
+
 builder.Services.AddFinanceLoginSession(
     builder.Configuration,
     builder.Environment,

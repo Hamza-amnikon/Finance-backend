@@ -7,6 +7,9 @@ namespace PermissionService.API.DTOs
         [Range(1, int.MaxValue)]
         public int RoleId { get; set; }
 
+        [Range(1, int.MaxValue)]
+        public int CompanyId { get; set; }
+
         [Required]
         public List<RolePermissionRequest> Permissions { get; set; } = [];
     }

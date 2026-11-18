@@ -34,9 +34,11 @@ namespace PermissionService.API.Data
                 entity.HasIndex(rolePermission => new
                 {
                     rolePermission.RoleId,
+                    rolePermission.CompanyId,
                     rolePermission.PermissionId
                 })
-                    .IsUnique();
+                    .IsUnique()
+                    .HasFilter(null);
             });
         }
     }

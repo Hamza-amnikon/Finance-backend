@@ -4,6 +4,7 @@ using RoleService.API.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
 using RoleService.API;
+using RoleService.API.Authentication;
 using RoleService.API.Repositories;
 using RoleService.API.Services;
 using RoleServiceImplementation = RoleService.API.Services.RoleService;
@@ -72,16 +73,40 @@ builder.Services.AddDbContext<RoleDbContext>(options =>
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IRoleService, RoleServiceImplementation>();
 
+builder.Services.AddScoped<
+    IUserRepository,
+    UserRepository>();
+
+builder.Services.AddScoped<
+    IUserService,
+    UserService>();
+
+builder.Services.AddFinanceMicrosoftAuthentication(
+    builder.Configuration,
+    builder.Environment);
+
 var app = builder.Build();
+
+var requiredMicrosoftScopes = builder.Configuration
+    .GetSection("AzureAd:RequiredScopes")
+    .Get<string[]>();
+
+if (requiredMicrosoftScopes == null || requiredMicrosoftScopes.Length == 0)
+{
+    app.Logger.LogWarning(
+        "Microsoft JWT access is blocked until AzureAd:RequiredScopes contains the API scope configured in Entra. " +
+        "The development Admin cookie login remains available.");
+}
 
 app.UseFinanceRequestCancellation();
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseAuthentication();
-    app.UseAuthorization();
     app.UseRateLimiter();
     app.MapDevelopmentAdmin();
     app.MapOpenApi();
