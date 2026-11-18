@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using RoleService.API.Authentication;
+using RoleService.API.Data;
 using RoleService.API.DTOs;
 using RoleService.API.Services;
 
@@ -83,6 +85,33 @@ namespace RoleService.API.Controllers
                     CultureInfo.InvariantCulture),
                 Role = User.FindFirstValue(ClaimTypes.Role)!
             });
+        }
+
+        [HttpGet("page-permissions")]
+        [Authorize(AuthenticationSchemes = FinanceAuthenticationSchemes.MicrosoftSession)]
+        public async Task<ActionResult<List<PagePermissionResponse>>> GetPagePermissions(
+            [FromServices] RoleDbContext db,
+            CancellationToken cancellationToken)
+        {
+            Response.Headers.CacheControl = "no-store";
+
+            if (!int.TryParse(User.FindFirstValue("role_id"), NumberStyles.None,
+                    CultureInfo.InvariantCulture, out var roleId) || roleId <= 0)
+            {
+                return Forbid();
+            }
+
+            var permissions = await db.Database.SqlQuery<PagePermissionResponse>($"""
+                SELECT p.[Route], rp.CompanyId, rp.CanView
+                FROM [security].[RolePermissions] AS rp
+                INNER JOIN [security].[Permissions] AS p ON p.PermissionId = rp.PermissionId
+                WHERE rp.RoleId = {roleId}
+                    AND rp.CompanyId > 0
+                    AND p.[Status] = 'Active'
+                    AND p.[Route] <> ''
+                """).ToListAsync(cancellationToken);
+
+            return Ok(permissions);
         }
     }
 }
