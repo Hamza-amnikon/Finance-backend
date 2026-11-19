@@ -83,9 +83,6 @@ namespace RoleService.API
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(identity));
 
-            await context.SignOutAsync(Authentication.FinanceAuthenticationSchemes.MicrosoftCookie);
-            Authentication.MeritJwtCookie.Clear(context.Response);
-
             return Results.Ok(new
             {
                 name = username,

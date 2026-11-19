@@ -90,6 +90,11 @@ namespace RoleService.API.Authentication
                     if (principal == null)
                     {
                         context.RejectPrincipal();
+                        if (context.HttpContext.RequestAborted.IsCancellationRequested)
+                        {
+                            return;
+                        }
+
                         await context.HttpContext.SignOutAsync(FinanceAuthenticationSchemes.MicrosoftCookie);
                         return;
                     }

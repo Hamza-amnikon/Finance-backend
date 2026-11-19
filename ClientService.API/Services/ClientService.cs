@@ -27,7 +27,8 @@ namespace ClientService.API.Services
                 query.PageSize,
                 query.Search,
                 cancellationToken,
-                query.IsActive);
+                query.IsActive,
+                query.AllowedBranches);
 
             return (
                 result.Data.Select(ToResponse).ToList(),

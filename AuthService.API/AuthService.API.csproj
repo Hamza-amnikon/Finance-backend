@@ -18,6 +18,9 @@
         <Compile Include="../RoleService.API/Authentication/*.cs" Link="Authentication/%(Filename)%(Extension)" />
         <Compile Include="../RoleService.API/Controllers/AuthController.cs" Link="Controllers/AuthController.cs" />
         <Compile Include="../RoleService.API/DTOs/UserSessionResponse.cs" Link="DTOs/UserSessionResponse.cs" />
+        <Compile Include="../RoleService.API/DTOs/UserPagePermissionResponse.cs" Link="DTOs/UserPagePermissionResponse.cs" />
+        <Compile Include="../RoleService.API/Services/IUserPagePermissionService.cs" Link="Services/IUserPagePermissionService.cs" />
+        <Compile Include="../RoleService.API/Services/UserPagePermissionService.cs" Link="Services/UserPagePermissionService.cs" />
         <Compile Include="../RoleService.API/Services/IJwtService.cs" Link="Services/IJwtService.cs" />
         <Compile Include="../RoleService.API/Services/JwtService.cs" Link="Services/JwtService.cs" />
         <Compile Include="../RoleService.API/Data/RoleDbContext.cs" Link="Data/RoleDbContext.cs" />

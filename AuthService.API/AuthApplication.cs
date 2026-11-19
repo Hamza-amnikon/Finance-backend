@@ -47,6 +47,9 @@ namespace AuthService.API
                 options.UseSqlServer(connectionString));
             builder.Services.TryAddScoped<IUserRepository, UserRepository>();
             builder.Services.TryAddScoped<IRoleRepository, RoleRepository>();
+            builder.Services.TryAddScoped<IUserPagePermissionRepository, UserPagePermissionRepository>();
+            builder.Services.TryAddScoped<RoleService.API.Services.IUserPagePermissionService,
+                RoleService.API.Services.UserPagePermissionService>();
             builder.Services.AddFinanceMicrosoftAuthentication(builder.Configuration, builder.Environment);
 
             var app = builder.Build();

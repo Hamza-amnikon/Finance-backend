@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.Extensions.Options;
 using RoleService.API.Models;
 using RoleService.API.Repositories;
+using SparkFinance.Http;
 
 namespace RoleService.API.Authentication
 {
@@ -72,6 +73,28 @@ namespace RoleService.API.Authentication
         }
 
         public async Task<ClaimsPrincipal?> ValidateIdentityAsync(
+            ClaimsPrincipal principal,
+            CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return null;
+            }
+
+            try
+            {
+                var identity = await ValidateIdentityCoreAsync(principal, cancellationToken);
+                return cancellationToken.IsCancellationRequested ? null : identity;
+            }
+            catch (Exception exception)
+                when (RequestCancellation.IsCancellation(exception, cancellationToken))
+            {
+                // An abandoned request must not authenticate a user or escape the authentication callback.
+                return null;
+            }
+        }
+
+        private async Task<ClaimsPrincipal?> ValidateIdentityCoreAsync(
             ClaimsPrincipal principal,
             CancellationToken cancellationToken)
         {

@@ -7,11 +7,18 @@ sealed class TestUserRepository(User user) : IUserRepository
 
     public bool Exists { get; set; } = true;
 
+    public Func<CancellationToken, Task<User?>>? LookupOverride { get; set; }
+
     public Task<User?> GetByMicrosoftIdentityAsync(
         Guid tenantId,
         Guid objectId,
         CancellationToken cancellationToken)
     {
+        if (LookupOverride != null)
+        {
+            return LookupOverride(cancellationToken);
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(Exists && tenantId == User.TenantId && objectId == User.ObjectId
             ? User
@@ -48,8 +55,15 @@ sealed class TestRoleRepository : IRoleRepository
 {
     public bool Active { get; set; } = true;
 
+    public Func<CancellationToken, Task<Roles?>>? LookupOverride { get; set; }
+
     public Task<Roles?> GetByIdAsync(int roleId, CancellationToken cancellationToken)
     {
+        if (LookupOverride != null)
+        {
+            return LookupOverride(cancellationToken);
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult<Roles?>(new Roles
         {

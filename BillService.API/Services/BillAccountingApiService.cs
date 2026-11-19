@@ -1,24 +1,32 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using BillService.API.DTOs;
+using SparkFinance.Http;
 
 namespace BillService.API.Services
 {
     public class BillAccountingApiService : IBillAccountingApiService
     {
         private readonly HttpClient _httpClient;
+        private readonly IHttpContextAccessor? _httpContextAccessor;
 
-        public BillAccountingApiService(HttpClient httpClient)
+        public BillAccountingApiService(
+            HttpClient httpClient,
+            IHttpContextAccessor? httpContextAccessor = null)
         {
             _httpClient = httpClient;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<BillAccountingCompanyDto?> GetCompanyAsync(
             int companyId,
             CancellationToken cancellationToken)
         {
-            var companies = await _httpClient.GetFromJsonAsync<List<BillAccountingCompanyDto>>(
-                "api/accounts/lookups/companies",
+            using var request = new HttpRequestMessage(HttpMethod.Get, "api/accounts/lookups/companies");
+            FinanceSessionForwarding.AttachTo(request, _httpContextAccessor?.HttpContext?.Request);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var companies = await response.Content.ReadFromJsonAsync<List<BillAccountingCompanyDto>>(
                 cancellationToken)
                 ?? throw new HttpRequestException("AccountingService returned an empty company response.");
 

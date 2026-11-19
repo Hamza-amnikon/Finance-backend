@@ -81,6 +81,14 @@ builder.Services.AddScoped<
     IUserService,
     UserService>();
 
+builder.Services.AddScoped<
+    IUserPagePermissionService,
+    UserPagePermissionService>();
+
+builder.Services.AddScoped<
+    IUserPagePermissionRepository,
+    UserPagePermissionRepository>();
+
 builder.Services.AddFinanceMicrosoftAuthentication(
     builder.Configuration,
     builder.Environment);

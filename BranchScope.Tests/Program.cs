@@ -113,6 +113,15 @@ try
             "Estimate totals and first page are branch scoped: " + branch);
     }
 
+    var authorizedInvoices = await invoiceRepository.GetAllAsync(
+        1, 2, default, allowedBranches: ["Office North"]);
+    Check(authorizedInvoices.Total == 3 && authorizedInvoices.Data.Count == 2 &&
+        authorizedInvoices.Data.All(invoice => invoice.Branch == "Office North"),
+        "Invoice totals and pagination use the server-authorized branch list without a requested branch");
+    Check((await invoiceRepository.GetAllAsync(1, 100, default, "Office South", ["Office North"])).Total == 0 &&
+        (await invoiceRepository.GetAllAsync(1, 100, default, allowedBranches: [])).Total == 0,
+        "A branch outside the authorization scope and an empty scope return no invoices");
+
     Check((await invoiceRepository.GetAllAsync(1, 100, default)).Total == 9 &&
         (await creditRepository.GetPagedAsync(1, 100, null, null, default)).Total == 9 &&
         (await estimateRepository.GetAllAsync(1, 100, null, null, default)).Total == 9,
@@ -143,15 +152,19 @@ try
         new DbContextOptionsBuilder<DashboardDbContext>().UseSqlServer(connection).Options);
     var dashboardService = new DashboardService.API.Services.DashboardService(
         dashboard, null!, NullLogger<DashboardService.API.Services.DashboardService>.Instance);
-    var northActivity = await dashboardService.GetActivityAsync(default, "Office North");
+    DashboardService.API.Services.DashboardBranch[] dashboardBranches = [
+        new(1, 71, "Office North", "USD"),
+        new(2, 92, "Office South", "USD")
+    ];
+    var northActivity = await dashboardService.GetActivityAsync(default, "Office North", dashboardBranches);
     Check(northActivity.Count == 2 && northActivity.All(row => row.Id is "expense-1" or "supplier-payment-4"),
         "Dashboard activity is filtered on the server by Billing Branch");
-    var southActivity = await dashboardService.GetActivityAsync(default, "Office South");
+    var southActivity = await dashboardService.GetActivityAsync(default, "Office South", dashboardBranches);
     Check(southActivity.Count == 2 && southActivity.All(row => row.Id is "expense-2" or "bill-3"),
         "Expense activity follows CompanyId using the same company filter as dashboard totals");
-    Check((await dashboardService.GetActivityAsync(default, "Missing")).Count == 0,
+    Check((await dashboardService.GetActivityAsync(default, "Missing", dashboardBranches)).Count == 0,
         "Unknown activity branches do not expose other branches");
-    Check((await dashboardService.GetActivityAsync(default)).Count == 4,
+    Check((await dashboardService.GetActivityAsync(default, null, dashboardBranches)).Count == 4,
         "Dashboard All branches retains combined activity");
     Console.WriteLine($"All {checks} branch scope checks passed.");
 }

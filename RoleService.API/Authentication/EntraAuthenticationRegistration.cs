@@ -55,6 +55,14 @@ namespace RoleService.API.Authentication
                                     context, configuration["Jwt:Issuer"]);
                             }
 
+                            // Select the local cookie validator explicitly for development Admin requests.
+                            // The header does not authenticate the caller; a valid Admin cookie is still required.
+                            if (environment.IsDevelopment() &&
+                                context.Request.Headers["X-Finance-Authentication"] == "admin")
+                            {
+                                return CookieAuthenticationDefaults.AuthenticationScheme;
+                            }
+
                             if (context.Request.Cookies.ContainsKey(MeritJwtCookie.Name))
                             {
                                 return FinanceAuthenticationSchemes.MeritBearer;

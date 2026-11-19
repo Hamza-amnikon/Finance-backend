@@ -94,9 +94,15 @@ namespace SalesInvoiceService.API.Repositories
                 int page,
                 int pageSize,
                 CancellationToken cancellationToken,
-                string? branch = null)
+                string? branch = null,
+                string[]? allowedBranches = null)
         {
             var query = _context.SalesInvoices.AsNoTracking();
+
+            if (allowedBranches != null)
+            {
+                query = query.Where(invoice => allowedBranches.Contains(invoice.Branch));
+            }
 
             if (!string.IsNullOrWhiteSpace(branch))
             {

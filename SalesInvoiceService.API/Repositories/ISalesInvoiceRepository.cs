@@ -21,6 +21,7 @@ namespace SalesInvoiceService.API.Repositories
             int page,
             int pageSize,
             CancellationToken cancellationToken,
-            string? branch = null);
+            string? branch = null,
+                string[]? allowedBranches = null);
     }
 }

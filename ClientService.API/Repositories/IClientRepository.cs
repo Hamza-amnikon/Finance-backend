@@ -1,4 +1,4 @@
-﻿using ClientService.API.Models;
+using ClientService.API.Models;
 
 namespace ClientService.API.Repositories
 {
@@ -9,7 +9,8 @@ namespace ClientService.API.Repositories
             int pageSize,
             string? search,
             CancellationToken cancellationToken,
-            bool? isActive = null);
+            bool? isActive = null,
+            string[]? allowedBranches = null);
 
         Task<Client?> GetByIdAsync(
             Guid id,

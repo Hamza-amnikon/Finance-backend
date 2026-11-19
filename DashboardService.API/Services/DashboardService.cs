@@ -27,7 +27,8 @@ namespace DashboardService.API.Services
             DateOnly to,
             string branch,
             string currency,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyList<DashboardBranch> scope)
         {
             if (from > to)
             {
@@ -58,6 +59,7 @@ namespace DashboardService.API.Services
                     ) c
                     WHERE i.Status = N'Issued'
                         AND (@branch = N'' OR i.Branch = @branch)
+                        AND (i.Branch IN (SELECT value FROM OPENJSON(@branches)))
                 )
                 SELECT Metric, Amount, Currency
                 FROM
@@ -67,6 +69,7 @@ namespace DashboardService.API.Services
                     WHERE i.Status = N'Issued'
                         AND i.InvoiceDate BETWEEN @from AND @to
                         AND (@branch = N'' OR i.Branch = @branch)
+                        AND (i.Branch IN (SELECT value FROM OPENJSON(@branches)))
                     UNION ALL
                     SELECT N'revenue', -cn.GrandTotal, cn.Currency
                     FROM sales.SalesCreditNotes cn
@@ -74,6 +77,7 @@ namespace DashboardService.API.Services
                     WHERE cn.Status = N'Issued'
                         AND cn.CreditNoteDate BETWEEN @from AND @to
                         AND (@branch = N'' OR i.Branch = @branch)
+                        AND (i.Branch IN (SELECT value FROM OPENJSON(@branches)))
                     UNION ALL
                     SELECT N'received', p.Amount, p.Currency
                     FROM sales.SalesInvoicePayments p
@@ -81,25 +85,28 @@ namespace DashboardService.API.Services
                     WHERE p.Status = N'Recorded' AND p.PaymentDate BETWEEN @from AND @to
                         AND i.Status = N'Issued'
                         AND (@branch = N'' OR i.Branch = @branch)
+                        AND (i.Branch IN (SELECT value FROM OPENJSON(@branches)))
                     UNION ALL
                     SELECT N'expenses', e.Amount, e.Currency
                     FROM expenses.Expenses e
                     INNER JOIN expenses.Companies c ON c.Id = e.CompanyId
                     WHERE e.Status = N'Recorded'
                         AND e.Date BETWEEN @from AND @to
-                        AND (@branch = N'' OR c.Name LIKE N'%' + @branch + N'%')
+                        AND e.CompanyId IN (SELECT value FROM OPENJSON(@companyIds) WITH (value int '$'))
                     UNION ALL
                     SELECT N'expenses', b.GrandTotal, b.Currency
                     FROM purchases.Bills b
                     WHERE b.Status = N'Issued'
                         AND b.BillDate BETWEEN @from AND @to
                         AND (@branch = N'' OR b.Branch = @branch)
+                        AND (b.Branch IN (SELECT value FROM OPENJSON(@branches)))
                     UNION ALL
                     SELECT N'paid', p.Amount, p.Currency
                     FROM purchases.PaymentsMade p
                     WHERE p.Status = N'Recorded'
                         AND p.PaymentDate BETWEEN @from AND @to
                         AND (@branch = N'' OR p.Branch = @branch)
+                        AND (p.Branch IN (SELECT value FROM OPENJSON(@branches)))
                     UNION ALL
                     SELECT N'accountsReceivable', Balance, Currency
                     FROM invoiceBalances
@@ -113,11 +120,13 @@ namespace DashboardService.API.Services
                     FROM purchases.Bills b
                     WHERE b.Status = N'Issued'
                         AND (@branch = N'' OR b.Branch = @branch)
+                        AND (b.Branch IN (SELECT value FROM OPENJSON(@branches)))
                     UNION ALL
                     SELECT N'accountsPayable', -p.Amount, p.Currency
                     FROM purchases.PaymentsMade p
                     WHERE p.Status = N'Recorded'
                         AND (@branch = N'' OR p.Branch = @branch)
+                        AND (p.Branch IN (SELECT value FROM OPENJSON(@branches)))
                     UNION ALL
                     SELECT N'accountsPayable', -a.Amount, b.Currency
                     FROM purchases.VendorCreditApplications a
@@ -125,6 +134,7 @@ namespace DashboardService.API.Services
                     WHERE a.Status = N'Applied'
                         AND b.Status = N'Issued'
                         AND (@branch = N'' OR b.Branch = @branch)
+                        AND (b.Branch IN (SELECT value FROM OPENJSON(@branches)))
                 ) dashboardAmounts";
 
             var rows = await _context.Database
@@ -132,7 +142,9 @@ namespace DashboardService.API.Services
                     sql,
                     new SqlParameter("@from", from.ToDateTime(TimeOnly.MinValue)),
                     new SqlParameter("@to", to.ToDateTime(TimeOnly.MaxValue)),
-                    new SqlParameter("@branch", branch))
+                    new SqlParameter("@branch", branch),
+                    BranchParameter(scope),
+                    CompanyParameter(scope, branch))
                 .ToListAsync(cancellationToken);
 
             var totals = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
@@ -188,8 +200,10 @@ namespace DashboardService.API.Services
                     SELECT COUNT(*) AS Value
                     FROM dbo.ClientMaster
                     WHERE IsActive = 1
-                        AND (@branch = N'' OR Branch = @branch)",
-                    new SqlParameter("@branch", branch))
+                        AND (@branch = N'' OR Branch = @branch)
+                        AND (Branch IN (SELECT value FROM OPENJSON(@branches)))",
+                    new SqlParameter("@branch", branch),
+                    BranchParameter(scope))
                 .SingleAsync(cancellationToken);
 
             var vendorCount = await _context.Database
@@ -197,8 +211,10 @@ namespace DashboardService.API.Services
                     SELECT COUNT(*) AS Value
                     FROM purchases.VendorMaster
                     WHERE IsActive = 1
-                        AND (@branch = N'' OR Branch = @branch)",
-                    new SqlParameter("@branch", branch))
+                        AND (@branch = N'' OR Branch = @branch)
+                        AND (Branch IN (SELECT value FROM OPENJSON(@branches)))",
+                    new SqlParameter("@branch", branch),
+                    BranchParameter(scope))
                 .SingleAsync(cancellationToken);
 
             decimal rateToInr = 1m;
@@ -258,7 +274,8 @@ namespace DashboardService.API.Services
 
         public async Task<List<DashboardActivityDto>> GetActivityAsync(
             CancellationToken cancellationToken,
-            string? branch = null)
+            string? branch,
+            IReadOnlyList<DashboardBranch> scope)
         {
             const string sql = @"
                 SELECT TOP (10) Id, EntityType, Action, Actor, At
@@ -273,6 +290,7 @@ namespace DashboardService.API.Services
                     INNER JOIN sales.SalesInvoices i ON i.Id = p.SalesInvoiceId
                     WHERE p.Status = N'Recorded' AND i.Status = N'Issued'
                         AND (@branch = N'' OR i.Branch = @branch)
+                        AND (i.Branch IN (SELECT value FROM OPENJSON(@branches)))
                     UNION ALL
                     SELECT CONCAT(N'expense-', e.Id), N'Expense',
                         CONCAT(e.Amount, N' ', e.Currency, N' · ', e.Category),
@@ -280,7 +298,7 @@ namespace DashboardService.API.Services
                     FROM expenses.Expenses e
                     INNER JOIN expenses.Companies c ON c.Id = e.CompanyId
                     WHERE e.Status = N'Recorded'
-                        AND (@branch = N'' OR c.Name LIKE N'%' + @branch + N'%')
+                        AND e.CompanyId IN (SELECT value FROM OPENJSON(@companyIds) WITH (value int '$'))
                     UNION ALL
                     SELECT CONCAT(N'bill-', b.Id), N'Purchase bill',
                         CONCAT(N'Issued ', b.GrandTotal, N' ', b.Currency),
@@ -288,6 +306,7 @@ namespace DashboardService.API.Services
                     FROM purchases.Bills b
                     WHERE b.Status = N'Issued'
                         AND (@branch = N'' OR b.Branch = @branch)
+                        AND (b.Branch IN (SELECT value FROM OPENJSON(@branches)))
                     UNION ALL
                     SELECT CONCAT(N'supplier-payment-', p.Id), N'Payment made',
                         CONCAT(N'Paid ', p.Amount, N' ', p.Currency),
@@ -295,14 +314,41 @@ namespace DashboardService.API.Services
                     FROM purchases.PaymentsMade p
                     WHERE p.Status = N'Recorded'
                         AND (@branch = N'' OR p.Branch = @branch)
+                        AND (p.Branch IN (SELECT value FROM OPENJSON(@branches)))
                 ) recentActivity
                 ORDER BY At DESC, Id DESC";
 
             return await _context.Database
                 .SqlQueryRaw<DashboardActivityDto>(
                     sql,
-                    new SqlParameter("@branch", branch?.Trim() ?? string.Empty))
+                    new SqlParameter("@branch", branch?.Trim() ?? string.Empty),
+                    BranchParameter(scope),
+                    CompanyParameter(scope, branch))
                 .ToListAsync(cancellationToken);
         }
+
+        private static SqlParameter BranchParameter(IReadOnlyList<DashboardBranch> scope)
+        {
+            return JsonParameter("@branches", scope.Select(branch => branch.BranchName));
+        }
+
+        private static SqlParameter CompanyParameter(IReadOnlyList<DashboardBranch> scope, string? branch)
+        {
+            var companyIds = scope.Where(item => string.IsNullOrWhiteSpace(branch) ||
+                    string.Equals(item.BranchName, branch.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Select(item => item.CompanyId)
+                .Distinct();
+
+            return JsonParameter("@companyIds", companyIds);
+        }
+
+        private static SqlParameter JsonParameter<T>(string name, IEnumerable<T> values)
+        {
+            return new SqlParameter(name, System.Data.SqlDbType.NVarChar, -1)
+            {
+                Value = System.Text.Json.JsonSerializer.Serialize(values)
+            };
+        }
+
     }
 }
