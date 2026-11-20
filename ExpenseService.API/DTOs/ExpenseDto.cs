@@ -47,6 +47,7 @@ namespace ExpenseService.API.DTOs
         [RegularExpression("^(Draft|Recorded)$")]
         public string Status { get; set; } = "Draft";
 
+        [Required(ErrorMessage = "Enter a reference number.")]
         [MaxLength(160)]
         public string Reference { get; set; } = "";
 

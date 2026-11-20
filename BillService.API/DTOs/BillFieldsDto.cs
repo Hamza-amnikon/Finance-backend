@@ -17,7 +17,9 @@ namespace BillService.API.DTOs
         [MaxLength(1000)]
         public string? BillingAddress { get; set; }
         [MaxLength(1000)] public string ShippingAddress { get; set; } = "";
-        [MaxLength(200)] public string Reference { get; set; } = "";
+        [Required(ErrorMessage = "Enter a reference number.")]
+        [MaxLength(200)]
+        public string Reference { get; set; } = "";
         [MaxLength(200)] public string PaymentTerms { get; set; } = "";
         [MaxLength(2000)] public string Notes { get; set; } = "";
         [MaxLength(2000)] public string AdditionalTerms { get; set; } = "";

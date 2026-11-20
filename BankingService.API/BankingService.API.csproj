@@ -27,4 +27,10 @@
   <ItemGroup>
     <Compile Include="../Shared/Http/RequestCancellation.cs" Link="Shared/RequestCancellation.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Http/FinanceSessionForwarding.cs" Link="Shared/FinanceSessionForwarding.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Http/DevelopmentServiceStartup.cs" Link="Shared/DevelopmentServiceStartup.cs" />
+  </ItemGroup>
 </Project>

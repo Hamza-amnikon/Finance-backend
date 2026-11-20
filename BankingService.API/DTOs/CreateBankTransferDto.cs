@@ -26,6 +26,7 @@ namespace BankingService.API.DTOs
 
         public DateOnly TransferDate { get; set; }
 
+        [Required(ErrorMessage = "Enter a reference number.")]
         [MaxLength(200)]
         public string Reference { get; set; } = "";
 

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace PermissionService.API.DTOs
 {
@@ -14,6 +14,8 @@ namespace PermissionService.API.DTOs
         public bool CanEdit { get; set; }
 
         public bool CanDelete { get; set; }
+
+        public bool CanCancel { get; set; }
 
         public bool CanApprove { get; set; }
 

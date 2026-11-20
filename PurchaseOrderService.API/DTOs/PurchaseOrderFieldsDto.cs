@@ -24,6 +24,7 @@ namespace PurchaseOrderService.API.DTOs
         [MaxLength(1000)]
         public string ShippingAddress { get; set; } = "";
 
+        [Required(ErrorMessage = "Enter a reference number.")]
         [MaxLength(200)]
         public string Reference { get; set; } = "";
 

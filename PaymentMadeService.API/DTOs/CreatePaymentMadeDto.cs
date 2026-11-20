@@ -18,6 +18,7 @@ namespace PaymentMadeService.API.DTOs
         [Range(1, int.MaxValue)]
         public int PaymentModeId { get; set; }
 
+        [Required(ErrorMessage = "Enter a reference number.")]
         [MaxLength(200)]
         public string Reference { get; set; } = "";
 

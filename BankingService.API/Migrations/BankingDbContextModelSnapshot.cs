@@ -619,6 +619,190 @@ namespace BankingService.API.Migrations
                     b.ToView("CurrencyMasters", "sales");
                 });
 
+            modelBuilder.Entity("BankingService.API.Models.InternalPaymentRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("CancellationNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("CancelledBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("CancelledDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<int>("CurrencyDecimalPlaces")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DecidedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("DecidedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecisionNote")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("PayingCompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReceivingBankAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("RequestDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("RequestingCompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("RequiredDate")
+                        .HasColumnType("date");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SubmissionNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SubmittedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("SubmittedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("PayingCompanyId", "Status");
+
+                    b.HasIndex("ReceivingBankAccountId", "RequestingCompanyId");
+
+                    b.HasIndex("RequestingCompanyId", "RequestDate");
+
+                    b.ToTable("InternalPaymentRequests", "banking", t =>
+                        {
+                            t.HasCheckConstraint("CK_InternalPaymentRequest_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_InternalPaymentRequest_Companies", "[RequestingCompanyId] <> [PayingCompanyId]");
+
+                            t.HasCheckConstraint("CK_InternalPaymentRequest_Dates", "[RequiredDate] >= [RequestDate]");
+
+                            t.HasCheckConstraint("CK_InternalPaymentRequest_Status", "[Status] IN ('Draft', 'Submitted', 'Approved', 'Rejected', 'Cancelled')");
+                        });
+                });
+
+            modelBuilder.Entity("BankingService.API.Models.InternalPaymentRequestLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("InternalPaymentRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InternalPaymentRequestId");
+
+                    b.ToTable("InternalPaymentRequestLines", "banking", t =>
+                        {
+                            t.HasCheckConstraint("CK_InternalPaymentRequestLine_Amount", "[Amount] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("BankingService.API.Models.InternalPaymentRequestTransfer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BankTransferId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InternalPaymentRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LinkedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("LinkedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankTransferId")
+                        .IsUnique();
+
+                    b.HasIndex("InternalPaymentRequestId");
+
+                    b.ToTable("InternalPaymentRequestTransfers", "banking");
+                });
+
             modelBuilder.Entity("BankingService.API.Models.PaymentBankingLink", b =>
                 {
                     b.Property<int>("Id")
@@ -802,6 +986,40 @@ namespace BankingService.API.Migrations
                     b.Navigation("SourceBankAccount");
                 });
 
+            modelBuilder.Entity("BankingService.API.Models.InternalPaymentRequest", b =>
+                {
+                    b.HasOne("BankingService.API.Models.BankAccount", null)
+                        .WithMany()
+                        .HasForeignKey("ReceivingBankAccountId", "RequestingCompanyId")
+                        .HasPrincipalKey("Id", "CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BankingService.API.Models.InternalPaymentRequestLine", b =>
+                {
+                    b.HasOne("BankingService.API.Models.InternalPaymentRequest", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("InternalPaymentRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BankingService.API.Models.InternalPaymentRequestTransfer", b =>
+                {
+                    b.HasOne("BankingService.API.Models.BankTransfer", null)
+                        .WithMany()
+                        .HasForeignKey("BankTransferId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BankingService.API.Models.InternalPaymentRequest", null)
+                        .WithMany()
+                        .HasForeignKey("InternalPaymentRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("BankingService.API.Models.PaymentBankingLink", b =>
                 {
                     b.HasOne("BankingService.API.Models.BankTransaction", null)
@@ -816,6 +1034,11 @@ namespace BankingService.API.Migrations
                 });
 
             modelBuilder.Entity("BankingService.API.Models.BankReconciliation", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("BankingService.API.Models.InternalPaymentRequest", b =>
                 {
                     b.Navigation("Lines");
                 });

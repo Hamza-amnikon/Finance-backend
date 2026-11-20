@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using PermissionService.API.CallOtherApis;
 using PermissionService.API.DTOs;
 using PermissionService.API.Models;
@@ -212,6 +212,7 @@ namespace PermissionService.API.Services
                 request.CanCreate ||
                 request.CanEdit ||
                 request.CanDelete ||
+                request.CanCancel ||
                 request.CanApprove ||
                 request.CanExport ||
                 request.CanIssue ||
@@ -241,6 +242,7 @@ namespace PermissionService.API.Services
                 CanCreate = request.CanCreate,
                 CanEdit = request.CanEdit,
                 CanDelete = request.CanDelete,
+                CanCancel = request.CanCancel,
                 CanApprove = request.CanApprove,
                 CanExport = request.CanExport,
                 CanIssue = request.CanIssue,
@@ -268,6 +270,7 @@ namespace PermissionService.API.Services
                     CanCreate = assignment.CanCreate,
                     CanEdit = assignment.CanEdit,
                     CanDelete = assignment.CanDelete,
+                    CanCancel = assignment.CanCancel,
                     CanApprove = assignment.CanApprove,
                     CanExport = assignment.CanExport,
                     CanIssue = assignment.CanIssue,
