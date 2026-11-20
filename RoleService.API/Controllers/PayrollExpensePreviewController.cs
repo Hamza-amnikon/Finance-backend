@@ -60,7 +60,7 @@ public sealed class PayrollExpensePreviewController(
             {
                 HttpStatusCode.NotFound => "No completed payroll is available for this company and month.",
                 HttpStatusCode.Conflict => "The payroll run needs review before it can be used for an expense.",
-                HttpStatusCode.ServiceUnavailable => "The payroll integration is not configured.",
+                HttpStatusCode.ServiceUnavailable => "Payroll is not configured for this company. Ask your administrator to check the SPARK payroll mapping and connection.",
                 _ => "Payroll could not be loaded. Please try again."
             }
         });

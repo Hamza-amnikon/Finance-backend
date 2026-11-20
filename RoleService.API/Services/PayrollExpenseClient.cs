@@ -15,7 +15,7 @@ public sealed class PayrollExpenseClient(HttpClient http, IConfiguration configu
         var group = mappings[companyId.ToString(System.Globalization.CultureInfo.InvariantCulture)]?.Trim();
         if (string.IsNullOrWhiteSpace(group))
         {
-            return (HttpStatusCode.NotFound, null);
+            return (HttpStatusCode.ServiceUnavailable, null);
         }
         if (mappings.GetChildren().Count(mapping =>
                 string.Equals(mapping.Value?.Trim(), group, StringComparison.OrdinalIgnoreCase)) != 1)
