@@ -1,15 +1,17 @@
-﻿using SparkFinance.Http;
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using AccountingService.API.DTOs;
 using AccountingService.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Antiforgery;
 
 namespace AccountingService.API.Controllers
 {
     [ApiController]
     [Route("api/accounts")]
+    [ServiceFilter(typeof(AccountsAccessFilter))]
     public class AccountsController : ControllerBase
     {
         private readonly IAccountService _service;
@@ -81,7 +83,7 @@ namespace AccountingService.API.Controllers
                                 cancellationToken);
 
                     var result =
-                        companies.Select(
+                        companies.Where(company => GetAccess().Allows(company.Id)).Select(
                             company => new
                             {
                                 company.Id,
@@ -93,6 +95,49 @@ namespace AccountingService.API.Controllers
                     return Ok(result);
                 },
                 cancellationToken);
+        }
+
+        [HttpGet("chart-companies")]
+        public async Task<IActionResult> ChartCompanies(CancellationToken cancellationToken)
+        {
+            var access = GetAccess();
+            var companies = await _service.GetCompaniesAsync(cancellationToken);
+            return Ok(companies.Where(company => access.Allows(company.Id)).Select(company => new
+            {
+                company.Id,
+                company.Name,
+                company.Country,
+                company.Currency,
+                canCreate = access.AllowsCreate(company.Id),
+                canEdit = access.AllowsEdit(company.Id)
+            }));
+        }
+
+        [HttpGet("dashboard-companies")]
+        public async Task<IActionResult> DashboardCompanies(CancellationToken cancellationToken)
+        {
+            var access = GetAccess();
+            var companies = await _service.GetCompaniesAsync(cancellationToken);
+
+            return Ok(companies.Where(company => access.Allows(company.Id)).Select(company => new
+            {
+                company.Id,
+                company.Currency
+            }));
+        }
+
+        [HttpGet("csrf")]
+        public IActionResult Csrf([FromServices] IAntiforgery antiforgery)
+        {
+            return Ok(new
+            {
+                token = antiforgery.GetAndStoreTokens(HttpContext).RequestToken
+            });
+        }
+
+        private LedgerAccess GetAccess()
+        {
+            return (LedgerAccess)HttpContext.Items[typeof(AccountsAccessFilter)]!;
         }
 
         [HttpGet("{id:int:min(1)}")]

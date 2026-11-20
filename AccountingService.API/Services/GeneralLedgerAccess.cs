@@ -15,15 +15,41 @@ namespace AccountingService.API.Services
         Task<LedgerAccess> GetAsync(HttpRequest request, CancellationToken cancellationToken);
     }
 
+    public interface IAccountingPageAccess
+    {
+        Task<LedgerAccess> GetAsync(
+            HttpRequest request,
+            string? permissionCode,
+            CancellationToken cancellationToken);
+    }
+
     public sealed record LedgerAccess(int Status, bool IsAdmin, IReadOnlyList<int> CompanyIds)
     {
+        public IReadOnlyList<int> CreatableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> EditableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> DeletableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> IssuableCompanyIds { get; init; } = [];
+
         public bool Allows(int companyId)
         {
             return Status == 200 && companyId > 0 && (IsAdmin || CompanyIds.Contains(companyId));
         }
+
+        public bool AllowsCreate(int companyId)
+        {
+            return Allows(companyId) && (IsAdmin || CreatableCompanyIds.Contains(companyId));
+        }
+
+        public bool AllowsEdit(int companyId)
+        {
+            return Allows(companyId) && (IsAdmin || EditableCompanyIds.Contains(companyId));
+        }
     }
 
-    public sealed class GeneralLedgerAccess : IGeneralLedgerAccess
+    public sealed class GeneralLedgerAccess : IGeneralLedgerAccess, IAccountingPageAccess
     {
         private readonly HttpClient _client;
         private readonly IConfiguration _configuration;
@@ -42,7 +68,15 @@ namespace AccountingService.API.Services
             _context = context;
         }
 
-        public async Task<LedgerAccess> GetAsync(HttpRequest request, CancellationToken cancellationToken)
+        public Task<LedgerAccess> GetAsync(HttpRequest request, CancellationToken cancellationToken)
+        {
+            return GetAsync(request, "accounting.general-ledger", cancellationToken);
+        }
+
+        public async Task<LedgerAccess> GetAsync(
+            HttpRequest request,
+            string? permissionCode,
+            CancellationToken cancellationToken)
         {
             var authorization = request.Headers.Authorization.ToString();
             var cookieName = _configuration.GetSection("JwtValidation")
@@ -118,6 +152,11 @@ namespace AccountingService.API.Services
 
             if (!microsoft)
             {
+                if (session.Role == "Admin")
+                {
+                    request.HttpContext.User = CreateSessionPrincipal(session, "admin");
+                }
+
                 return session.Role == "Admin"
                     ? new LedgerAccess(200, true, [])
                     : new LedgerAccess(403, false, []);
@@ -130,17 +169,48 @@ namespace AccountingService.API.Services
                 return new LedgerAccess(401, false, []);
             }
 
+            request.HttpContext.User = CreateSessionPrincipal(session, "microsoft");
+
             // The identity service validates active users and roles. Never accept a role from the browser.
-            var code = "accounting.general-ledger";
-            var companies = await _context.Database.SqlQuery<int>($"""
-                SELECT DISTINCT rp.CompanyId AS Value
+            var companies = await _context.Database.SqlQuery<CompanyPermission>($"""
+                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue
                 FROM security.RolePermissions rp
                 INNER JOIN security.Permissions p ON p.PermissionId = rp.PermissionId
-                WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId IS NOT NULL
-                    AND rp.CanView = 1 AND p.Status = 'Active' AND p.PermissionCode = {code}
+                WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId > 0
+                    AND rp.CanView = 1 AND p.Status = 'Active'
+                    AND ({permissionCode} IS NULL OR p.PermissionCode = {permissionCode})
                 """).ToListAsync(cancellationToken);
 
-            return new LedgerAccess(200, false, companies);
+            return new LedgerAccess(200, false, companies.Select(company => company.CompanyId).Distinct().ToArray())
+            {
+                CreatableCompanyIds = companies.Where(company => company.CanCreate)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                EditableCompanyIds = companies.Where(company => company.CanEdit)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                DeletableCompanyIds = companies.Where(company => company.CanDelete)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                IssuableCompanyIds = companies.Where(company => company.CanIssue)
+                    .Select(company => company.CompanyId).Distinct().ToArray()
+            };
+        }
+
+        private static ClaimsPrincipal CreateSessionPrincipal(VerifiedSession session, string method)
+        {
+            return new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, method == "admin" ? session.Name : session.UserId.ToString()),
+                new Claim(ClaimTypes.Name, session.Name),
+                new Claim(ClaimTypes.Role, session.Role)
+            ], "VerifiedAccountingSession"));
+        }
+
+        private sealed class CompanyPermission
+        {
+            public int CompanyId { get; set; }
+            public bool CanCreate { get; set; }
+            public bool CanEdit { get; set; }
+            public bool CanDelete { get; set; }
+            public bool CanIssue { get; set; }
         }
 
         private sealed class VerifiedSession
@@ -148,6 +218,7 @@ namespace AccountingService.API.Services
             public Guid UserId { get; set; }
             public int RoleId { get; set; }
             public string Role { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
         }
     }
 }

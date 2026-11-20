@@ -30,6 +30,7 @@ namespace SalesInvoiceService.API.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetAll(
+            [FromServices] FinanceCompanyAccess access,
             CancellationToken cancellationToken,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
@@ -47,11 +48,25 @@ namespace SalesInvoiceService.API.Controllers
 
             try
             {
+                var scope = await access.GetAsync(Request, "/sales/invoices", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                if (!string.IsNullOrWhiteSpace(branch) && !scope.Allows(branch.Trim()))
+                {
+                    return StatusCode(403);
+                }
+
                 var result = await _invoiceService.GetAllAsync(
                     page,
                     pageSize,
                     cancellationToken,
-                    branch);
+                    branch,
+                    scope.Branches);
 
                 return Ok(new
                 {
@@ -70,9 +85,16 @@ namespace SalesInvoiceService.API.Controllers
 
         [HttpPost("preview")]
         public async Task<IActionResult> Preview(
+            [FromServices] FinanceCompanyAccess access,
             [FromBody] CreateSalesInvoiceDto dto,
             CancellationToken cancellationToken)
         {
+            var scope = await access.GetAsync(Request, "/sales/invoices", cancellationToken);
+            if (!scope.Allows(dto.Branch.Trim()))
+            {
+                return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+            }
+
             var currency = await _currencyService.GetByCodeAsync(
                 dto.Currency,
                 cancellationToken);
@@ -169,11 +191,18 @@ namespace SalesInvoiceService.API.Controllers
 
         [HttpPost]
         public async Task<IActionResult> Create(
+            [FromServices] FinanceCompanyAccess access,
             [FromBody] CreateSalesInvoiceDto dto,
             CancellationToken cancellationToken)
         {
             try
             {
+                var scope = await access.GetAsync(Request, "/sales/invoices", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch.Trim(), scope.CreatableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 var invoice = await _invoiceService.CreateAsync(
                     dto,
                     cancellationToken);
@@ -233,11 +262,29 @@ namespace SalesInvoiceService.API.Controllers
         [HttpPost("{id:int}/issue")]
         public async Task<IActionResult> Issue(
             int id,
+            [FromServices] FinanceCompanyAccess access,
             [FromBody] IssueSalesInvoiceDto dto,
             CancellationToken cancellationToken)
         {
             try
             {
+                var scope = await access.GetAsync(Request, "/sales/invoices", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _invoiceService.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.IssuableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var invoice = await _invoiceService.IssueAsync(id, dto, cancellationToken);
                 return invoice == null
                     ? NotFound(new
@@ -302,15 +349,24 @@ namespace SalesInvoiceService.API.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(
             int id,
+            [FromServices] FinanceCompanyAccess access,
             CancellationToken cancellationToken)
         {
             try
             {
+                var scope = await access.GetAsync(Request, "/sales/invoices", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var invoice = await _invoiceService.GetByIdAsync(
                     id,
                     cancellationToken);
 
-                if (invoice == null)
+                if (invoice == null || !scope.Allows(invoice.Branch))
                 {
                     return NotFound(new
                     {

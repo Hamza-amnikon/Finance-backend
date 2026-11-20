@@ -9,10 +9,12 @@ namespace DashboardService.API.Services
             DateOnly to,
             string branch,
             string currency,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            IReadOnlyList<DashboardBranch> scope);
 
         Task<List<DashboardActivityDto>> GetActivityAsync(
             CancellationToken cancellationToken,
-            string? branch = null);
+            string? branch,
+            IReadOnlyList<DashboardBranch> scope);
     }
 }

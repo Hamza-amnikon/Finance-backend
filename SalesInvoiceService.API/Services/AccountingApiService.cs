@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using SalesInvoiceService.API.DTOs;
+using SparkFinance.Http;
 
 namespace SalesInvoiceService.API.Services
 {
@@ -8,11 +9,14 @@ namespace SalesInvoiceService.API.Services
         : IAccountingApiService
     {
         private readonly HttpClient _httpClient;
+        private readonly IHttpContextAccessor? _httpContextAccessor;
 
         public AccountingApiService(
-            HttpClient httpClient)
+            HttpClient httpClient,
+            IHttpContextAccessor? httpContextAccessor = null)
         {
             _httpClient = httpClient;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<AccountingCompanyDto?>
@@ -20,11 +24,12 @@ namespace SalesInvoiceService.API.Services
                 int companyId,
                 CancellationToken cancellationToken)
         {
-            var companies =
-                await _httpClient.GetFromJsonAsync<
-                    List<AccountingCompanyDto>>(
-                    "api/accounts/lookups/companies",
-                    cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Get, "api/accounts/lookups/companies");
+            FinanceSessionForwarding.AttachTo(request, _httpContextAccessor?.HttpContext?.Request);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var companies = await response.Content.ReadFromJsonAsync<List<AccountingCompanyDto>>(
+                cancellationToken);
 
             if (companies == null)
             {

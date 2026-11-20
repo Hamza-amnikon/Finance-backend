@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace ClientService.API.DTOs
 {
@@ -14,5 +14,7 @@ namespace ClientService.API.DTOs
         public string? Search { get; set; }
 
         public bool? IsActive { get; set; }
+
+        internal string[]? AllowedBranches { get; set; }
     }
 }

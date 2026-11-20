@@ -4,10 +4,9 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.Data.SqlClient;
 using RoleService.API.Authentication;
-using RoleService.API.Data;
 using RoleService.API.DTOs;
 using RoleService.API.Services;
 
@@ -17,6 +16,37 @@ namespace RoleService.API.Controllers
     [Route("api/auth")]
     public class AuthController : ControllerBase
     {
+        [HttpGet("page-permissions")]
+        [Authorize(AuthenticationSchemes = FinanceAuthenticationSchemes.MicrosoftSession)]
+        public async Task<IActionResult> GetPagePermissions(
+            [FromServices] IUserPagePermissionService permissions,
+            [FromServices] ILogger<AuthController> logger,
+            CancellationToken cancellationToken)
+        {
+            Response.Headers.CacheControl = "no-store";
+
+            if (!int.TryParse(User.FindFirstValue("role_id"), out var roleId) || roleId <= 0)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                return Ok(await permissions.GetAsync(roleId, cancellationToken));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (SqlException exception)
+            {
+                logger.LogError(exception, "Could not load the signed-in user's page permissions.");
+                return Problem(
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    title: "Page permissions could not be loaded. Please retry.");
+            }
+        }
+
         [AllowAnonymous]
         [HttpGet("login")]
         public async Task<IActionResult> Login(
@@ -87,31 +117,5 @@ namespace RoleService.API.Controllers
             });
         }
 
-        [HttpGet("page-permissions")]
-        [Authorize(AuthenticationSchemes = FinanceAuthenticationSchemes.MicrosoftSession)]
-        public async Task<ActionResult<List<PagePermissionResponse>>> GetPagePermissions(
-            [FromServices] RoleDbContext db,
-            CancellationToken cancellationToken)
-        {
-            Response.Headers.CacheControl = "no-store";
-
-            if (!int.TryParse(User.FindFirstValue("role_id"), NumberStyles.None,
-                    CultureInfo.InvariantCulture, out var roleId) || roleId <= 0)
-            {
-                return Forbid();
-            }
-
-            var permissions = await db.Database.SqlQuery<PagePermissionResponse>($"""
-                SELECT p.[Route], rp.CompanyId, rp.CanView
-                FROM [security].[RolePermissions] AS rp
-                INNER JOIN [security].[Permissions] AS p ON p.PermissionId = rp.PermissionId
-                WHERE rp.RoleId = {roleId}
-                    AND rp.CompanyId > 0
-                    AND p.[Status] = 'Active'
-                    AND p.[Route] <> ''
-                """).ToListAsync(cancellationToken);
-
-            return Ok(permissions);
-        }
     }
 }

@@ -1,4 +1,4 @@
-﻿using ClientService.API.Data;
+using ClientService.API.Data;
 using ClientService.API.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,9 +18,15 @@ namespace ClientService.API.Repositories
             int pageSize,
             string? search,
             CancellationToken cancellationToken,
-            bool? isActive = null)
+            bool? isActive = null,
+            string[]? allowedBranches = null)
         {
             var query = _context.Clients.AsNoTracking();
+
+            if (allowedBranches != null)
+            {
+                query = query.Where(client => allowedBranches.Contains(client.Branch));
+            }
 
             if (isActive.HasValue)
             {

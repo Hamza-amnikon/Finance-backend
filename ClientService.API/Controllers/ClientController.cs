@@ -1,4 +1,4 @@
-﻿using SparkFinance.Http;
+using SparkFinance.Http;
 using ClientService.API.DTOs;
 using ClientService.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -14,9 +14,12 @@ namespace ClientService.API.Controllers
     {
         private readonly IClientService _service;
 
-        public ClientController(IClientService service)
+        private readonly FinanceCompanyAccess _access;
+
+        public ClientController(IClientService service, FinanceCompanyAccess access)
         {
             _service = service;
+            _access = access;
         }
 
         [HttpGet]
@@ -26,6 +29,15 @@ namespace ClientService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/clients", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                query.AllowedBranches = scope.Branches;
                 var result = await _service.GetAllAsync(
                     query,
                     cancellationToken);
@@ -47,11 +59,19 @@ namespace ClientService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/clients", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var client = await _service.GetByIdAsync(
                     id,
                     cancellationToken);
 
-                if (client == null)
+                if (client == null || !scope.Allows(client.Branch))
                 {
                     return NotFound(new
                     {
@@ -70,6 +90,12 @@ namespace ClientService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/clients", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch.Trim(), scope.CreatableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 var client = await _service.CreateAsync(
                     dto,
                     cancellationToken);
@@ -92,12 +118,29 @@ namespace ClientService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/clients", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch.Trim(), scope.EditableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.EditableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var client = await _service.UpdateAsync(
                     id,
                     dto,
                     cancellationToken);
 
-                if (client == null)
+                if (client == null || !scope.Allows(client.Branch))
                 {
                     return NotFound(new
                     {
@@ -117,6 +160,23 @@ namespace ClientService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/clients", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.DeletableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var archived = await _service.ArchiveAsync(
                     id,
                     dto.RowVersion,

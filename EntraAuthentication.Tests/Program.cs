@@ -19,6 +19,7 @@ using RoleService.API.Controllers;
 using RoleService.API.DTOs;
 using RoleService.API.Models;
 using RoleService.API.Repositories;
+using RoleService.API.Services;
 
 var tenantId = Guid.NewGuid();
 var apiClientId = Guid.NewGuid();
@@ -39,6 +40,7 @@ var users = new TestUserRepository(new User
     IsActive = true
 });
 var roles = new TestRoleRepository();
+var pagePermissions = new TestPagePermissionService();
 using var meritRsa = RSA.Create(2048);
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -77,6 +79,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             return Task.CompletedTask;
         };
     });
+builder.Services.AddSingleton<IUserPagePermissionService>(pagePermissions);
 builder.Services.AddFinanceMicrosoftAuthentication(builder.Configuration, builder.Environment);
 var webTokens = new WebTokenEndpoint();
 builder.Services.PostConfigure<OpenIdConnectOptions>(
@@ -148,6 +151,7 @@ await app.StartAsync();
 
 try
 {
+    await AuthenticationCancellationChecks.RunAsync(app.Services, users, roles);
     var address = app.Services.GetRequiredService<IServer>()
         .Features.Get<IServerAddressesFeature>()!.Addresses.Single();
     using var handler = new HttpClientHandler
@@ -161,6 +165,8 @@ try
     };
 
     await Expect(await client.GetAsync("api/auth/session"), HttpStatusCode.Unauthorized);
+    await Expect(await client.GetAsync("api/auth/page-permissions"), HttpStatusCode.Unauthorized);
+    Check(pagePermissions.Calls == 0, "Anonymous requests cannot read page permissions.");
     await Expect(await client.GetAsync("test/protected"), HttpStatusCode.Unauthorized);
 
     using var login = await client.PostAsJsonAsync("api/development-admin/login", new
@@ -169,12 +175,28 @@ try
         password = "local-test-password"
     });
     Check(login.StatusCode == HttpStatusCode.OK, "The existing Admin login succeeds.");
+    Check(
+        login.Headers.GetValues("Set-Cookie").All(value =>
+            !value.StartsWith("Finance.Jwt=", StringComparison.Ordinal) &&
+            !value.StartsWith("Finance.Microsoft=", StringComparison.Ordinal)),
+        "Admin login preserves Microsoft session cookies in other tabs.");
     var cookie = login.Headers.GetValues("Set-Cookie").First().Split(';')[0];
     client.DefaultRequestHeaders.Add("Cookie", cookie);
     await Expect(await client.GetAsync("api/development-admin/session"), HttpStatusCode.OK);
     await Expect(await client.GetAsync("test/admin"), HttpStatusCode.OK);
     await Expect(await client.GetAsync("api/auth/session"), HttpStatusCode.Unauthorized);
     Check(true, "The Admin cookie still works and cannot enter the JWT-only session endpoint.");
+
+    client.DefaultRequestHeaders.Remove("Cookie");
+    client.DefaultRequestHeaders.Add("Cookie", cookie + "; Finance.Jwt=stale-jwt");
+    client.DefaultRequestHeaders.Add("X-Finance-Authentication", "admin");
+    await Expect(await client.GetAsync("test/admin"), HttpStatusCode.OK);
+    Check(true, "Explicit Admin requests validate the Admin cookie even when a stale Microsoft JWT cookie exists.");
+    client.DefaultRequestHeaders.Remove("Cookie");
+    await Expect(await client.GetAsync("test/admin"), HttpStatusCode.Unauthorized);
+    Check(true, "Selecting Admin authentication cannot grant access without the Admin cookie.");
+    client.DefaultRequestHeaders.Remove("X-Finance-Authentication");
+    client.DefaultRequestHeaders.Add("Cookie", cookie);
 
     client.DefaultRequestHeaders.Authorization =
         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "invalid");
@@ -197,8 +219,18 @@ try
     await Expect(await client.PostAsync("api/auth/logout", null), HttpStatusCode.Unauthorized);
     Check(true, "The JWT cannot impersonate the development Admin session or gain an Admin role.");
 
+    using (var response = await client.GetAsync("api/auth/page-permissions?roleId=999"))
+    {
+        Check(response.StatusCode == HttpStatusCode.OK, "An approved Microsoft user can read navigation permissions.");
+        var pages = await response.Content.ReadFromJsonAsync<List<UserPagePermissionResponse>>();
+        Check(pagePermissions.LastRoleId == users.User.RoleId && pages?.Single().CompanyId == 2,
+            "Page permissions use the verified database role and ignore a supplied role ID.");
+        Check(response.Headers.CacheControl?.NoStore == true, "Page permission responses are not cached.");
+    }
+
     users.User.IsActive = false;
     await Expect(await client.GetAsync("api/auth/session"), HttpStatusCode.Unauthorized);
+    await Expect(await client.GetAsync("api/auth/page-permissions"), HttpStatusCode.Unauthorized);
     users.User.IsActive = true;
     users.Exists = false;
     await Expect(await client.GetAsync("api/auth/session"), HttpStatusCode.Unauthorized);

@@ -12,6 +12,16 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();
+builder.Services.AddScoped<DashboardAccessFilter>();
+builder.Services.AddHttpClient<DashboardAccessService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false,
+    AllowAutoRedirect = false
+});
 builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddOptions<DashboardExchangeRateOptions>()

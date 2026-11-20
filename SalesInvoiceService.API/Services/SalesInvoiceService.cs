@@ -311,13 +311,15 @@ namespace SalesInvoiceService.API.Services
                 int page,
                 int pageSize,
                 CancellationToken cancellationToken,
-                string? branch = null)
+                string? branch = null,
+                string[]? allowedBranches = null)
         {
             var result = await _repository.GetAllAsync(
                 page,
                 pageSize,
                 cancellationToken,
-                branch);
+                branch,
+                allowedBranches);
 
             return (
                 result.Data.Select(ToResponse).ToList(),

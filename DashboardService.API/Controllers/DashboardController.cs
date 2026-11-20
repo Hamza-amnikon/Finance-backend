@@ -9,6 +9,7 @@ using Microsoft.Data.SqlClient;
 namespace DashboardService.API.Controllers
 {
     [ApiController]
+    [ServiceFilter(typeof(DashboardAccessFilter))]
     [Route("api/dashboard")]
     public class DashboardController : ControllerBase
     {
@@ -40,7 +41,8 @@ namespace DashboardService.API.Controllers
                     to,
                     branch,
                     currency,
-                    cancellationToken);
+                    cancellationToken,
+                    GetBranches());
 
                 return Ok(summary);
             }
@@ -72,7 +74,8 @@ namespace DashboardService.API.Controllers
             {
                 var activity = await _dashboardService.GetActivityAsync(
                     cancellationToken,
-                    branch);
+                    branch,
+                    GetBranches());
 
                 return Ok(activity);
             }
@@ -85,6 +88,17 @@ namespace DashboardService.API.Controllers
             {
                 return DatabaseUnavailable(exception);
             }
+        }
+
+        [HttpGet("branches")]
+        public IActionResult GetAvailableBranches()
+        {
+            return Ok(GetBranches());
+        }
+
+        private IReadOnlyList<DashboardBranch> GetBranches()
+        {
+            return (IReadOnlyList<DashboardBranch>)HttpContext.Items[typeof(DashboardAccessFilter)]!;
         }
 
         private ObjectResult DatabaseUnavailable(SqlException exception)
