@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using PermissionService.API.Data;
 using PermissionService.API.Models;
 
@@ -174,6 +174,7 @@ namespace PermissionService.API.Repositories
                 existingAssignment.CanCreate != requestedAssignment.CanCreate ||
                 existingAssignment.CanEdit != requestedAssignment.CanEdit ||
                 existingAssignment.CanDelete != requestedAssignment.CanDelete ||
+                existingAssignment.CanCancel != requestedAssignment.CanCancel ||
                 existingAssignment.CanApprove != requestedAssignment.CanApprove ||
                 existingAssignment.CanExport != requestedAssignment.CanExport ||
                 existingAssignment.CanIssue != requestedAssignment.CanIssue ||
@@ -191,6 +192,7 @@ namespace PermissionService.API.Repositories
             target.CanCreate = source.CanCreate;
             target.CanEdit = source.CanEdit;
             target.CanDelete = source.CanDelete;
+            target.CanCancel = source.CanCancel;
             target.CanApprove = source.CanApprove;
             target.CanExport = source.CanExport;
             target.CanIssue = source.CanIssue;

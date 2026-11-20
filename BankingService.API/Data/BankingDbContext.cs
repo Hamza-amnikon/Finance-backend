@@ -40,10 +40,57 @@ namespace BankingService.API.Data
 
         public DbSet<PaymentBankingSettings> PaymentBankingSettings => Set<PaymentBankingSettings>();
 
+        public DbSet<InternalPaymentRequest> InternalPaymentRequests => Set<InternalPaymentRequest>();
+
+        public DbSet<InternalPaymentRequestTransfer> InternalPaymentRequestTransfers => Set<InternalPaymentRequestTransfer>();
+
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<InternalPaymentRequest>(entity =>
+            {
+                entity.ToTable("InternalPaymentRequests", "banking", table =>
+                {
+                    table.HasCheckConstraint("CK_InternalPaymentRequest_Companies", "[RequestingCompanyId] <> [PayingCompanyId]");
+                    table.HasCheckConstraint("CK_InternalPaymentRequest_Amount", "[Amount] > 0");
+                    table.HasCheckConstraint("CK_InternalPaymentRequest_Dates", "[RequiredDate] >= [RequestDate]");
+                    table.HasCheckConstraint("CK_InternalPaymentRequest_Status", "[Status] IN ('Draft', 'Submitted', 'Approved', 'Rejected', 'Cancelled')");
+                });
+                entity.HasKey(row => row.Id);
+                entity.Property(row => row.Amount).HasPrecision(18, 4);
+                entity.Property(row => row.RowVersion).IsRowVersion();
+                entity.HasIndex(row => row.RequestId).IsUnique();
+                entity.HasIndex(row => new { row.RequestingCompanyId, row.RequestDate });
+                entity.HasIndex(row => new { row.PayingCompanyId, row.Status });
+                entity.HasOne<BankAccount>().WithMany()
+                    .HasForeignKey(row => new { row.ReceivingBankAccountId, row.RequestingCompanyId })
+                    .HasPrincipalKey(row => new { row.Id, row.CompanyId })
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(row => row.Lines).WithOne()
+                    .HasForeignKey(row => row.InternalPaymentRequestId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<InternalPaymentRequestTransfer>(entity =>
+            {
+                entity.ToTable("InternalPaymentRequestTransfers", "banking");
+                entity.HasKey(row => row.Id);
+                entity.HasIndex(row => row.BankTransferId).IsUnique();
+                entity.HasIndex(row => row.InternalPaymentRequestId);
+                entity.HasOne<InternalPaymentRequest>().WithMany()
+                    .HasForeignKey(row => row.InternalPaymentRequestId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne<BankTransfer>().WithMany()
+                    .HasForeignKey(row => row.BankTransferId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<InternalPaymentRequestLine>(entity =>
+            {
+                entity.ToTable("InternalPaymentRequestLines", "banking", table =>
+                    table.HasCheckConstraint("CK_InternalPaymentRequestLine_Amount", "[Amount] > 0"));
+                entity.HasKey(row => row.Id);
+                entity.Property(row => row.Amount).HasPrecision(18, 4);
+            });
 
             modelBuilder.Entity<PaymentBankingSettings>(entity =>
             {

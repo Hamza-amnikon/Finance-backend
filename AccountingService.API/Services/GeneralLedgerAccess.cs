@@ -31,6 +31,12 @@ namespace AccountingService.API.Services
 
         public IReadOnlyList<int> DeletableCompanyIds { get; init; } = [];
 
+        public IReadOnlyList<int> ExportableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> CancellableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> ApprovableCompanyIds { get; init; } = [];
+
         public IReadOnlyList<int> IssuableCompanyIds { get; init; } = [];
 
         public bool Allows(int companyId)
@@ -173,7 +179,7 @@ namespace AccountingService.API.Services
 
             // The identity service validates active users and roles. Never accept a role from the browser.
             var companies = await _context.Database.SqlQuery<CompanyPermission>($"""
-                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue
+                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel
                 FROM security.RolePermissions rp
                 INNER JOIN security.Permissions p ON p.PermissionId = rp.PermissionId
                 WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId > 0
@@ -188,6 +194,12 @@ namespace AccountingService.API.Services
                 EditableCompanyIds = companies.Where(company => company.CanEdit)
                     .Select(company => company.CompanyId).Distinct().ToArray(),
                 DeletableCompanyIds = companies.Where(company => company.CanDelete)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                ExportableCompanyIds = companies.Where(company => company.CanExport)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                CancellableCompanyIds = companies.Where(company => company.CanCancel)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                ApprovableCompanyIds = companies.Where(company => company.CanApprove)
                     .Select(company => company.CompanyId).Distinct().ToArray(),
                 IssuableCompanyIds = companies.Where(company => company.CanIssue)
                     .Select(company => company.CompanyId).Distinct().ToArray()
@@ -211,6 +223,9 @@ namespace AccountingService.API.Services
             public bool CanEdit { get; set; }
             public bool CanDelete { get; set; }
             public bool CanIssue { get; set; }
+            public bool CanCancel { get; set; }
+            public bool CanApprove { get; set; }
+            public bool CanExport { get; set; }
         }
 
         private sealed class VerifiedSession

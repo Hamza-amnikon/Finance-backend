@@ -36,6 +36,7 @@ namespace AccountingService.API.DTOs
         public string Narration { get; set; }
             = string.Empty;
 
+        [Required(ErrorMessage = "Enter a reference number.")]
         [MaxLength(100)]
         public string? Reference { get; set; }
 

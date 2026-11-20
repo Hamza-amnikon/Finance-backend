@@ -99,6 +99,17 @@ builder.Services.Configure<PaymentBankingOptions>(builder.Configuration.GetSecti
 builder.Services.AddScoped<PaymentBankingService>();
 builder.Services.AddHostedService<PaymentBankingWorker>();
 
+builder.Services.AddScoped<InternalPaymentRequestRepository>();
+builder.Services.AddScoped<InternalPaymentRequestService>();
+builder.Services.AddHttpClient<InternalPaymentRequestAccess>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false,
+    AllowAutoRedirect = false
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -121,4 +132,4 @@ app.UseFinanceRequestCancellation();
 
 app.MapControllers();
 
-app.Run();
+app.RunWithDevelopmentInstanceGuard();

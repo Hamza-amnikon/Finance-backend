@@ -24,6 +24,8 @@ namespace PermissionService.API.Models
 
         public bool CanDelete { get; set; }
 
+        public bool CanCancel { get; set; }
+
         public bool CanApprove { get; set; }
 
         public bool CanExport { get; set; }

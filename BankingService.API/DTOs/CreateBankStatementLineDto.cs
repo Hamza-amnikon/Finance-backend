@@ -16,6 +16,7 @@ namespace BankingService.API.DTOs
             "99999999999999.9999")]
         public decimal Amount { get; set; }
 
+        [Required(ErrorMessage = "Enter a reference number.")]
         [MaxLength(200)]
         public string Reference { get; set; } = "";
 

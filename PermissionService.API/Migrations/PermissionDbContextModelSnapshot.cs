@@ -86,6 +86,9 @@ namespace PermissionService.API.Migrations
                     b.Property<bool>("CanApprove")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("CanCancel")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("CanCreate")
                         .HasColumnType("bit");
 
