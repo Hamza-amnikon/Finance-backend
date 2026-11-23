@@ -1,4 +1,5 @@
 using BankingService.API.Data;
+using BankingService.API.DTOs;
 using BankingService.API.Models;
 using BankingService.API.Services;
 using Microsoft.Data.SqlClient;
@@ -108,29 +109,55 @@ try
     await context.Database.ExecuteSqlRawAsync("IF SCHEMA_ID('expenses') IS NULL EXEC('CREATE SCHEMA expenses')");
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA purchases");
     await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA sales");
+    await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA amnikon");
     await context.Database.ExecuteSqlRawAsync("""
+        CREATE TABLE expenses.Companies (
+            Id int PRIMARY KEY, Name nvarchar(160) NOT NULL, Currency nvarchar(3) NOT NULL);
+        INSERT INTO expenses.Companies VALUES
+            (10, 'Dubai test company', 'AED'),
+            (20, 'India test company', 'INR');
+        CREATE TABLE amnikon.Branches (
+            Name nvarchar(100) NOT NULL,
+            AccountingCompanyId int NOT NULL,
+            IsActive bit NOT NULL);
+        INSERT INTO amnikon.Branches VALUES
+            ('Dubai', 10, 1),
+            ('Turbhe', 20, 1),
+            ('Mumbai', 20, 1),
+            ('India', 20, 1);
         CREATE TABLE purchases.PaymentsMade (
             Id int PRIMARY KEY, RequestId uniqueidentifier NOT NULL, PaymentNumber nvarchar(50) NOT NULL,
-            VendorName nvarchar(200) NOT NULL, Branch nvarchar(20) NOT NULL, Currency nvarchar(3) NOT NULL,
-            Amount decimal(18,4) NOT NULL, PaymentMode nvarchar(50) NOT NULL, Reference nvarchar(200) NOT NULL,
+            VendorId uniqueidentifier NULL, VendorName nvarchar(200) NOT NULL,
+            BillId int NULL, BankAccountId int NULL, BankAmount decimal(18,4) NULL,
+            BankCurrency nvarchar(3) NULL, Branch nvarchar(20) NOT NULL, Currency nvarchar(3) NOT NULL,
+            Amount decimal(18,4) NOT NULL, PaymentMode nvarchar(50) NOT NULL,
+            Reference nvarchar(200) NOT NULL,
             PaymentDate date NOT NULL, CreatedDate datetime2 NOT NULL, VoidedDate datetime2 NULL,
             Status nvarchar(20) NOT NULL, BankTransactionId int NULL);
-        CREATE TABLE sales.SalesInvoices (Id int PRIMARY KEY, ClientName nvarchar(200), Branch nvarchar(20));
+        CREATE TABLE sales.SalesInvoices (
+            Id int PRIMARY KEY, ClientId uniqueidentifier NULL,
+            ClientName nvarchar(200), Branch nvarchar(20));
         CREATE TABLE sales.SalesInvoicePayments (
             Id int PRIMARY KEY, SalesInvoiceId int, RequestId uniqueidentifier NOT NULL, PaymentDate date NOT NULL,
             Amount decimal(18,4) NOT NULL, Currency nvarchar(3) NOT NULL, PaymentMode nvarchar(50) NOT NULL,
-            Reference nvarchar(200) NOT NULL, CreatedDate datetime2 NOT NULL, BankTransactionId int NULL);
+            Reference nvarchar(200) NOT NULL, CreatedDate datetime2 NOT NULL,
+            VoidedDate datetime2 NULL, Status nvarchar(20) NOT NULL,
+            BankAccountId int NULL, BankAmount decimal(18,4) NULL,
+            BankChargeAmount decimal(18,4) NOT NULL DEFAULT 0,
+            BankCurrency nvarchar(3) NULL, BankTransactionId int NULL);
         CREATE TABLE expenses.Expenses (
             Id int PRIMARY KEY, RequestId uniqueidentifier NOT NULL, CompanyId int NOT NULL, BankAccountId int NULL,
             Supplier nvarchar(160) NOT NULL, Currency nvarchar(3) NOT NULL, Amount decimal(18,4) NOT NULL,
             Reference nvarchar(160) NOT NULL, Date date NOT NULL, CreatedDate datetime2 NOT NULL,
             ModifiedDate datetime2 NULL, Status nvarchar(20) NOT NULL);
-        INSERT INTO sales.SalesInvoices VALUES (1,'Customer','Dubai');
+        INSERT INTO sales.SalesInvoices VALUES
+            (1,'00000000-0000-0000-0000-000000000001','Customer','Dubai');
         """);
     context.PaymentBankingSettings.Add(new PaymentBankingSettings { Id = 1, SourceAfterUtc = clock.GetUtcNow().UtcDateTime.AddHours(-1) });
     var dubai = new BankAccount
     {
         CompanyId = 10,
+        AccountingAccountId = 111,
         Name = "Dubai test bank",
         Currency = "AED",
         CurrencyDecimalPlaces = 2,
@@ -140,6 +167,7 @@ try
     var india = new BankAccount
     {
         CompanyId = 20,
+        AccountingAccountId = 112,
         Name = "India test bank",
         Currency = "INR",
         CurrencyDecimalPlaces = 2,
@@ -149,7 +177,13 @@ try
     context.BankAccounts.AddRange(dubai, india);
     await context.SaveChangesAsync();
     context.ChangeTracker.Clear();
-    var service = new PaymentBankingService(context, settings, clock, NullLogger<PaymentBankingService>.Instance);
+    var service = new PaymentBankingService(
+        context,
+        settings,
+        new CheckAccountingService(),
+        new CheckExchangeRateService(),
+        clock,
+        NullLogger<PaymentBankingService>.Instance);
     async Task Made(
         int id,
         string branch,
@@ -164,7 +198,7 @@ try
         var number = "PM-TEST-" + id;
         var createdDate = createdAt ?? clock.GetUtcNow().UtcDateTime;
         var paymentDate = date ?? new DateOnly(2026, 10, 23);
-        await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO purchases.PaymentsMade (Id,RequestId,PaymentNumber,VendorName,Branch,Currency,Amount,PaymentMode,Reference,PaymentDate,CreatedDate,Status) VALUES({id},{request},{number},'Vendor',{branch},{currency},{amount},{mode},'TEST',{paymentDate},{createdDate},'Recorded')");
+        await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO purchases.PaymentsMade (Id,RequestId,PaymentNumber,VendorId,VendorName,BillId,Branch,Currency,Amount,PaymentMode,Reference,PaymentDate,CreatedDate,Status) VALUES({id},{request},{number},{Guid.Parse("00000000-0000-0000-0000-000000000002")},'Vendor',1,{branch},{currency},{amount},{mode},'TEST',{paymentDate},{createdDate},'Recorded')");
     }
 
     async Task<PaymentBankingLink> Link(
@@ -186,7 +220,7 @@ try
     await Made(9, "Turbhe", "INR", 100, createdAt: clock.GetUtcNow().UtcDateTime.AddDays(-1));
     var customerRequest = Guid.NewGuid();
     var now = clock.GetUtcNow().UtcDateTime;
-    await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO sales.SalesInvoicePayments VALUES(1,1,{customerRequest},'2026-10-23',20,'AED','RTGS','TEST',{now},NULL)");
+    await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO sales.SalesInvoicePayments (Id,SalesInvoiceId,RequestId,PaymentDate,Amount,Currency,PaymentMode,Reference,CreatedDate,Status) VALUES(1,1,{customerRequest},'2026-10-23',20,'AED','RTGS','TEST',{now},'Recorded')");
     var expenseRequest = Guid.NewGuid();
     await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO expenses.Expenses VALUES(1,{expenseRequest},{india.CompanyId},{india.Id},'Office supplies','INR',15,'EXP-REF','2026-10-23',{now},NULL,'Recorded')");
     var historicalExpenseRequest = Guid.NewGuid();
@@ -296,8 +330,10 @@ try
     await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE purchases.PaymentsMade SET Status='Voided',VoidedDate={now} WHERE Id=6");
     await service.RunOnceAsync(default);
     Check((await Entry("Made", 6)).Status == "Cancelled", "Voiding an uncleared cheque cancels its draft");
-    // Fixing a route retries the same payment instead of recreating its source record.
+    // Fixing the route and company mapping retries the same payment.
     settings.Value.Routes[1].Branches.Add("Unknown branch");
+    await context.Database.ExecuteSqlRawAsync(
+        "INSERT INTO amnikon.Branches VALUES ('Unknown branch', 20, 1)");
     await service.ProcessAsync("Made", 8, default);
     context.ChangeTracker.Clear();
     Check((await Link("Made", 8)).State == "Posted", "Missing route can be repaired and safely retried");
@@ -320,4 +356,47 @@ finally
 class CheckClock : TimeProvider
 {
     public override DateTimeOffset GetUtcNow() => new DateTimeOffset(2026, 10, 23, 12, 0, 0, TimeSpan.Zero);
+}
+
+class CheckAccountingService : IPaymentAccountingApiService
+{
+    public Task<PaymentReceivedAccountingResultDto> PostPaymentReceivedAsync(
+        PaymentReceivedAccountingPostingDto posting,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(new PaymentReceivedAccountingResultDto
+        {
+            JournalEntryId = posting.PaymentId,
+            Status = "Posted"
+        });
+    }
+
+    public Task<PaymentMadeAccountingResultDto> PostPaymentMadeAsync(
+        PaymentMadeAccountingPostingDto posting,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(new PaymentMadeAccountingResultDto
+        {
+            JournalEntryId = posting.PaymentId,
+            Status = "Posted"
+        });
+    }
+}
+
+class CheckExchangeRateService : IBankingExchangeRateService
+{
+    public Task<BankingExchangeRateDto> GetRateAsync(
+        string baseCurrency,
+        string quoteCurrency,
+        DateOnly? date,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(new BankingExchangeRateDto
+        {
+            BaseCurrency = baseCurrency,
+            QuoteCurrency = quoteCurrency,
+            Rate = 1m,
+            RateDate = date ?? default
+        });
+    }
 }
