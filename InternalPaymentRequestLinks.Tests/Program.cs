@@ -30,6 +30,17 @@ try
     Check(created, "The checks use a new isolated LocalDB database.");
     await seed.Database.ExecuteSqlRawAsync("CREATE TABLE expenses.Companies (Id int PRIMARY KEY, Name nvarchar(160) NOT NULL, Currency nvarchar(3) NOT NULL)");
     await seed.Database.ExecuteSqlRawAsync("INSERT expenses.Companies VALUES (7, 'Receiving office', 'INR'), (21, 'Paying office', 'AED')");
+    await seed.Database.ExecuteSqlRawAsync("CREATE SCHEMA amnikon");
+    await seed.Database.ExecuteSqlRawAsync("""
+        CREATE TABLE amnikon.Branches (
+            Name nvarchar(100) DEFAULT N'Test office',
+            AccountingCompanyId int, CompanyName nvarchar(200), Address nvarchar(1000), CountryCode nvarchar(2),
+            CompanyRegistrationNumber nvarchar(50), TaxRegistrationNumber nvarchar(50), Phone nvarchar(25), Email nvarchar(254),
+            BankAccountNumber nvarchar(100), BankIban nvarchar(34), BankSwiftCode nvarchar(11));
+        INSERT amnikon.Branches (AccountingCompanyId, CompanyName, Address, CountryCode, CompanyRegistrationNumber, TaxRegistrationNumber, Phone, Email, BankAccountNumber, BankIban, BankSwiftCode) VALUES
+            (7, 'Receiving legal company', 'Receiving address', 'IN', 'CR-TEST', 'TAX-TEST', '123', 'finance@example.test', 'different-bank', 'OTHER-IBAN', 'OTHER-SWIFT'),
+            (21, 'Paying legal company', 'Paying address', 'AE', '', '', '', '', '', '', '');
+        """);
     var source = new BankAccount { CompanyId = 21, Name = "Source bank", Currency = "AED", CurrencyDecimalPlaces = 2, OpeningBalanceDate = date, AccountNumber = "source-test-number" };
     var destination = new BankAccount { CompanyId = 7, Name = "Receiving bank", Currency = "INR", CurrencyDecimalPlaces = 2, OpeningBalanceDate = date, AccountNumber = "receiving-test-number" };
     seed.BankAccounts.AddRange(source, destination);
@@ -118,6 +129,10 @@ try
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(exported));
         Check(json.RootElement.GetProperty("displayName").GetString() == "Configured title", "Printing uses the configured document title.");
         Check(json.RootElement.GetProperty("receivingBank").GetProperty("AccountNumber").GetString() == "receiving-test-number", "Authorized printing includes the stored receiving bank details.");
+        Check(json.RootElement.GetProperty("issuer").GetProperty("companyName").GetString() == "Receiving legal company", "Print uses the mapped invoice company profile.");
+        Check(json.RootElement.GetProperty("issuer").GetProperty("bankAccountNumber").GetString() == "receiving-test-number", "Company profile cannot override the selected receiving bank.");
+        Check(json.RootElement.GetProperty("issuer").GetProperty("bankIban").GetString() == "", "IBAN from a different bank account is excluded.");
+        Check(json.RootElement.GetProperty("recipient").GetProperty("address").GetString() == "Paying address", "The paying company address comes from its mapped profile.");
         await Reject(() => service.GetAsync(request.Id, new(false, [999], [], [], [], "other"), default), 404, "Unrelated companies cannot retrieve or print the request.");
     }
 

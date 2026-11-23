@@ -5,6 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
     </PropertyGroup>
     <ItemGroup>
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.6" />
         <Compile Include="../PermissionService.API/Authentication/*.cs" Link="Authentication/%(Filename)%(Extension)" />
         <Compile Include="../PermissionService.API/CallOtherApis/ILoginSessionClient.cs" Link="ILoginSessionClient.cs" />
         <Compile Include="../PermissionService.API/CallOtherApis/LoginSessionClient.cs" Link="LoginSessionClient.cs" />

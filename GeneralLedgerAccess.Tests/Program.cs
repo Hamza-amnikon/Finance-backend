@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging.Abstractions;
 
+await SsoAdminAccessChecks.RunAsync();
+
 await Check(new LedgerAccess(401, false, []), "Get", "?companyId=2", 401);
 await Check(new LedgerAccess(200, false, [2]), "Get", "?companyId=1", 403);
 await Check(new LedgerAccess(200, false, [2]), "Accounts", "?companyId=1", 403);

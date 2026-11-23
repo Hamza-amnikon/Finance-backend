@@ -177,6 +177,11 @@ namespace AccountingService.API.Services
 
             request.HttpContext.User = CreateSessionPrincipal(session, "microsoft");
 
+            if (session.IsAdmin)
+            {
+                return new LedgerAccess(200, true, []);
+            }
+
             // The identity service validates active users and roles. Never accept a role from the browser.
             var companies = await _context.Database.SqlQuery<CompanyPermission>($"""
                 SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel
@@ -230,6 +235,7 @@ namespace AccountingService.API.Services
 
         private sealed class VerifiedSession
         {
+            public bool IsAdmin { get; set; }
             public Guid UserId { get; set; }
             public int RoleId { get; set; }
             public string Role { get; set; } = string.Empty;

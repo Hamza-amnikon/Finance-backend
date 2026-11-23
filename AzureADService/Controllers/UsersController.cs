@@ -9,7 +9,7 @@ namespace AzureADService.Controllers
 {
     [ApiController]
     [Route("api/users")]
-    [Authorize(Policy = "ManageRolePermissions")]
+    [Authorize(Policy = "ManageDirectoryUsers")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public class UsersController : ControllerBase
     {

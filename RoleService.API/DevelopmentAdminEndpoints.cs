@@ -4,12 +4,13 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using RoleService.API.Authentication;
 
 namespace RoleService.API
 {
     internal static class DevelopmentAdminEndpoints
     {
-        internal const string AdminRole = "Admin";
+        internal const string AdminRole = FinanceRoleNames.Admin;
 
         public static void MapDevelopmentAdmin(this WebApplication app)
         {

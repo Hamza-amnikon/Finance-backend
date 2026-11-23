@@ -9,12 +9,14 @@ namespace PermissionService.API.CallOtherApis
     {
         private readonly HttpClient _httpClient;
         private readonly string _sessionCookieName;
+        private readonly string _microsoftCookieName;
 
         public LoginSessionClient(
             HttpClient httpClient,
             IConfiguration configuration)
         {
             _httpClient = httpClient;
+            _microsoftCookieName = configuration["Authentication:MicrosoftSessionCookieName"] ?? "Finance.Jwt";
 
             var sessionCookieName =
                 configuration["Authentication:SessionCookieName"];
@@ -28,8 +30,23 @@ namespace PermissionService.API.CallOtherApis
             _sessionCookieName = sessionCookieName;
         }
 
-        public async Task<LoginSessionResponse?> GetSessionAsync(
+        public Task<LoginSessionResponse?> GetSessionAsync(
             string sessionCookieValue,
+            CancellationToken cancellationToken)
+        {
+            return VerifyAsync(sessionCookieValue, false, cancellationToken);
+        }
+
+        public Task<LoginSessionResponse?> GetMicrosoftSessionAsync(
+            string sessionCookieValue,
+            CancellationToken cancellationToken)
+        {
+            return VerifyAsync(sessionCookieValue, true, cancellationToken);
+        }
+
+        private async Task<LoginSessionResponse?> VerifyAsync(
+            string sessionCookieValue,
+            bool microsoft,
             CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(sessionCookieValue))
@@ -46,11 +63,11 @@ namespace PermissionService.API.CallOtherApis
 
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
-                "api/development-admin/session");
+                microsoft ? "api/auth/session" : "api/development-admin/session");
 
             request.Headers.Add(
                 "Cookie",
-                $"{_sessionCookieName}={sessionCookieValue}");
+                $"{(microsoft ? _microsoftCookieName : _sessionCookieName)}={sessionCookieValue}");
 
             using var response = await _httpClient.SendAsync(
                 request,

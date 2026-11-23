@@ -173,6 +173,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseMiddleware<PermissionRequestFailureMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

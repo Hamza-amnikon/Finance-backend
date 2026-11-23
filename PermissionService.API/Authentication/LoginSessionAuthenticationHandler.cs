@@ -32,24 +32,31 @@ namespace PermissionService.API.Authentication
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            if (!_environment.IsDevelopment() ||
-                !_settings.UseDevelopmentSession)
+            var method = Request.Headers["X-Finance-Authentication"].ToString();
+            if (method.Length > 0 && method is not ("admin" or "microsoft"))
+            {
+                return AuthenticateResult.Fail("Invalid authentication method.");
+            }
+
+            var microsoft = method == "microsoft" ||
+                (method != "admin" && Request.Cookies.ContainsKey(_settings.MicrosoftSessionCookieName));
+
+            if (!microsoft && (!_environment.IsDevelopment() || !_settings.UseDevelopmentSession))
             {
                 return AuthenticateResult.NoResult();
             }
 
-            if (!Request.Cookies.TryGetValue(
-                _settings.SessionCookieName,
-                out var sessionCookieValue))
+            var cookieName = microsoft ? _settings.MicrosoftSessionCookieName : _settings.SessionCookieName;
+            if (!Request.Cookies.TryGetValue(cookieName, out var sessionCookieValue))
             {
                 return AuthenticateResult.NoResult();
             }
 
             try
             {
-                var session = await _sessionClient.GetSessionAsync(
-                    sessionCookieValue,
-                    Context.RequestAborted);
+                var session = microsoft
+                    ? await _sessionClient.GetMicrosoftSessionAsync(sessionCookieValue, Context.RequestAborted)
+                    : await _sessionClient.GetSessionAsync(sessionCookieValue, Context.RequestAborted);
 
                 if (session == null)
                 {

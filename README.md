@@ -17,15 +17,16 @@ It assumes the preceding `AddBranchInvoiceNumberPrefix` migration is applied.
 `BranchTableMigration.Tests` checks data preservation, old/new name access,
 concurrency and rollback against a disposable database.
 
-The backend contains 12 independently running ASP.NET Core APIs targeting .NET 10.
-They use the existing SparkFinance database on `(localdb)\MSSQLLocalDB`.
+The backend contains 17 independently running ASP.NET Core APIs targeting .NET 10.
+Configure each service to use the intended SQL Server instance for that environment.
+LocalDB is one development option; the shared database may run on another machine.
 
 ## Run in Visual Studio
 
 1. Open `SparkFinanceBackend.slnx` in the repository root.
 2. Stop previous debugging sessions before rebuilding.
 3. In the solution startup settings, select multiple startup projects and choose
-   **Start** for the APIs you need. The full frontend uses all 12 APIs.
+   **Start** for the APIs you need. The full frontend uses all 17 APIs.
 4. Use the `https` launch profile where available; ClientService uses `http`.
 
 ## Run one API from a terminal
@@ -49,7 +50,7 @@ in the repository root without `--project` does not select an API.
   API from both Visual Studio and a terminal.
 - **Address already in use:** another instance already owns the configured port.
   Stop that instance before launching another copy.
-- **Swagger opens but data requests fail:** check the LocalDB instance using
+- **Swagger opens but data requests fail with LocalDB configured:** check the LocalDB instance using
   `SqlLocalDB info MSSQLLocalDB`, then `SqlLocalDB start MSSQLLocalDB` if stopped.
   The tool may need its full path, for example
   `C:\Program Files\Microsoft SQL Server\170\Tools\Binn\SqlLocalDB.exe`.
@@ -60,6 +61,21 @@ in the repository root without `--project` does not select an API.
 
 Database migrations are separate from starting the APIs. Do not reset or migrate
 the existing database merely to resolve process locks or LocalDB startup errors.
+
+## Users permissions and administrator access
+
+Apply the `AddUsersPagePermissionCatalog` migration from PermissionService.API to
+the intended database during deployment. It adds the `settings.users` catalog
+entry if missing. The migration does not grant access to any role. Grant the
+Users page to selected roles and companies in Role Permissions. Verify that
+the connected frontend and API both use that database before testing access.
+
+RoleService.API maps its Users, Roles and session controllers in every
+environment. The development-only local Admin sign-in remains available in
+Development. Production SSO administrators need the `Admin` role and the
+configured Entra API scope. PermissionService.API permits `Admin` to manage
+role permissions; configure the RoleService and CompanyService API base URLs
+for the deployment environment.
 
 ## Daily exchange-rate agent
 
