@@ -70,3 +70,9 @@ Restart PermissionService, AccountingService and BankingService, then refresh ME
 Only the creator with Edit may edit/submit a draft. No account, including local admin, may approve/reject its own request. Multiple authorized approvers may see Submitted requests; the existing row-version check makes the first successful decision final. Submission/cancellation actor, UTC time and note are stored separately from approval/rejection audit details. Existing audit values are not fabricated.
 
 Browser verification: use separate authenticated accounts; submit as raiser, verify no Approve/Reject/Cancel; approve as a permitted second user; verify wrong-company and View-only accounts cannot act; try concurrent decisions from two approvers and expect one success and one conflict. Confirm existing completed-transfer linking is unchanged.
+
+## Invoice document layout
+
+Request printing uses the invoice CompanyDocument.css layout and the existing amnikon.Branches invoice profile mapped by AccountingCompanyId. The requesting company must have exactly one mapped profile; ambiguous mappings stop printing rather than select arbitrary company details. The paying company profile supplies its legal name and address when present. Phone, email and registration details come from that saved profile, without company-specific constants.
+
+The receiving bank is always the request's selected bank account. IBAN and SWIFT from the invoice profile appear only when its account number matches that receiving bank. No settings, permissions, invoices or transfers are changed. No migration is required. Rebuild/restart BankingService and refresh the frontend. Verify print preview and Save PDF with both company profiles and a multi-page request; visual browser verification remains pending.

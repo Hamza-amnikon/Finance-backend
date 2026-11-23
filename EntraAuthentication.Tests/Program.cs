@@ -134,6 +134,7 @@ app.Use((context, next) =>
     context.Request.Scheme = "https";
     return next(context);
 });
+app.UseMiddleware<DatabaseAvailabilityMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
@@ -152,6 +153,7 @@ await app.StartAsync();
 try
 {
     await AuthenticationCancellationChecks.RunAsync(app.Services, users, roles);
+    await DatabaseAvailabilityChecks.RunAsync(app.Services);
     var address = app.Services.GetRequiredService<IServer>()
         .Features.Get<IServerAddressesFeature>()!.Addresses.Single();
     using var handler = new HttpClientHandler
@@ -227,6 +229,29 @@ try
             "Page permissions use the verified database role and ignore a supplied role ID.");
         Check(response.Headers.CacheControl?.NoStore == true, "Page permission responses are not cached.");
     }
+
+    roles.RoleName = "Admin";
+    using (var response = await client.GetAsync("api/auth/session"))
+    {
+        var adminSession = await response.Content.ReadFromJsonAsync<UserSessionResponse>();
+        Check(adminSession?.IsAdmin == true && adminSession.UserId == users.User.UserId,
+            "Database-assigned SSO Admin receives full access without changing identity.");
+    }
+    await Expect(await client.GetAsync("test/admin"), HttpStatusCode.OK);
+    await Expect(await client.GetAsync("api/development-admin/session"), HttpStatusCode.Unauthorized);
+    users.User.IsActive = false;
+    await Expect(await client.GetAsync("api/auth/session"), HttpStatusCode.Unauthorized);
+    users.User.IsActive = true;
+    roles.Active = false;
+    await Expect(await client.GetAsync("api/auth/session"), HttpStatusCode.Unauthorized);
+    roles.Active = true;
+    roles.RoleName = "Test CA";
+    using (var response = await client.GetAsync("api/auth/session"))
+    {
+        var revokedSession = await response.Content.ReadFromJsonAsync<UserSessionResponse>();
+        Check(revokedSession?.IsAdmin == false, "Removing the Admin role revokes full access on the next request.");
+    }
+    await Expect(await client.GetAsync("test/admin"), HttpStatusCode.Forbidden);
 
     users.User.IsActive = false;
     await Expect(await client.GetAsync("api/auth/session"), HttpStatusCode.Unauthorized);

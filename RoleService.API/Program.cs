@@ -96,6 +96,8 @@ builder.Services.AddScoped<
     IUserPagePermissionRepository,
     UserPagePermissionRepository>();
 
+builder.Services.AddScoped<UsersPermissionFilter>();
+
 builder.Services.AddFinanceMicrosoftAuthentication(
     builder.Configuration,
     builder.Environment);
@@ -114,6 +116,7 @@ if (requiredMicrosoftScopes == null || requiredMicrosoftScopes.Length == 0)
 }
 
 app.UseFinanceRequestCancellation();
+app.UseMiddleware<DatabaseAvailabilityMiddleware>();
 
 app.UseHttpsRedirection();
 
@@ -133,7 +136,8 @@ if (app.Environment.IsDevelopment())
             "Finance Role Service v1");
     });
 
-    app.MapControllers();
 }
+
+app.MapControllers();
 
 app.Run();

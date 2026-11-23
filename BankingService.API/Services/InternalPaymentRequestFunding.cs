@@ -24,10 +24,48 @@ namespace BankingService.API.Services
                 .Where(row => row.Id == request.ReceivingBankAccountId)
                 .Select(row => new { row.Name, row.BankName, row.AccountNumber, row.Currency })
                 .SingleAsync(cancellationToken);
+            var profiles = await database.Database.SqlQuery<InternalRequestCompanyProfile>($"""
+                SELECT AccountingCompanyId, CompanyName, Address, CountryCode,
+                    CompanyRegistrationNumber, TaxRegistrationNumber, Phone, Email,
+                    BankAccountNumber, BankIban, BankSwiftCode
+                FROM amnikon.Branches
+                WHERE AccountingCompanyId = {request.RequestingCompanyId}
+                    OR AccountingCompanyId = {request.PayingCompanyId}
+                """).ToListAsync(cancellationToken);
+            Require(profiles.Count(profile => profile.AccountingCompanyId == request.RequestingCompanyId) == 1,
+                409, "Configure one invoice company profile for the requesting company before printing.");
+            Require(profiles.Count(profile => profile.AccountingCompanyId == request.PayingCompanyId) <= 1,
+                409, "The paying company has multiple invoice profiles. Correct its company mapping before printing.");
+            var issuerProfile = profiles.Single(profile => profile.AccountingCompanyId == request.RequestingCompanyId);
+            var recipientProfile = profiles.SingleOrDefault(profile => profile.AccountingCompanyId == request.PayingCompanyId);
+            var sameBankAccount = !string.IsNullOrWhiteSpace(bank.AccountNumber) &&
+                string.Equals(bank.AccountNumber.Trim(), issuerProfile.BankAccountNumber.Trim(), StringComparison.OrdinalIgnoreCase);
             return new
             {
                 displayName,
                 request,
+                issuer = new
+                {
+                    companyName = string.IsNullOrWhiteSpace(issuerProfile.CompanyName)
+                        ? companies.GetValueOrDefault(request.RequestingCompanyId) : issuerProfile.CompanyName,
+                    issuerProfile.Address,
+                    issuerProfile.CountryCode,
+                    issuerProfile.CompanyRegistrationNumber,
+                    issuerProfile.TaxRegistrationNumber,
+                    issuerProfile.Phone,
+                    issuerProfile.Email,
+                    bankAccountName = bank.Name,
+                    bank.BankName,
+                    bankAccountNumber = bank.AccountNumber,
+                    bankIban = sameBankAccount ? issuerProfile.BankIban : "",
+                    bankSwiftCode = sameBankAccount ? issuerProfile.BankSwiftCode : ""
+                },
+                recipient = new
+                {
+                    companyName = string.IsNullOrWhiteSpace(recipientProfile?.CompanyName)
+                        ? companies.GetValueOrDefault(request.PayingCompanyId) : recipientProfile.CompanyName,
+                    address = recipientProfile?.Address ?? ""
+                },
                 requestingCompany = companies.GetValueOrDefault(request.RequestingCompanyId),
                 payingCompany = companies.GetValueOrDefault(request.PayingCompanyId),
                 receivingBank = bank,

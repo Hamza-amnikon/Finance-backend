@@ -11,5 +11,9 @@ namespace RoleService.API.DTOs
         public int? CompanyId { get; set; }
 
         public bool CanView { get; set; }
+
+        public bool CanCreate { get; set; }
+
+        public bool CanEdit { get; set; }
     }
 }

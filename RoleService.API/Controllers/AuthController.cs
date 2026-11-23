@@ -107,6 +107,7 @@ namespace RoleService.API.Controllers
             Response.Headers.CacheControl = "no-store";
             return Ok(new UserSessionResponse
             {
+                IsAdmin = User.IsInRole(FinanceRoleNames.Admin),
                 UserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!),
                 Name = User.FindFirstValue(ClaimTypes.Name)!,
                 Email = User.FindFirstValue(ClaimTypes.Email)!,

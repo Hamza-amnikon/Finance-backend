@@ -28,6 +28,7 @@ builder.Services.AddFinanceLoginSession(
 builder.Services.AddSingleton<ILoginSessionClient, TestSessionClient>();
 
 await using var app = builder.Build();
+app.UseMiddleware<PermissionRequestFailureMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -42,6 +43,12 @@ app.MapPut("/assignments", () =>
     return Results.Ok(new { saved = true });
 })
 .RequireAuthorization("ManageRolePermissions");
+
+app.MapGet("/cancelled-query", (HttpContext context) =>
+{
+    throw new TaskCanceledException("Simulated database query timeout.");
+})
+    .RequireAuthorization("ManageRolePermissions");
 
 await app.StartAsync();
 
@@ -85,16 +92,54 @@ foreach (var method in new[] { HttpMethod.Get, HttpMethod.Put })
     }
 }
 
+foreach (var testCase in new[]
+{
+    (Cookie: "manager", Status: HttpStatusCode.OK),
+    (Cookie: "viewer", Status: HttpStatusCode.Forbidden),
+    (Cookie: "invalid", Status: HttpStatusCode.Unauthorized),
+    (Cookie: "unavailable", Status: HttpStatusCode.ServiceUnavailable)
+})
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, "/assignments");
+    request.Headers.Add("Cookie", $"Finance.Jwt={testCase.Cookie}; Test.Session=manager");
+    request.Headers.Add("X-Finance-Authentication", "microsoft");
+    using var response = await client.SendAsync(request);
+    if (response.StatusCode != testCase.Status)
+    {
+        throw new Exception("SSO permissions verification failed or fell back to local admin.");
+    }
+}
+
 if (saveCount != 1)
 {
     throw new Exception("Unauthorized requests reached the save handler.");
 }
 
+using (var request = new HttpRequestMessage(HttpMethod.Get, "/cancelled-query"))
+{
+    request.Headers.Add("Cookie", "Test.Session=manager");
+    using var response = await client.SendAsync(request);
+    var body = await response.Content.ReadAsStringAsync();
+    if (response.StatusCode != HttpStatusCode.GatewayTimeout ||
+        response.Headers.CacheControl?.NoStore != true ||
+        !body.Contains("permission_timeout", StringComparison.Ordinal))
+    {
+        throw new Exception("A cancelled database query must return a retryable 504 response.");
+    }
+}
+
 await app.StopAsync();
-Console.WriteLine("PASS: 12 policy checks; only the verified configured manager could load or save. No database records changed.");
+Console.WriteLine("PASS: 16 policy checks; only the verified configured manager could load or save. No database records changed.");
 
 public class TestSessionClient : ILoginSessionClient
 {
+    public Task<LoginSessionResponse?> GetMicrosoftSessionAsync(
+        string sessionCookieValue,
+        CancellationToken cancellationToken)
+    {
+        return GetSessionAsync(sessionCookieValue, cancellationToken);
+    }
+
     public Task<LoginSessionResponse?> GetSessionAsync(
         string sessionCookieValue,
         CancellationToken cancellationToken)

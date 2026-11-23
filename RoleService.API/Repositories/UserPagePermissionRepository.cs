@@ -20,7 +20,9 @@ namespace RoleService.API.Repositories
             // Keep denied routes so a permitted parent cannot grant a separately controlled child page.
             return _context.Database.SqlQuery<UserPagePermissionResponse>($"""
                 SELECT p.PermissionCode, p.Module, p.Route, rp.CompanyId,
-                    CAST(CASE WHEN rp.CompanyId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanView
+                    CAST(CASE WHEN rp.CompanyId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanView,
+                    CAST(COALESCE(rp.CanCreate, 0) AS bit) AS CanCreate,
+                    CAST(COALESCE(rp.CanEdit, 0) AS bit) AS CanEdit
                 FROM security.Permissions p
                 LEFT JOIN security.RolePermissions rp
                     ON rp.PermissionId = p.PermissionId AND rp.RoleId = {roleId}

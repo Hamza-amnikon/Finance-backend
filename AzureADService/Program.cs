@@ -1,6 +1,7 @@
 using AzureADService.Configuration;
 using AzureADService.Services;
 using PermissionService.API.Authentication;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 var roleService = builder.Configuration.GetSection("Services:RoleService");
@@ -23,6 +24,26 @@ builder.Services.AddFinanceLoginSession(
     builder.Environment,
     roleServiceUri,
     timeout);
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient("DirectoryRoleService", client =>
+{
+    client.BaseAddress = new Uri(roleServiceUri.AbsoluteUri.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(timeout);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false,
+    AllowAutoRedirect = false
+});
+builder.Services.AddScoped<IAuthorizationHandler, DirectoryUsersAuthorizationHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ManageDirectoryUsers", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.AddRequirements(new DirectoryUsersRequirement());
+    });
+});
 
 var app = builder.Build();
 

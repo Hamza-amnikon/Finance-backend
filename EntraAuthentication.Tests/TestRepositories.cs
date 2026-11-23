@@ -53,6 +53,7 @@ sealed class TestUserRepository(User user) : IUserRepository
 
 sealed class TestRoleRepository : IRoleRepository
 {
+    public string RoleName { get; set; } = "Test CA";
     public bool Active { get; set; } = true;
 
     public Func<CancellationToken, Task<Roles?>>? LookupOverride { get; set; }
@@ -68,7 +69,7 @@ sealed class TestRoleRepository : IRoleRepository
         return Task.FromResult<Roles?>(new Roles
         {
             RoleId = roleId,
-            Role = "Test CA",
+            Role = RoleName,
             Status = Active ? RoleStatus.Active : RoleStatus.Inactive
         });
     }

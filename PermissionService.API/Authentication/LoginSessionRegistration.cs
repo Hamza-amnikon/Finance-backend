@@ -18,6 +18,11 @@ namespace PermissionService.API.Authentication
 
             services.AddOptions<LoginSessionSettings>()
                 .Bind(section)
+                .Validate(options => roleServiceUri.Scheme == Uri.UriSchemeHttps &&
+                    !string.IsNullOrWhiteSpace(options.MicrosoftSessionCookieName) &&
+                    options.MicrosoftSessionCookieName.All(character =>
+                        char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_'),
+                    "Microsoft session verification requires HTTPS Role Service and a valid cookie name.")
                 .Validate(options => !options.UseDevelopmentSession ||
                     (environment.IsDevelopment() &&
                      roleServiceUri.Scheme == Uri.UriSchemeHttps &&
