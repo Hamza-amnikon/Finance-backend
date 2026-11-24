@@ -5,5 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../AccountingService.API/AccountingService.API.csproj" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AccountingService.API/AccountingService.API.csproj" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.19.2" />
+  </ItemGroup>
 </Project>

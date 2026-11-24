@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
+using RoleService.API.Authentication;
 using RoleService.API.DTOs;
 using RoleService.API.Models;
 using RoleService.API.Services;
@@ -15,6 +17,18 @@ namespace RoleService.API.Controllers
         public RoleController(IRoleService service)
         {
             _service = service;
+        }
+
+        [HttpGet("csrf")]
+        [Authorize(AuthenticationSchemes = FinanceAuthenticationSchemes.BrowserSession)]
+        public IActionResult GetCsrf([FromServices] IAntiforgery antiforgery)
+        {
+            Response.Headers.CacheControl = "no-store";
+
+            return Ok(new
+            {
+                token = antiforgery.GetAndStoreTokens(HttpContext).RequestToken
+            });
         }
 
         [HttpGet]

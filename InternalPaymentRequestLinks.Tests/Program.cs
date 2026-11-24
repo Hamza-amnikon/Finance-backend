@@ -200,6 +200,156 @@ try
         Check(!await transferContext.InternalPaymentRequestTransfers.AnyAsync(row => row.BankTransferId == draft.Id),
             "Ordinary transfers remain independent of requests unless explicitly linked.");
     }
+    await using (var flowContext = new BankingDbContext(options))
+    {
+        var requestService = new InternalPaymentRequestService(
+            flowContext,
+            new InternalPaymentRequestRepository(flowContext));
+        var transferService = new BankTransferService(
+            new BankTransferRepository(flowContext),
+            new BankAccountRepository(flowContext),
+            new BankTransactionRepository(flowContext));
+        var accountService = new BankAccountService(
+            new BankAccountRepository(flowContext),
+            new BankTransactionRepository(flowContext));
+        var reconciliationService = new BankReconciliationService(
+            flowContext,
+            new BankReconciliationRepository(flowContext),
+            new BankAccountRepository(flowContext),
+            new BankTransactionRepository(flowContext));
+        var requester = new InternalPaymentRequestScope(
+            false, [7], [7], [7], [], "requester");
+        var manager = new InternalPaymentRequestScope(
+            false, [21], [], [], [21], "paying-manager");
+        var beforeSource = await accountService.GetBalanceAsync(source.Id, default);
+        var beforeDestination = await accountService.GetBalanceAsync(destination.Id, default);
+        var transactionCountBeforeRequest = await flowContext.BankTransactions.CountAsync();
+
+        var flowRequest = await requestService.CreateAsync(
+            new InternalPaymentRequestDto
+            {
+                RequestId = Guid.NewGuid(),
+                RequestingCompanyId = 7,
+                PayingCompanyId = 21,
+                ReceivingBankAccountId = destination.Id,
+                RequestDate = date,
+                RequiredDate = date,
+                Lines = [new() { Purpose = "Operating funds", Amount = 50m }]
+            },
+            requester,
+            default);
+        flowRequest = await requestService.ChangeStatusAsync(
+            flowRequest.Id,
+            "submit",
+            new InternalPaymentRequestActionDto { RowVersion = flowRequest.RowVersion },
+            requester,
+            default);
+        await Reject(
+            () => requestService.ChangeStatusAsync(
+                flowRequest.Id,
+                "approve",
+                new InternalPaymentRequestActionDto { RowVersion = flowRequest.RowVersion },
+                requester,
+                default),
+            403,
+            "The requester cannot approve the submitted funding request.");
+        flowRequest = await requestService.ChangeStatusAsync(
+            flowRequest.Id,
+            "approve",
+            new InternalPaymentRequestActionDto { RowVersion = flowRequest.RowVersion },
+            manager,
+            default);
+        Check(
+            flowRequest.Status == InternalPaymentRequestStatus.Approved &&
+            flowRequest.DecidedBy == manager.ActorId &&
+            await flowContext.BankTransactions.CountAsync() == transactionCountBeforeRequest,
+            "Creating and approving a request moves no bank money.");
+
+        const string flowReference = "FLOW-REQUEST-TRANSFER";
+        var flowTransfer = await transferService.CreateAsync(
+            new CreateBankTransferDto
+            {
+                RequestId = Guid.NewGuid(),
+                SourceBankAccountId = source.Id,
+                DestinationBankAccountId = destination.Id,
+                SourceAmount = 2.43m,
+                SourceFeeAmount = 0m,
+                TransferDate = date,
+                Reference = flowReference
+            },
+            default);
+        flowTransfer = await transferService.ConfirmSentAsync(
+            flowTransfer.Id,
+            new ConfirmBankTransferSentDto
+            {
+                SourceAmount = 2.43m,
+                SourceFeeAmount = 0m,
+                TransferDate = date,
+                Reference = flowReference,
+                RowVersion = flowTransfer.RowVersion
+            },
+            default) ?? throw new Exception("The funding transfer was not sent.");
+        flowTransfer = await transferService.ConfirmReceivedAsync(
+            flowTransfer.Id,
+            new ConfirmBankTransferReceivedDto
+            {
+                DestinationAmount = 50m,
+                ReceivedDate = date,
+                RowVersion = flowTransfer.RowVersion
+            },
+            default) ?? throw new Exception("The funding transfer was not received.");
+        var transactionCountAfterTransfer = await flowContext.BankTransactions.CountAsync();
+        Check(
+            flowTransfer.Status == BankTransferStatus.Completed &&
+            transactionCountAfterTransfer == transactionCountBeforeRequest + 2,
+            "The completed transfer creates one debit and one credit.");
+        await requestService.LinkTransferAsync(
+            flowRequest.Id,
+            new InternalPaymentRequestTransferDto
+            {
+                BankTransferId = flowTransfer.Id,
+                RowVersion = flowRequest.RowVersion
+            },
+            payer,
+            transferViewer,
+            default);
+        var fundedRequest = await Read(flowRequest.Id);
+        Check(
+            fundedRequest.ReceivedAmount == 50m &&
+            fundedRequest.RemainingAmount == 0m &&
+            fundedRequest.FundingStatus == "Paid" &&
+            await flowContext.BankTransactions.CountAsync() == transactionCountAfterTransfer,
+            "Linking marks the request paid without creating another bank movement.");
+        var afterSource = await accountService.GetBalanceAsync(source.Id, default);
+        var afterDestination = await accountService.GetBalanceAsync(destination.Id, default);
+        Check(
+            afterSource!.CurrentBalance == beforeSource!.CurrentBalance - 2.43m &&
+            afterDestination!.CurrentBalance == beforeDestination!.CurrentBalance + 50m,
+            "Both bank balances change once in their own currencies.");
+
+        var reconciliation = await reconciliationService.CreateAsync(
+            new CreateBankReconciliationDto
+            {
+                RequestId = Guid.NewGuid(),
+                BankAccountId = destination.Id,
+                PeriodStart = date,
+                PeriodEnd = date,
+                StatementOpeningBalance = 0m,
+                StatementClosingBalance = 50m,
+                Lines = [new()
+                {
+                    TransactionDate = date,
+                    Direction = BankTransactionDirection.MoneyIn,
+                    Amount = 50m,
+                    Reference = flowReference
+                }]
+            },
+            default);
+        Check(
+            reconciliation.Lines.Count == 1 &&
+            reconciliation.Lines[0].MatchedBankTransactionId == flowTransfer.DestinationTransactionId,
+            "The receiving bank statement line matches the linked transfer credit.");
+    }
     Console.WriteLine("Isolated SQL transfer-link and print permission checks passed.");
 }
 finally
