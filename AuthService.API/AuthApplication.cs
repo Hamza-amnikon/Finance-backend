@@ -6,6 +6,7 @@ using RoleService.API.Authentication;
 using RoleService.API.Data;
 using RoleService.API.Repositories;
 using SparkFinance.Http;
+using SparkFinance.Database;
 
 namespace AuthService.API
 {
@@ -47,23 +48,30 @@ namespace AuthService.API
                     };
                 });
 
+            var mySqlConnection = builder.Configuration.GetConnectionString("MySqlConnection");
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-            if (string.IsNullOrWhiteSpace(connectionString))
+            if (string.IsNullOrWhiteSpace(connectionString) && string.IsNullOrWhiteSpace(mySqlConnection))
             {
-                throw new InvalidOperationException("Configure ConnectionStrings:DefaultConnection for MERIT AuthService.");
+                throw new InvalidOperationException("Configure a finance database connection string for MERIT AuthService.");
             }
 
             var databaseProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
             builder.Services.AddDbContext<RoleDbContext>(options =>
             {
+                if (!string.IsNullOrWhiteSpace(mySqlConnection))
+                {
+                    options.UseMeritMySql(builder.Configuration);
+                    return;
+                }
+
                 switch (databaseProvider)
                 {
                     case "SqlServer":
-                        options.UseSqlServer(connectionString);
+                        options.UseSqlServer(connectionString!);
                         break;
                     case "MySql":
-                        options.UseMySQL(connectionString);
+                        options.UseMySQL(connectionString!);
                         break;
                     default:
                         throw new InvalidOperationException($"Unsupported database provider '{databaseProvider}'.");
@@ -84,6 +92,7 @@ namespace AuthService.API
             }
 
             app.UseFinanceRequestCancellation();
+            app.UseMiddleware<DatabaseAvailabilityMiddleware>();
             app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();

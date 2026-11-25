@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using BillService.API.Data;
@@ -17,17 +18,20 @@ namespace BillService.API.Controllers
         private readonly IBillService _service;
         private readonly BillDbContext _context;
         private readonly IBillConversionService _conversionService;
+        private readonly FinanceCompanyAccess _access;
         private readonly ILogger<BillsController> _logger;
 
         public BillsController(
             IBillService service,
             BillDbContext context,
             IBillConversionService conversionService,
+            FinanceCompanyAccess access,
             ILogger<BillsController> logger)
         {
             _service = service;
             _context = context;
             _conversionService = conversionService;
+            _access = access;
             _logger = logger;
         }
 
@@ -39,6 +43,14 @@ namespace BillService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                query.AllowedBranches = scope.Branches;
                 var result = await _service.GetPagedAsync(
                     query,
                     cancellationToken);
@@ -61,11 +73,18 @@ namespace BillService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var bill = await _service.GetByIdAsync(
                     id,
                     cancellationToken);
 
-                if (bill == null)
+                if (bill == null || !scope.Allows(bill.Branch))
                 {
                     return NotFound(new
                     {
@@ -84,6 +103,12 @@ namespace BillService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch, scope.CreatableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 var bill = await _service.CreateAsync(
                     dto,
                     cancellationToken);
@@ -105,6 +130,13 @@ namespace BillService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch, scope.CreatableBranches) &&
+                    !scope.AllowsAction(dto.Branch, scope.EditableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 var bill = await _service.PreviewAsync(
                     dto,
                     cancellationToken);
@@ -121,6 +153,24 @@ namespace BillService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.EditableBranches) ||
+                    !scope.AllowsAction(dto.Branch, scope.EditableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var bill = await _service.UpdateAsync(
                     id,
                     dto,
@@ -146,6 +196,23 @@ namespace BillService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.IssuableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var bill = await _service.ChangeStatusAsync(
                     id,
                     BillStatus.Issued,
@@ -173,6 +240,23 @@ namespace BillService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.CancellableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var bill = await _service.ChangeStatusAsync(
                     id,
                     BillStatus.Cancelled,
@@ -199,6 +283,28 @@ namespace BillService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var branch = await _context.Database.SqlQuery<string>($"""
+                    SELECT [Branch] AS [Value]
+                    FROM [purchases].[PurchaseOrders]
+                    WHERE [Id] = {purchaseOrderId}
+                    """).SingleOrDefaultAsync(cancellationToken);
+
+                if (branch == null || !scope.Allows(branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(branch, scope.CreatableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var bill = await _conversionService.ConvertAsync(
                     purchaseOrderId,
                     dto.RowVersion,
@@ -222,8 +328,19 @@ namespace BillService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
-                var groups = await _context.Bills
-                    .AsNoTracking()
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var bills = _context.Bills.AsNoTracking();
+                if (scope.Branches != null)
+                {
+                    bills = bills.Where(bill => scope.Branches.Contains(bill.Branch));
+                }
+
+                var groups = await bills
                     .GroupBy(bill => bill.Status)
                     .Select(group => new
                     {
@@ -254,9 +371,20 @@ namespace BillService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var query = _context.Vendors
                     .AsNoTracking()
                     .Where(vendor => vendor.IsActive);
+
+                if (scope.Branches != null)
+                {
+                    query = query.Where(vendor => scope.Branches.Contains(vendor.Branch));
+                }
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
@@ -294,6 +422,12 @@ namespace BillService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var currencies = await _context.Currencies
                     .AsNoTracking()
                     .Where(currency => currency.IsActive)
@@ -310,9 +444,22 @@ namespace BillService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
-                var branches = await _context.Branches
+                var scope = await _access.GetAsync(Request, "/purchases/bills", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var branchQuery = _context.Branches
                     .AsNoTracking()
-                    .Where(branch => branch.IsActive)
+                    .Where(branch => branch.IsActive);
+
+                if (scope.Branches != null)
+                {
+                    branchQuery = branchQuery.Where(branch => scope.Branches.Contains(branch.Name));
+                }
+
+                var branches = await branchQuery
                     .OrderBy(branch => branch.Name)
                     .ToListAsync(cancellationToken);
 
@@ -384,8 +531,7 @@ namespace BillService.API.Controllers
                     });
             }
             catch (DbUpdateException exception)
-                when (exception.InnerException is SqlException sqlException &&
-                      (sqlException.Number == 2601 || sqlException.Number == 2627))
+                when (DatabaseErrors.IsDuplicateKey(exception))
             {
                 return Conflict(new
                 {
@@ -478,8 +624,7 @@ namespace BillService.API.Controllers
                     });
             }
             catch (DbUpdateException exception)
-                when (exception.InnerException is SqlException sqlException &&
-                      (sqlException.Number == 2601 || sqlException.Number == 2627))
+                when (DatabaseErrors.IsDuplicateKey(exception))
             {
                 return Conflict(new
                 {

@@ -1,25 +1,26 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RoleService.API.Models;
 using System.Security.Cryptography;
+using SparkFinance.Database;
 
 namespace RoleService.API.Data
 {
-    public class RoleDbContext : DbContext
+    public class RoleDbContext : DbContext, IMySqlTableMappingContext
     {
         private readonly bool _allowMySqlUserWrites;
 
         public RoleDbContext(
-            DbContextOptions<RoleDbContext> options)
+            DbContextOptions<RoleDbContext> options,
+            IConfiguration? configuration = null)
             : base(options)
         {
+            _allowMySqlUserWrites = configuration?.GetValue<bool>("Database:AllowMySqlUserWrites") == true;
+            MySqlTableMappings = configuration?
+                .GetSection("Database:MySql:TableMappings")
+                .Get<Dictionary<string, string>>() ?? new Dictionary<string, string>();
         }
 
-        public RoleDbContext(
-            DbContextOptions<RoleDbContext> options,
-            IConfiguration configuration) : this(options)
-        {
-            _allowMySqlUserWrites = configuration.GetValue<bool>("Database:AllowMySqlUserWrites");
-        }
+        public IReadOnlyDictionary<string, string> MySqlTableMappings { get; }
 
         public DbSet<Roles> Roles => Set<Roles>();
 
@@ -59,16 +60,31 @@ namespace RoleService.API.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<PagePermissionLookup>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToTable("Permissions", "security", table => table.ExcludeFromMigrations());
+            });
+            modelBuilder.Entity<CompanyPageGrantLookup>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToTable("RolePermissions", "security", table => table.ExcludeFromMigrations());
+            });
+
             modelBuilder.Entity<Roles>(entity =>
             {
-                if (IsMySql)
+                if (IsMySql && MySqlTableMappings.Count == 0)
                 {
                     entity.ToTable("security__Roles");
-                    entity.Property(role => role.RowVersion).HasColumnType("binary(8)");
                 }
                 else
                 {
                     entity.ToTable("Roles", "security");
+                }
+                if (IsMySql)
+                {
+                    entity.Property(role => role.RowVersion)
+                        .HasColumnType("binary(8)").IsConcurrencyToken().ValueGeneratedNever();
                 }
 
                 entity.HasIndex(role => role.Role)
@@ -77,20 +93,22 @@ namespace RoleService.API.Data
 
             modelBuilder.Entity<User>(entity =>
             {
-                if (IsMySql)
+                if (IsMySql && MySqlTableMappings.Count == 0)
                 {
                     entity.ToTable("security__Users");
+                }
+                else
+                {
+                    entity.ToTable("Users", "security");
+                }
+                if (IsMySql)
+                {
                     entity.Property(user => user.UserId).HasColumnType("char(36)");
                     entity.Property(user => user.TenantId).HasColumnType("char(36)");
                     entity.Property(user => user.ObjectId).HasColumnType("char(36)");
                     entity.Property(user => user.RowVersion)
                         .HasColumnType("binary(8)").IsConcurrencyToken().ValueGeneratedNever();
                 }
-                else
-                {
-                    entity.ToTable("Users", "security");
-                }
-
                 entity.HasIndex(user => new
                 {
                     user.TenantId,
@@ -103,6 +121,11 @@ namespace RoleService.API.Data
                     .HasForeignKey(user => user.RoleId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+
+            if (IsMySql && MySqlTableMappings.Count > 0)
+            {
+                modelBuilder.ApplyVerifiedTableMappings(MySqlTableMappings);
+            }
         }
     }
 }

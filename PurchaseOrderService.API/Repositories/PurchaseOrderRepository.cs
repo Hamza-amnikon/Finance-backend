@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using PurchaseOrderService.API.Data;
@@ -110,9 +111,10 @@ namespace PurchaseOrderService.API.Repositories
             int id,
             CancellationToken ct)
         {
-            return _context.PurchaseOrders
-                .FromSqlInterpolated(
-                    $"SELECT * FROM [purchases].[PurchaseOrders] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {id}")
+            return _context.PurchaseOrders.LockForUpdate(
+                    _context,
+                    "Id",
+                    id)
                 .Include(row => row.Items)
                 .SingleOrDefaultAsync(ct);
         }
@@ -264,9 +266,10 @@ namespace PurchaseOrderService.API.Repositories
                     "yyyyMM",
                     System.Globalization.CultureInfo.InvariantCulture);
 
-                var counter = await _context.NumberCounters
-                    .FromSqlInterpolated(
-                        $"SELECT * FROM [purchases].[PurchaseOrderNumberCounters] WITH (UPDLOCK,HOLDLOCK) WHERE [PeriodKey] = {period}")
+                var counter = await _context.NumberCounters.LockForUpdate(
+                    _context,
+                    "PeriodKey",
+                    period)
                     .SingleOrDefaultAsync(ct);
 
                 if (counter == null)

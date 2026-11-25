@@ -14,15 +14,18 @@ namespace SalesEstimateService.API.Controllers
     {
         private readonly ISalesEstimateService _service;
         private readonly ISalesEstimateConversionService _conversionService;
+        private readonly FinanceCompanyAccess _access;
         private readonly ILogger<SalesEstimatesController> _logger;
 
         public SalesEstimatesController(
             ISalesEstimateService service,
             ISalesEstimateConversionService conversionService,
+            FinanceCompanyAccess access,
             ILogger<SalesEstimatesController> logger)
         {
             _service = service;
             _conversionService = conversionService;
+            _access = access;
             _logger = logger;
         }
 
@@ -35,6 +38,14 @@ namespace SalesEstimateService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/estimates", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                query.AllowedBranches = scope.Branches;
                 var result = await _service.GetAllAsync(
                     query,
                     cancellationToken);
@@ -59,11 +70,18 @@ namespace SalesEstimateService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/estimates", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var estimate = await _service.GetByIdAsync(
                     id,
                     cancellationToken);
 
-                return estimate == null
+                return estimate == null || !scope.Allows(estimate.Branch)
                     ? NotFound(new
                     {
                         message = "Estimate not found."
@@ -80,6 +98,12 @@ namespace SalesEstimateService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/estimates", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch, scope.CreatableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 var estimate = await _service.CreateAsync(
                     dto,
                     cancellationToken);
@@ -102,6 +126,13 @@ namespace SalesEstimateService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/estimates", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch, scope.CreatableBranches) &&
+                    !scope.AllowsAction(dto.Branch, scope.EditableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 var estimate = await _service.PreviewAsync(
                     dto,
                     cancellationToken);
@@ -121,6 +152,24 @@ namespace SalesEstimateService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/sales/estimates", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.EditableBranches) ||
+                    !scope.AllowsAction(dto.Branch, scope.EditableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var estimate = await _service.UpdateAsync(
                     id,
                     dto,
@@ -146,6 +195,12 @@ namespace SalesEstimateService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var denied = await DenyExistingActionAsync(id, "canIssue", cancellationToken);
+                if (denied != null)
+                {
+                    return denied;
+                }
+
                 var estimate = await _service.MarkAsSentAsync(
                     id,
                     dto,
@@ -171,6 +226,12 @@ namespace SalesEstimateService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var denied = await DenyExistingActionAsync(id, "canApprove", cancellationToken);
+                if (denied != null)
+                {
+                    return denied;
+                }
+
                 var estimate = await _service.AcceptAsync(
                     id,
                     dto,
@@ -196,6 +257,12 @@ namespace SalesEstimateService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var denied = await DenyExistingActionAsync(id, "canCancel", cancellationToken);
+                if (denied != null)
+                {
+                    return denied;
+                }
+
                 var estimate = await _service.DeclineAsync(
                     id,
                     dto,
@@ -221,6 +288,19 @@ namespace SalesEstimateService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var denied = await DenyExistingActionAsync(id, "canView", cancellationToken);
+                if (denied != null)
+                {
+                    return denied;
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                var invoiceScope = await _access.GetAsync(Request, "/sales/invoices", cancellationToken);
+                if (!invoiceScope.AllowsAction(existing!.Branch, invoiceScope.CreatableBranches))
+                {
+                    return StatusCode(invoiceScope.Status == 200 ? 403 : invoiceScope.Status);
+                }
+
                 var result = await _conversionService.ConvertAsync(id, dto, cancellationToken);
 
                 return result == null
@@ -230,6 +310,39 @@ namespace SalesEstimateService.API.Controllers
                     })
                     : Ok(result);
             }, cancellationToken);
+        }
+
+        private async Task<IActionResult?> DenyExistingActionAsync(
+            int id,
+            string action,
+            CancellationToken cancellationToken)
+        {
+            var scope = await _access.GetAsync(Request, "/sales/estimates", cancellationToken);
+            if (scope.Status != 200)
+            {
+                return StatusCode(scope.Status);
+            }
+
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing == null || !scope.Allows(existing.Branch))
+            {
+                return NotFound();
+            }
+
+            if (action == "canView")
+            {
+                return null;
+            }
+
+            var branches = action switch
+            {
+                "canIssue" => scope.IssuableBranches,
+                "canApprove" => scope.ApprovableBranches,
+                "canCancel" => scope.CancellableBranches,
+                _ => throw new ArgumentOutOfRangeException(nameof(action))
+            };
+
+            return scope.AllowsAction(existing.Branch, branches) ? null : StatusCode(403);
         }
 
         private async Task<IActionResult> HandleAsync(

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using AccountingService.API.Authentication;
 using AccountingService.API.Data;
+using AccountingService.API.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using SparkFinance.Authentication;
@@ -39,6 +40,14 @@ namespace AccountingService.API.Services
         public IReadOnlyList<int> ApprovableCompanyIds { get; init; } = [];
 
         public IReadOnlyList<int> IssuableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> PostableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> VoidableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> ReversibleCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> ReconcilableCompanyIds { get; init; } = [];
 
         public bool Allows(int companyId)
         {
@@ -218,6 +227,14 @@ namespace AccountingService.API.Services
                 ApprovableCompanyIds = companies.Where(company => company.CanApprove)
                     .Select(company => company.CompanyId).Distinct().ToArray(),
                 IssuableCompanyIds = companies.Where(company => company.CanIssue)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                PostableCompanyIds = companies.Where(company => company.CanPost)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                VoidableCompanyIds = companies.Where(company => company.CanVoid)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                ReversibleCompanyIds = companies.Where(company => company.CanReverse)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                ReconcilableCompanyIds = companies.Where(company => company.CanReconcile)
                     .Select(company => company.CompanyId).Distinct().ToArray()
             };
         }
@@ -242,6 +259,10 @@ namespace AccountingService.API.Services
             public bool CanCancel { get; set; }
             public bool CanApprove { get; set; }
             public bool CanExport { get; set; }
+            public bool CanPost { get; set; }
+            public bool CanVoid { get; set; }
+            public bool CanReverse { get; set; }
+            public bool CanReconcile { get; set; }
         }
 
         private sealed class VerifiedSession

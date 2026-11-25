@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using RoleService.API.Data;
+using RoleService.API.Models;
 
 namespace RoleService.API.Authentication
 {
@@ -70,7 +71,7 @@ namespace RoleService.API.Authentication
             var allowed = await _context.Database.SqlQueryRaw<int>(permissionSql, roleId, action)
                 .SingleAsync(context.HttpContext.RequestAborted);
 
-            if (allowed != 1)
+            if (allowed == 0)
             {
                 context.Result = new ForbidResult();
                 return;

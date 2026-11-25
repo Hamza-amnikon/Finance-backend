@@ -1,4 +1,4 @@
-﻿using SparkFinance.Http;
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using AccountingService.API.DTOs;
 using AccountingService.API.Services;
@@ -13,6 +13,8 @@ namespace AccountingService.API.Controllers
     public class JournalEntriesController
         : ControllerBase
     {
+        private readonly IAccountingPageAccess _access;
+
         private readonly IJournalEntryService
             _service;
 
@@ -21,9 +23,11 @@ namespace AccountingService.API.Controllers
 
         public JournalEntriesController(
             IJournalEntryService service,
+            IAccountingPageAccess access,
             ILogger<JournalEntriesController> logger)
         {
             _service = service;
+            _access = access;
             _logger = logger;
         }
 
@@ -36,6 +40,12 @@ namespace AccountingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(query.CompanyId, "view", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result =
                         await _service.GetPagedAsync(
                             query,
@@ -58,6 +68,12 @@ namespace AccountingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(companyId, "view", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result =
                         await _service.GetByIdAsync(
                             id,
@@ -86,6 +102,12 @@ namespace AccountingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(dto.CompanyId, "create", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result =
                         await _service.CreateAsync(
                             dto,
@@ -116,6 +138,12 @@ namespace AccountingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(companyId, "edit", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result =
                         await _service.UpdateAsync(
                             id,
@@ -149,6 +177,12 @@ namespace AccountingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(companyId, "post", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result =
                         await _service.PostAsync(
                             id,
@@ -182,6 +216,12 @@ namespace AccountingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(companyId, "reverse", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result =
                         await _service.ReverseAsync(
                             id,
@@ -201,6 +241,29 @@ namespace AccountingService.API.Controllers
                     return Ok(result);
                 },
                 cancellationToken);
+        }
+
+        private async Task<IActionResult?> DenyActionAsync(
+            int companyId,
+            string action,
+            CancellationToken cancellationToken)
+        {
+            var scope = await _access.GetAsync(Request, "accounting.journal-entries", cancellationToken);
+            if (scope.Status != 200)
+            {
+                return StatusCode(scope.Status);
+            }
+
+            var allowed = scope.Allows(companyId) && (scope.IsAdmin || action switch
+            {
+                "view" => true,
+                "create" => scope.CreatableCompanyIds.Contains(companyId),
+                "edit" => scope.EditableCompanyIds.Contains(companyId),
+                "post" => scope.PostableCompanyIds.Contains(companyId),
+                "reverse" => scope.ReversibleCompanyIds.Contains(companyId),
+                _ => false
+            });
+            return allowed ? null : StatusCode(403);
         }
 
         private async Task<IActionResult> HandleAsync(

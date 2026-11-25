@@ -37,5 +37,6 @@
 
   <ItemGroup>
     <Compile Include="../Shared/Database/FinanceDatabase.cs" Link="Shared/FinanceDatabase.cs" />
+    <Compile Include="../Shared/Http/FinanceSessionForwarding.cs" Link="Shared/FinanceSessionForwarding.cs" />
   </ItemGroup>
 </Project>

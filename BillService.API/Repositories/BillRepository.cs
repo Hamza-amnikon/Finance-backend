@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using BillService.API.Data;
@@ -67,7 +68,15 @@ namespace BillService.API.Repositories
         private Task<Bill?> LockAsync(
             int id,
             CancellationToken cancellationToken
-        ) => _context.Bills.FromSqlInterpolated($"SELECT * FROM [purchases].[Bills] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {id}").Include(row => row.Items).SingleOrDefaultAsync(cancellationToken);
+        )
+        {
+            return _context.Bills.LockForUpdate(
+                    _context,
+                    nameof(Bill.Id),
+                    id)
+                .Include(row => row.Items)
+                .SingleOrDefaultAsync(cancellationToken);
+        }
         public async Task<Bill?> UpdateDraftAsync(
             Bill bill,
             byte[] rowVersion,
@@ -188,7 +197,11 @@ namespace BillService.API.Repositories
 
                 await validateIssue(stored, cancellationToken);
                 var period = stored.BillDate.ToString("yyyyMM", System.Globalization.CultureInfo.InvariantCulture);
-                var counter = await _context.NumberCounters.FromSqlInterpolated($"SELECT * FROM [purchases].[BillNumberCounters] WITH (UPDLOCK,HOLDLOCK) WHERE [PeriodKey] = {period}").SingleOrDefaultAsync(cancellationToken);
+                var counter = await _context.NumberCounters.LockForUpdate(
+                    _context,
+                    "PeriodKey",
+                    period)
+                    .SingleOrDefaultAsync(cancellationToken);
                 if (counter == null)
                 {
                     counter = new()

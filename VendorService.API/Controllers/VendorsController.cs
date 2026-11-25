@@ -13,9 +13,9 @@ namespace VendorService.API.Controllers
     public class VendorsController : ControllerBase
     {
         private readonly IVendorService _vendorService;
+        private readonly FinanceCompanyAccess _access;
         private readonly ILogger<VendorsController> _logger;
         private readonly IConfiguration _configuration;
-        private readonly FinanceCompanyAccess _access;
 
         public VendorsController(
             IVendorService vendorService,
@@ -24,9 +24,9 @@ namespace VendorService.API.Controllers
             FinanceCompanyAccess access)
         {
             _vendorService = vendorService;
+            _access = access;
             _logger = logger;
             _configuration = configuration;
-            _access = access;
         }
 
         [HttpGet]
@@ -100,6 +100,12 @@ namespace VendorService.API.Controllers
         {
             return ExecuteAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/vendors", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch?.Trim(), scope.CreatableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 var vendor = await _vendorService.CreateAsync(
                     dto,
                     cancellationToken);
@@ -122,6 +128,24 @@ namespace VendorService.API.Controllers
         {
             return ExecuteAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/vendors", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _vendorService.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.EditableBranches) ||
+                    !scope.AllowsAction(dto.Branch?.Trim(), scope.EditableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var vendor = await _vendorService.UpdateAsync(
                     id,
                     dto,
@@ -147,6 +171,23 @@ namespace VendorService.API.Controllers
         {
             return ExecuteAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/vendors", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _vendorService.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.DeletableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var archived = await _vendorService.ArchiveAsync(
                     id,
                     dto.RowVersion,

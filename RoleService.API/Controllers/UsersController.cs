@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using RoleService.API.Authentication;
 using RoleService.API.Data;
 using RoleService.API.DTOs;
+using RoleService.API.Models;
 using RoleService.API.Services;
 
 namespace RoleService.API.Controllers
@@ -110,11 +111,7 @@ namespace RoleService.API.Controllers
         {
             return HandleAsync(async () =>
             {
-                if (!await CanChangeUserAsync(request.RoleId, userId, cancellationToken))
-                {
-                    return Forbid();
-                }
-
+                // UsersPermissionFilter requires Users Edit for every role assignment.
                 var (result, user) = await _service.UpdateAsync(
                     userId,
                     request,

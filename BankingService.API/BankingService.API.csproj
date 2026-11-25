@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
+    <UserSecretsId>merit-banking-service</UserSecretsId>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -32,11 +33,13 @@
     <Compile Include="../Shared/Http/FinanceSessionForwarding.cs" Link="Shared/FinanceSessionForwarding.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../Shared/Http/FinanceCompanyAccess.cs" Link="Shared/FinanceCompanyAccess.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="../Shared/Http/DevelopmentServiceStartup.cs" Link="Shared/DevelopmentServiceStartup.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Shared/Http/FinanceBranchReadFilter.cs" Link="Shared/FinanceBranchReadFilter.cs" />
-    <Compile Include="../Shared/Http/FinanceCompanyAccess.cs" Link="Shared/FinanceCompanyAccess.cs" />
     <Compile Include="../Shared/Database/FinanceDatabase.cs" Link="Shared/FinanceDatabase.cs" />
   </ItemGroup>
 </Project>

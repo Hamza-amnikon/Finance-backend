@@ -1,4 +1,4 @@
-﻿using SparkFinance.Http;
+using SparkFinance.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +10,7 @@ namespace SalesInvoiceService.API.Controllers
 {
     [ApiController]
     [Route("api/sales-credit-notes")]
+    [ServiceFilter(typeof(SalesCreditAccessFilter))]
     public class SalesCreditNotesController : ControllerBase
     {
         private readonly ISalesCreditNoteService _service;

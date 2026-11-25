@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace PermissionService.API.Controllers
 {
     [ApiController]
     [Route("api/permissions")]
+    [Authorize]
     public class PermissionsController : ControllerBase
     {
         private readonly IPermissionService _service;
@@ -56,6 +58,7 @@ namespace PermissionService.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public Task<IActionResult> Create(
             [FromBody] PermissionRequest request,
             CancellationToken cancellationToken)
@@ -77,6 +80,7 @@ namespace PermissionService.API.Controllers
         }
 
         [HttpPut("{permissionId:int:min(1)}")]
+        [Authorize(Roles = "Admin")]
         public Task<IActionResult> Update(
             int permissionId,
             [FromBody] PermissionUpdateRequest request,

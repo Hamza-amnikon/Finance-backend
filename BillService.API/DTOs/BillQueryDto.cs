@@ -1,6 +1,7 @@
 using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using BillService.API.Models;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace BillService.API.DTOs
 {

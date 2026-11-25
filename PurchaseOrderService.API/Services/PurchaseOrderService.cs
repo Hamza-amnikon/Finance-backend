@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
@@ -108,9 +109,7 @@ namespace PurchaseOrderService.API.Services
 
                 return ToResponse(saved);
             }
-            catch (DbUpdateException error) when (
-                error.InnerException is SqlException sql &&
-                (sql.Number == 2601 || sql.Number == 2627))
+            catch (DbUpdateException error) when (DatabaseErrors.IsDuplicateKey(error))
             {
                 _context.ChangeTracker.Clear();
 

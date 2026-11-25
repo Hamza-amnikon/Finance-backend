@@ -16,15 +16,18 @@ namespace PaymentMadeService.API.Controllers
     {
         private readonly IPaymentMadeService _service;
         private readonly PaymentMadeDbContext _context;
+        private readonly FinanceCompanyAccess _access;
         private readonly ILogger<PaymentsMadeController> _logger;
 
         public PaymentsMadeController(
             IPaymentMadeService service,
             PaymentMadeDbContext context,
+            FinanceCompanyAccess access,
             ILogger<PaymentsMadeController> logger)
         {
             _service = service;
             _context = context;
+            _access = access;
             _logger = logger;
         }
 
@@ -36,6 +39,14 @@ namespace PaymentMadeService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/payments", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                query.AllowedBranches = scope.Branches;
                 var (data, total) = await _service.GetPagedAsync(
                     query,
                     cancellationToken);
@@ -58,9 +69,16 @@ namespace PaymentMadeService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/payments", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var payment = await _service.GetByIdAsync(id, cancellationToken);
 
-                if (payment == null)
+                if (payment == null || !scope.Allows(payment.Branch))
                 {
                     return NotFound(new
                     {
@@ -79,6 +97,28 @@ namespace PaymentMadeService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/payments", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var branch = await _context.Bills
+                    .AsNoTracking()
+                    .Where(bill => bill.Id == dto.BillId)
+                    .Select(bill => bill.Branch)
+                    .SingleOrDefaultAsync(cancellationToken);
+
+                if (branch == null || !scope.Allows(branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(branch, scope.CreatableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var payment = await _service.CreateAsync(dto, cancellationToken);
 
                 return CreatedAtAction(
@@ -99,6 +139,23 @@ namespace PaymentMadeService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/payments", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.VoidableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var payment = await _service.VoidAsync(id, dto, cancellationToken);
 
                 if (payment == null)
@@ -120,11 +177,17 @@ namespace PaymentMadeService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/payments", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var balance = await _service.GetBillBalanceAsync(
                     billId,
                     cancellationToken);
 
-                if (balance == null)
+                if (balance == null || !scope.Allows(balance.Branch))
                 {
                     return NotFound(new
                     {
@@ -141,7 +204,18 @@ namespace PaymentMadeService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/payments", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var query = _context.PaymentsMade.AsNoTracking();
+
+                if (scope.Branches != null)
+                {
+                    query = query.Where(row => scope.Branches.Contains(row.Branch));
+                }
 
                 var total = await query.CountAsync(cancellationToken);
 
@@ -180,6 +254,12 @@ namespace PaymentMadeService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/payments", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var data = await _context.PaymentModes
                     .AsNoTracking()
                     .Where(row => row.IsActive)
@@ -200,9 +280,20 @@ namespace PaymentMadeService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/payments", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var query = _context.Vendors
                     .AsNoTracking()
                     .Where(row => row.IsActive);
+
+                if (scope.Branches != null)
+                {
+                    query = query.Where(row => scope.Branches.Contains(row.Branch));
+                }
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
@@ -245,6 +336,12 @@ namespace PaymentMadeService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/payments", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 if (vendorId == Guid.Empty)
                 {
                     return BadRequest(new
@@ -256,6 +353,11 @@ namespace PaymentMadeService.API.Controllers
                 var query = _context.Bills
                     .AsNoTracking()
                     .Where(row => row.VendorId == vendorId && row.Status == "Issued");
+
+                if (scope.Branches != null)
+                {
+                    query = query.Where(row => scope.Branches.Contains(row.Branch));
+                }
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {

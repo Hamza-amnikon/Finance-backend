@@ -18,6 +18,7 @@ builder.Services.AddHttpClient<FinanceCompanyAccess>(client =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<SalesCreditAccessFilter>();
 builder.Services.AddScoped<InvoiceTaxSettingsService>();
 builder.Services.AddScoped<ReceivedPaymentVoidService>();
 builder.Services.AddOpenApi();

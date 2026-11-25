@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.Data;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
@@ -105,9 +106,10 @@ namespace PaymentMadeService.API.Repositories
             int billId,
             CancellationToken cancellationToken)
         {
-            return _context.Bills
-                .FromSqlInterpolated(
-                    $"SELECT * FROM [purchases].[Bills] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {billId}")
+            return _context.Bills.LockForUpdate(
+                    _context,
+                    "Id",
+                    billId)
                 .SingleOrDefaultAsync(cancellationToken);
         }
 
@@ -205,9 +207,10 @@ namespace PaymentMadeService.API.Repositories
                 "yyyyMM",
                 CultureInfo.InvariantCulture);
 
-            var counter = await _context.NumberCounters
-                .FromSqlInterpolated(
-                    $"SELECT * FROM [purchases].[PaymentMadeNumberCounters] WITH (UPDLOCK,HOLDLOCK) WHERE [PeriodKey] = {period}")
+            var counter = await _context.NumberCounters.LockForUpdate(
+                    _context,
+                    "PeriodKey",
+                    period)
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (counter == null)
@@ -258,9 +261,10 @@ namespace PaymentMadeService.API.Repositories
 
             await LockBillAsync(snapshot.BillId, cancellationToken);
 
-            var payment = await _context.PaymentsMade
-                .FromSqlInterpolated(
-                    $"SELECT * FROM [purchases].[PaymentsMade] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {id}")
+            var payment = await _context.PaymentsMade.LockForUpdate(
+                    _context,
+                    "Id",
+                    id)
                 .SingleAsync(cancellationToken);
 
             if (payment.Status == PaymentMadeStatus.Voided)

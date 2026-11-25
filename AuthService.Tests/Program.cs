@@ -54,7 +54,11 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
-    ["ConnectionStrings:DefaultConnection"] = "Server=unused;Database=unused;Integrated Security=true",
+    ["ConnectionStrings:MySqlConnection"] = "Server=unused;Port=3306;Database=Unused;User ID=test;Password=test;",
+    ["Database:MySql:TableMappings:security.Users"] = "Users",
+    ["Database:MySql:TableMappings:security.Roles"] = "Roles",
+    ["Database:MySql:TableMappings:security.Permissions"] = "Permissions",
+    ["Database:MySql:TableMappings:security.RolePermissions"] = "RolePermissions",
     ["ReverseProxy:TrustLoopback"] = "true",
     ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
     ["AzureAd:TenantId"] = tenantId.ToString(),
@@ -85,6 +89,7 @@ builder.Services.PostConfigure<OpenIdConnectOptions>(FinanceAuthenticationScheme
 });
 
 await using var app = AuthApplication.Build(builder);
+await DatabaseProviderChecks.RunAsync(app.Services);
 app.MapGet("/test/admin", () => Results.Ok()).RequireAuthorization(policy => policy.RequireRole("Admin"));
 await app.StartAsync();
 

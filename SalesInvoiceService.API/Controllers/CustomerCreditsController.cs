@@ -7,6 +7,7 @@ namespace SalesInvoiceService.API.Controllers
 {
     [ApiController]
     [Route("api/customer-credits")]
+    [ServiceFilter(typeof(SalesCreditAccessFilter))]
     public class CustomerCreditsController : ControllerBase
     {
         private readonly ICustomerCreditService _service;

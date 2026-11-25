@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RoleService.API.Data;
 using RoleService.API.DTOs;
+using RoleService.API.Models;
 
 namespace RoleService.API.Repositories
 {

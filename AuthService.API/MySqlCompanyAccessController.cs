@@ -48,7 +48,8 @@ public sealed class MySqlCompanyAccessController(RoleDbContext database, ILogger
 
                 grants = await database.Database.SqlQuery<CompanyGrant>($"""
                     SELECT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue,
-                        rp.CanApprove, rp.CanCancel, rp.CanExport
+                        rp.CanApprove, rp.CanCancel, rp.CanExport, rp.CanPost, rp.CanVoid,
+                        rp.CanReverse, rp.CanReconcile
                     FROM security__RolePermissions rp
                     INNER JOIN security__Permissions p ON p.PermissionId = rp.PermissionId
                     WHERE rp.RoleId = {roleId} AND rp.CompanyId > 0 AND rp.CanView = 1
@@ -75,6 +76,10 @@ public sealed class MySqlCompanyAccessController(RoleDbContext database, ILogger
                 approvableCompanyIds = Ids(grants, grant => grant.CanApprove),
                 cancellableCompanyIds = Ids(grants, grant => grant.CanCancel),
                 exportableCompanyIds = Ids(grants, grant => grant.CanExport),
+                postableCompanyIds = Ids(grants, grant => grant.CanPost),
+                voidableCompanyIds = Ids(grants, grant => grant.CanVoid),
+                reversibleCompanyIds = Ids(grants, grant => grant.CanReverse),
+                reconcilableCompanyIds = Ids(grants, grant => grant.CanReconcile),
                 actorId,
                 branches = branches.Where(branch => isAdmin ||
                     (branch.AccountingCompanyId is int id && allowed.Contains(id)))
@@ -97,5 +102,6 @@ public sealed class MySqlCompanyAccessController(RoleDbContext database, ILogger
     public sealed record PageMatch(string PermissionCode, int RouteLength);
     public sealed record CompanyBranch(int Id, string Name, bool IsActive, int? AccountingCompanyId);
     public sealed record CompanyGrant(int CompanyId, bool CanCreate, bool CanEdit, bool CanDelete,
-        bool CanIssue, bool CanApprove, bool CanCancel, bool CanExport);
+        bool CanIssue, bool CanApprove, bool CanCancel, bool CanExport, bool CanPost,
+        bool CanVoid, bool CanReverse, bool CanReconcile);
 }

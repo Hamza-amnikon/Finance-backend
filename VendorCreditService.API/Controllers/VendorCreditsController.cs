@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,7 @@ namespace VendorCreditService.API.Controllers
 {
     [ApiController]
     [Route("api/vendor-credits")]
+    [ServiceFilter(typeof(VendorCreditAccessFilter))]
     public class VendorCreditsController : ControllerBase
     {
         private readonly IVendorCreditService _service;
@@ -196,9 +198,15 @@ namespace VendorCreditService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = (FinanceCompanyScope)HttpContext.Items[typeof(FinanceCompanyScope)]!;
                 var query = _context.Vendors
                     .AsNoTracking()
                     .Where(row => row.IsActive);
+
+                if (scope.Branches != null)
+                {
+                    query = query.Where(row => scope.Branches.Contains(row.Branch));
+                }
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
@@ -243,7 +251,8 @@ namespace VendorCreditService.API.Controllers
                     .OrderBy(row => row.Name)
                     .ToListAsync(cancellationToken);
 
-                return Ok(branches);
+                var scope = (FinanceCompanyScope)HttpContext.Items[typeof(FinanceCompanyScope)]!;
+                return Ok(branches.Where(branch => scope.Allows(branch.Name)));
             }, cancellationToken);
         }
 
@@ -288,6 +297,12 @@ namespace VendorCreditService.API.Controllers
                     .Where(row =>
                         row.VendorId == vendorId &&
                         row.Status == "Issued");
+
+                var scope = (FinanceCompanyScope)HttpContext.Items[typeof(FinanceCompanyScope)]!;
+                if (scope.Branches != null)
+                {
+                    query = query.Where(row => scope.Branches.Contains(row.Branch));
+                }
 
                 if (!string.IsNullOrWhiteSpace(branch))
                 {
@@ -377,9 +392,7 @@ namespace VendorCreditService.API.Controllers
                     message = exception.Message
                 });
             }
-            catch (DbUpdateException exception) when (
-                exception.InnerException is SqlException sql &&
-                (sql.Number == 2601 || sql.Number == 2627))
+            catch (DbUpdateException exception) when (DatabaseErrors.IsDuplicateKey(exception))
             {
                 _logger.LogWarning(
                     exception,

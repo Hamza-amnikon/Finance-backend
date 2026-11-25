@@ -1,4 +1,5 @@
 using AccountingService.API.Data;
+using AccountingService.API.Models;
 using AccountingService.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,15 +23,15 @@ namespace AccountingService.API.Controllers
 
             try
             {
-                var codes = await database.Database.SqlQuery<string>($"""
-                    SELECT TOP (1) WITH TIES PermissionCode AS Value
-                    FROM security.Permissions
-                    WHERE Route = {route} OR (
-                        Route <> N'/' AND Route <> N'' AND
-                        LEFT({route}, LEN(Route) + 1) = Route + N'/'
-                    )
-                    ORDER BY LEN(Route) DESC
-                    """).ToListAsync(cancellationToken);
+                var matching = database.Set<LedgerPagePermissionLookup>().AsNoTracking()
+                    .Where(permission => permission.Route == route ||
+                        (permission.Route != "/" && permission.Route != "" &&
+                            route.StartsWith(permission.Route + "/")));
+                var longestRoute = await matching.Select(permission => (int?)permission.Route.Length)
+                    .MaxAsync(cancellationToken);
+                var codes = await matching.Where(permission => permission.Route.Length == longestRoute)
+                    .Select(permission => permission.PermissionCode)
+                    .ToListAsync(cancellationToken);
 
                 var permissionCode = codes.Count == 1 ? codes[0] : string.Empty;
                 var access = await permissions.GetAsync(Request, permissionCode, cancellationToken);
@@ -44,14 +45,17 @@ namespace AccountingService.API.Controllers
                     return StatusCode(403, new { message = "No company access is configured for this page." });
                 }
 
-                var branches = await database.Database.SqlQuery<CompanyBranch>($"""
-                    SELECT b.Id, b.Name, b.IsActive, b.AccountingCompanyId
-                    FROM amnikon.Branches b
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM amnikon.Branches other
-                        WHERE other.Name = b.Name AND other.Id <> b.Id
-                    )
-                    """).ToListAsync(cancellationToken);
+                var branchRows = database.Set<LedgerBranchAccessLookup>().AsNoTracking();
+                var branches = await branchRows
+                    .Where(branch => !branchRows.Any(other => other.Name == branch.Name && other.Id != branch.Id))
+                    .Select(branch => new CompanyBranch
+                    {
+                        Id = branch.Id,
+                        Name = branch.Name,
+                        IsActive = branch.IsActive,
+                        AccountingCompanyId = branch.AccountingCompanyId
+                    })
+                    .ToListAsync(cancellationToken);
 
                 return Ok(new
                 {
@@ -64,6 +68,10 @@ namespace AccountingService.API.Controllers
                     access.ApprovableCompanyIds,
                     access.CancellableCompanyIds,
                     access.ExportableCompanyIds,
+                    access.PostableCompanyIds,
+                    access.VoidableCompanyIds,
+                    access.ReversibleCompanyIds,
+                    access.ReconcilableCompanyIds,
                     actorId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
                     branches = branches.Where(branch => access.IsAdmin ||
                         (branch.AccountingCompanyId is int id && access.Allows(id)))

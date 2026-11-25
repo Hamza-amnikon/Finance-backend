@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using VendorCreditService.API.Data;
@@ -30,9 +31,10 @@ namespace VendorCreditService.API.Repositories
             int id,
             CancellationToken cancellationToken)
         {
-            return _context.Bills
-                .FromSqlInterpolated(
-                    $"SELECT * FROM [purchases].[Bills] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {id}")
+            return _context.Bills.LockForUpdate(
+                    _context,
+                    "Id",
+                    id)
                 .SingleOrDefaultAsync(cancellationToken);
         }
 
@@ -40,9 +42,10 @@ namespace VendorCreditService.API.Repositories
             int id,
             CancellationToken cancellationToken)
         {
-            return _context.VendorCredits
-                .FromSqlInterpolated(
-                    $"SELECT * FROM [purchases].[VendorCredits] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {id}")
+            return _context.VendorCredits.LockForUpdate(
+                    _context,
+                    "Id",
+                    id)
                 .SingleOrDefaultAsync(cancellationToken);
         }
 
@@ -206,9 +209,10 @@ namespace VendorCreditService.API.Repositories
             var credit = await LockCreditAsync(creditId, cancellationToken)
                 ?? throw new InvalidOperationException("Vendor credit not found.");
 
-            var application = await _context.Applications
-                .FromSqlInterpolated(
-                    $"SELECT * FROM [purchases].[VendorCreditApplications] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {applicationId}")
+            var application = await _context.Applications.LockForUpdate(
+                    _context,
+                    "Id",
+                    applicationId)
                 .SingleAsync(cancellationToken);
 
             if (application.Status == CreditApplicationStatus.Voided)

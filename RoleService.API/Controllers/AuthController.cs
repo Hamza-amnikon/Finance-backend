@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using Microsoft.Data.SqlClient;
 using RoleService.API.Authentication;
 using RoleService.API.DTOs;
 using RoleService.API.Services;
@@ -38,7 +37,7 @@ namespace RoleService.API.Controllers
             {
                 return StatusCode(499);
             }
-            catch (SqlException exception)
+            catch (Exception exception) when (DatabaseAvailabilityMiddleware.IsDatabaseFailure(exception))
             {
                 logger.LogError(exception, "Could not load the signed-in user's page permissions.");
                 return Problem(

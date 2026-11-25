@@ -24,5 +24,6 @@ namespace BankingService.API.DTOs
         public string? Currency { get; set; }
 
         public bool? IsActive { get; set; }
+
     }
 }

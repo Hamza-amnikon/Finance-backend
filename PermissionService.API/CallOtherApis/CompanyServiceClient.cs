@@ -1,17 +1,21 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using PermissionService.API.DTOs;
+using SparkFinance.Http;
 
 namespace PermissionService.API.CallOtherApis
 {
     public class CompanyServiceClient : ICompanyServiceClient
     {
         private readonly HttpClient _httpClient;
+        private readonly IHttpContextAccessor _httpContext;
 
         public CompanyServiceClient(
-            HttpClient httpClient)
+            HttpClient httpClient,
+            IHttpContextAccessor httpContext)
         {
             _httpClient = httpClient;
+            _httpContext = httpContext;
         }
 
         public async Task<CompanyLookupResponse?> GetByIdAsync(
@@ -25,8 +29,16 @@ namespace PermissionService.API.CallOtherApis
                     "Select a valid company.");
             }
 
-            using var response = await _httpClient.GetAsync(
-                "api/expenses/company-setup",
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                "api/expenses/lookups/company-setup/role-permissions");
+
+            FinanceSessionForwarding.AttachTo(
+                request,
+                _httpContext.HttpContext?.Request);
+
+            using var response = await _httpClient.SendAsync(
+                request,
                 cancellationToken);
 
             response.EnsureSuccessStatusCode();

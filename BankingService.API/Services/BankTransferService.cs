@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using BankingService.API.DTOs;
 using BankingService.API.Models;
 using BankingService.API.Repositories;

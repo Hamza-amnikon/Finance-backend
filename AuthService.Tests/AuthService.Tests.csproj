@@ -6,6 +6,7 @@
     </PropertyGroup>
     <ItemGroup>
         <ProjectReference Include="../AuthService.API/AuthService.API.csproj" />
+        <Compile Include="../MySqlCompatibility.Tests/DatabaseErrorChecks.cs" Link="DatabaseErrorChecks.cs" />
         <Compile Include="../EntraAuthentication.Tests/WebFlowChecks.cs" Link="WebFlowChecks.cs" />
         <Compile Include="../EntraAuthentication.Tests/MeritJwtChecks.cs" Link="MeritJwtChecks.cs" />
         <Compile Include="../EntraAuthentication.Tests/TestRepositories.cs" Link="TestRepositories.cs" />

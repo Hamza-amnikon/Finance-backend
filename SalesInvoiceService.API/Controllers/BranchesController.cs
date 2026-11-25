@@ -21,13 +21,25 @@ namespace SalesInvoiceService.API.Controllers
         [HttpGet("{id:int}/invoice-profile")]
         public async Task<IActionResult> GetInvoiceProfile(
             int id,
+            [FromServices] FinanceCompanyAccess access,
             CancellationToken cancellationToken)
         {
             try
             {
+                var scope = await access.GetAsync(Request, "/settings/organization", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var profile = await _service.GetInvoiceProfileAsync(
                     id,
                     cancellationToken);
+
+                if (profile != null && !scope.Allows(profile.BranchName))
+                {
+                    return StatusCode(403);
+                }
 
                 return profile == null
                     ? NotFound(new
@@ -46,11 +58,29 @@ namespace SalesInvoiceService.API.Controllers
         [HttpPut("{id:int}/invoice-profile")]
         public async Task<IActionResult> UpdateInvoiceProfile(
             int id,
+            [FromServices] FinanceCompanyAccess access,
             [FromBody] UpdateBranchInvoiceProfileDto dto,
             CancellationToken cancellationToken)
         {
             try
             {
+                var scope = await access.GetAsync(Request, "/settings/organization", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetInvoiceProfileAsync(id, cancellationToken);
+                if (existing == null)
+                {
+                    return NotFound(new { message = "Active branch not found." });
+                }
+
+                if (!scope.AllowsAction(existing.BranchName, scope.EditableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var profile = await _service.UpdateInvoiceProfileAsync(
                     id,
                     dto,

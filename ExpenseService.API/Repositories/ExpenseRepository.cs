@@ -19,6 +19,10 @@ namespace ExpenseService.API.Repositories
             ExpenseQueryDto query)
         {
             var rows = _context.Expenses.AsNoTracking();
+            if (query.AllowedCompanyIds != null)
+            {
+                rows = rows.Where(row => query.AllowedCompanyIds.Contains(row.CompanyId));
+            }
 
             if (query.AllowedCompanyIds is { } companies)
             {

@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -377,8 +378,7 @@ namespace SalesInvoiceService.API.Repositories
                 return payment;
             }
             catch (DbUpdateException exception)
-                when (exception.InnerException is SqlException sql &&
-                      (sql.Number == 2601 || sql.Number == 2627))
+                when (DatabaseErrors.IsDuplicateKey(exception))
             {
                 // Another request may have saved this RequestId first.
                 await transaction.RollbackAsync(cancellationToken);

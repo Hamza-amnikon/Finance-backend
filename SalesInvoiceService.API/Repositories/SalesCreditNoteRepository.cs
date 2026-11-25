@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -218,9 +219,10 @@ namespace SalesInvoiceService.API.Repositories
                     cancellationToken);
 
             // Uses the same invoice lock as payment recording.
-            var invoice = await _context.SalesInvoices
-                .FromSqlInterpolated(
-                    $"SELECT * FROM [sales].[SalesInvoices] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {creditNote.SalesInvoiceId}")
+            var invoice = await _context.SalesInvoices.LockForUpdate(
+                    _context,
+                    "Id",
+                    creditNote.SalesInvoiceId)
                 .Include(record => record.Items)
                 .SingleOrDefaultAsync(cancellationToken);
 
@@ -297,8 +299,7 @@ namespace SalesInvoiceService.API.Repositories
                 return creditNote;
             }
             catch (DbUpdateException exception)
-                when (exception.InnerException is SqlException sql &&
-                      (sql.Number == 2601 || sql.Number == 2627))
+                when (DatabaseErrors.IsDuplicateKey(exception))
             {
                 // Another request may have saved this RequestId first.
                 await transaction.RollbackAsync(
@@ -355,8 +356,10 @@ namespace SalesInvoiceService.API.Repositories
                 IsolationLevel.ReadCommitted, cancellationToken);
 
             // Lock the invoice first, matching payment recording.
-            var invoice = await _context.SalesInvoices
-                .FromSqlInterpolated($"SELECT * FROM [sales].[SalesInvoices] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {invoiceId.Value}")
+            var invoice = await _context.SalesInvoices.LockForUpdate(
+                    _context,
+                    "Id",
+                    invoiceId.Value)
                 .Include(record => record.Items)
                 .SingleOrDefaultAsync(cancellationToken);
 
@@ -365,8 +368,10 @@ namespace SalesInvoiceService.API.Repositories
                 throw new InvalidOperationException("The original invoice could not be found.");
             }
 
-            var creditNote = await _context.SalesCreditNotes
-                .FromSqlInterpolated($"SELECT * FROM [sales].[SalesCreditNotes] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {id}")
+            var creditNote = await _context.SalesCreditNotes.LockForUpdate(
+                    _context,
+                    "Id",
+                    id)
                 .Include(credit => credit.Items.OrderBy(item => item.LineNumber))
                 .SingleOrDefaultAsync(cancellationToken);
 
@@ -449,8 +454,10 @@ namespace SalesInvoiceService.API.Repositories
             }
 
             var periodKey = creditNote.CreditNoteDate.ToString("yyyyMM", CultureInfo.InvariantCulture);
-            var counter = await _context.CreditNoteNumberCounters
-                .FromSqlInterpolated($"SELECT * FROM [sales].[CreditNoteNumberCounters] WITH (UPDLOCK, HOLDLOCK) WHERE [PeriodKey] = {periodKey}")
+            var counter = await _context.CreditNoteNumberCounters.LockForUpdate(
+                    _context,
+                    "PeriodKey",
+                    periodKey)
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (counter == null)

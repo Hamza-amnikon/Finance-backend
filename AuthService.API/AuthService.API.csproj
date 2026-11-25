@@ -16,7 +16,10 @@
     </ItemGroup>
     <ItemGroup>
         <!-- Reuse the validated implementation while keeping RoleService's existing endpoints compatible. -->
-        <Compile Include="../RoleService.API/Authentication/*.cs" Link="Authentication/%(Filename)%(Extension)" />
+        <ProjectReference Include="../Shared/Database/SparkFinance.MySql.csproj" />
+        <Compile Include="../RoleService.API/Authentication/*.cs"
+                 Exclude="../RoleService.API/Authentication/RoleManagementPermissionFilter.cs"
+                 Link="Authentication/%(Filename)%(Extension)" />
         <Compile Include="../RoleService.API/Controllers/AuthController.cs" Link="Controllers/AuthController.cs" />
         <Compile Include="../RoleService.API/DTOs/UserSessionResponse.cs" Link="DTOs/UserSessionResponse.cs" />
         <Compile Include="../RoleService.API/DTOs/UserPagePermissionResponse.cs" Link="DTOs/UserPagePermissionResponse.cs" />

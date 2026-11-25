@@ -26,6 +26,10 @@ namespace BankingService.API.Services
             Validate(query);
 
             var source = _repository.Query();
+            if (query.AllowedCompanyIds != null)
+            {
+                source = source.Where(account => query.AllowedCompanyIds.Contains(account.CompanyId));
+            }
 
             if (query.AllowedCompanyIds is { } allowedCompanyIds)
             {

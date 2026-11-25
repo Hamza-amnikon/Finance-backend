@@ -66,6 +66,22 @@ namespace AccountingService.API.Data
             modelBuilder.HasDefaultSchema(
                 "accounting");
 
+            modelBuilder.Entity<LedgerPagePermissionLookup>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToTable("Permissions", "security", table => table.ExcludeFromMigrations());
+            });
+            modelBuilder.Entity<LedgerCompanyGrantLookup>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToTable("RolePermissions", "security", table => table.ExcludeFromMigrations());
+            });
+            modelBuilder.Entity<LedgerBranchAccessLookup>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToTable("Branches", "amnikon", table => table.ExcludeFromMigrations());
+            });
+
             ConfigureCompanies(modelBuilder);
             ConfigureAccounts(modelBuilder);
             ConfigureJournalEntries(modelBuilder);

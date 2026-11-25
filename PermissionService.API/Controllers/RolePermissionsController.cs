@@ -5,13 +5,15 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using PermissionService.API.DTOs;
+using PermissionService.API.Authentication;
 using PermissionService.API.Services;
 
 namespace PermissionService.API.Controllers
 {
     [ApiController]
     [Route("api/role-permissions")]
-    [Authorize(Policy = "ManageRolePermissions")]
+    [Authorize]
+    [ServiceFilter(typeof(RolePermissionsAccessFilter))]
     public class RolePermissionsController : ControllerBase
     {
         private readonly IRolePermissionService _service;

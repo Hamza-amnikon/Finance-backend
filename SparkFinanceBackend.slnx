@@ -17,4 +17,5 @@
   <Project Path="SalesInvoiceService.API/SalesInvoiceService.API.csproj" Id="8b073ad3-183f-45d3-a856-e24c1f54caa2" />
   <Project Path="VendorCreditService.API/VendorCreditService.API.csproj" Id="b9e9f72f-e72c-483b-ae48-d2a3c833563e" />
   <Project Path="VendorService.API/VendorService.API.csproj" Id="d3f9bf83-66ff-41cf-9586-52cf964be48b" />
+  <Project Path="Shared/Database/SparkFinance.MySql.csproj" />
 </Solution>

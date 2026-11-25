@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
 	<PropertyGroup>
+		<UserSecretsId>merit-vendor-service</UserSecretsId>
 		<TargetFramework>net10.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -31,10 +32,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Shared/Http/RequestCancellation.cs" Link="Shared/RequestCancellation.cs" />
+    <Compile Include="../Shared/Http/FinanceCompanyAccess.cs" Link="Shared/FinanceCompanyAccess.cs" />
+    <Compile Include="../Shared/Http/FinanceSessionForwarding.cs" Link="Shared/FinanceSessionForwarding.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Shared/Database/FinanceDatabase.cs" Link="Shared/FinanceDatabase.cs" />
-    <Compile Include="../Shared/Http/FinanceCompanyAccess.cs" Link="Shared/FinanceCompanyAccess.cs" />
-    <Compile Include="../Shared/Http/FinanceSessionForwarding.cs" Link="Shared/FinanceSessionForwarding.cs" />
   </ItemGroup>
 </Project>

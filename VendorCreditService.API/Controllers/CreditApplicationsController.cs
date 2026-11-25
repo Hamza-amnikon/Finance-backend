@@ -10,6 +10,7 @@ namespace VendorCreditService.API.Controllers
 {
     [ApiController]
     [Route("api/vendor-credits/{creditId:int}/applications")]
+    [ServiceFilter(typeof(VendorCreditAccessFilter))]
     public class CreditApplicationsController : ControllerBase
     {
         private readonly ICreditApplicationService _service;

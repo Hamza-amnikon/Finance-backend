@@ -61,13 +61,11 @@ if (builder.Environment.IsDevelopment())
     });
 }
 
-var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection");
-
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? builder.Configuration.GetConnectionString("MySqlConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
-    throw new InvalidOperationException(
-        "Connection string 'DefaultConnection' was not found.");
+    throw new InvalidOperationException("Configure a finance database connection string.");
 }
 
 builder.Services.AddDbContext<RoleDbContext>(options =>
@@ -105,6 +103,7 @@ builder.Services.AddScoped<
     UserPagePermissionRepository>();
 
 builder.Services.AddScoped<UsersPermissionFilter>();
+builder.Services.AddScoped<RoleManagementPermissionFilter>();
 
 builder.Services.AddFinanceMicrosoftAuthentication(
     builder.Configuration,
