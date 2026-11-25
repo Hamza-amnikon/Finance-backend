@@ -196,14 +196,14 @@ namespace AccountingService.API.Services
 
             // The identity service validates active users and roles. Never accept a role from the browser.
             var permissions = _context.Database.IsFinanceMySql() ? (FormattableString)$"""
-                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel
+                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel, rp.CanPost, rp.CanVoid, rp.CanReverse, rp.CanReconcile
                 FROM security__RolePermissions rp
                 INNER JOIN security__Permissions p ON p.PermissionId = rp.PermissionId
                 WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId > 0
                     AND rp.CanView = 1 AND p.Status = 'Active'
                     AND ({permissionCode} IS NULL OR p.PermissionCode = {permissionCode})
                 """ : (FormattableString)$"""
-                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel
+                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel, rp.CanPost, rp.CanVoid, rp.CanReverse, rp.CanReconcile
                 FROM security.RolePermissions rp
                 INNER JOIN security.Permissions p ON p.PermissionId = rp.PermissionId
                 WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId > 0
