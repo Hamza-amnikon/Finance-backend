@@ -8,10 +8,12 @@ var roleService = builder.Configuration.GetSection("Services:RoleService");
 var timeout = roleService.GetValue<int>("TimeoutSeconds");
 
 if (!Uri.TryCreate(roleService["BaseUrl"], UriKind.Absolute, out var roleServiceUri) ||
-    roleServiceUri.Scheme != Uri.UriSchemeHttps ||
+    (roleServiceUri.Scheme != Uri.UriSchemeHttps &&
+     !(builder.Configuration["Database:Provider"] == "MySql" && roleServiceUri.IsLoopback &&
+       roleServiceUri.Scheme == Uri.UriSchemeHttp && string.IsNullOrEmpty(roleServiceUri.UserInfo))) ||
     timeout is < 1 or > 300)
 {
-    throw new InvalidOperationException("Configure the HTTPS RoleService URL and request timeout.");
+    throw new InvalidOperationException("Configure a trusted RoleService URL and request timeout.");
 }
 
 builder.Services.AddControllers();

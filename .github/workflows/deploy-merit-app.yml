@@ -25,6 +25,7 @@ jobs:
             name=$(basename "${project%/*}" .API)
             dotnet publish "$project" -c Release -o "published/$name"
           done
+          dotnet publish AzureADService/AzureADService.csproj -c Release -o published/AzureADService
       - uses: actions/upload-artifact@v4
         with:
           name: merit-api-publish
@@ -56,6 +57,7 @@ jobs:
             systemctl --user is-active --quiet "$unit"
           done <<'SERVICES'
           AuthService auth-service merit-auth
+          AzureADService directory-service merit-finance-read@directory
           ClientService client-write-service merit-client
           DashboardService dashboard-service merit-dashboard
           AccountingService accounting-audit-service merit-finance-read@accounting
