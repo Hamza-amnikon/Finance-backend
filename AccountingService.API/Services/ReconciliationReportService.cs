@@ -3,6 +3,9 @@ using AccountingService.API.Data;
 using AccountingService.API.DTOs;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using MySql.Data.MySqlClient;
+using SparkFinance.Database;
+using System.Text.RegularExpressions;
 
 namespace AccountingService.API.Services
 {
@@ -26,14 +29,17 @@ namespace AccountingService.API.Services
             }
 
             var company = await _context.Companies.AsNoTracking().SingleOrDefaultAsync(row => row.Id == companyId, cancellationToken) ?? throw new KeyNotFoundException("Accounting company was not found.");
-            var precisionRows = await _context.Database.SqlQueryRaw<CurrencyPrecisionRow>("SELECT CurrencyCode AS Currency, DecimalPlaces AS Precision FROM sales.CurrencyMasters").ToListAsync(cancellationToken);
+            var mySql = _context.Database.IsFinanceMySql();
+            var precisionRows = await _context.Database.SqlQueryRaw<CurrencyPrecisionRow>(Sql("SELECT CurrencyCode AS Currency, DecimalPlaces AS Precision FROM sales.CurrencyMasters", mySql)).ToListAsync(cancellationToken);
             var precisions = precisionRows.Where(row => row.Precision is >= 0 and <= 4).ToDictionary(row => row.Currency, row => row.Precision, StringComparer.OrdinalIgnoreCase);
             if (!precisions.TryGetValue(company.Currency, out var precision))
             {
                 throw new ValidationException("Configure the company currency and its decimal precision in the currency master.");
             }
 
-            SqlParameter[] Parameters() => [new("@company", companyId), new("@asOf", asOf.ToDateTime(TimeOnly.MinValue)), new("@nextDay", asOf.AddDays(1).ToDateTime(TimeOnly.MinValue))];
+            object[] Parameters() => mySql
+                ? [new MySqlParameter("@company", companyId), new MySqlParameter("@asOf", asOf.ToDateTime(TimeOnly.MinValue)), new MySqlParameter("@nextDay", asOf.AddDays(1).ToDateTime(TimeOnly.MinValue))]
+                : [new SqlParameter("@company", companyId), new SqlParameter("@asOf", asOf.ToDateTime(TimeOnly.MinValue)), new SqlParameter("@nextDay", asOf.AddDays(1).ToDateTime(TimeOnly.MinValue))];
             var report = new ReconciliationReportDto
             {
                 CompanyId = companyId,
@@ -83,7 +89,7 @@ namespace AccountingService.API.Services
                 (SELECT COUNT(*) AS PostingCount,COALESCE(SUM(CASE WHEN j.Status=N'Posted' THEN 1 ELSE 0 END),0) AS PostedCount,
                     MAX(j.Currency) AS PostingCurrency,MAX(j.TotalDebit) AS PostingTotal
                     FROM accounting.JournalEntries j WHERE j.CompanyId=@company AND j.Source=s.Source AND j.SourceDocumentId=s.SourceId AND j.EntryDate<=@asOf) p";
-            var documents = await _context.Database.SqlQueryRaw<ReconciliationDocumentRow>(sourceSql, Parameters()).ToListAsync(cancellationToken);
+            var documents = await _context.Database.SqlQueryRaw<ReconciliationDocumentRow>(Sql(sourceSql, mySql), Parameters()).ToListAsync(cancellationToken);
             report.Checks.AddRange(documents.Select(row => ReconciliationRules.Posting(row, precisions.TryGetValue(row.Currency, out var digits) ? digits : null)));
             const string journalSql = @"
                 SELECT j.Id,j.EntryNumber AS Number,j.Currency,j.TotalDebit,j.TotalCredit,
@@ -94,7 +100,7 @@ namespace AccountingService.API.Services
                 LEFT JOIN accounting.Accounts a ON a.Id=l.AccountId
                 WHERE j.CompanyId=@company AND j.EntryDate<=@asOf AND j.Status IN(N'Posted',N'Reversed')
                 GROUP BY j.Id,j.EntryNumber,j.Currency,j.TotalDebit,j.TotalCredit";
-            var journals = await _context.Database.SqlQueryRaw<ReconciliationJournalRow>(journalSql, Parameters()).ToListAsync(cancellationToken);
+            var journals = await _context.Database.SqlQueryRaw<ReconciliationJournalRow>(Sql(journalSql, mySql), Parameters()).ToListAsync(cancellationToken);
             if (documents.Count == 0 && journals.Count == 0)
             {
                 report.Checks.Add(new ReconciliationCheckDto { Id = "empty-coverage", Group = "Ledger controls", Title = "Data coverage", Status = "Review", Explanation = "No eligible source documents or posted journals exist through this cutoff. Zero balances do not establish posting completeness." });
@@ -123,14 +129,14 @@ namespace AccountingService.API.Services
                 OUTER APPLY(SELECT SUM(Amount) AS Applied FROM purchases.VendorCreditApplications WHERE BillId=b.Id AND Status=N'Applied' AND ApplicationDate<=@asOf)a
                 OUTER APPLY(SELECT MAX(ExchangeRate) AS ExchangeRate FROM accounting.JournalEntries WHERE CompanyId=@company AND Source=N'PurchaseBill' AND SourceDocumentId=CONVERT(nvarchar(100),b.Id) AND Status IN(N'Posted',N'Reversed') AND EntryDate<=@asOf)j
                 WHERE b.Status=N'Issued' AND b.BillDate<=@asOf AND EXISTS(SELECT 1 FROM amnikon.Branches s WHERE s.Name=b.Branch AND s.AccountingCompanyId=@company)";
-            var balances = await _context.Database.SqlQueryRaw<ReconciliationBalanceRow>(balanceSql, Parameters()).ToListAsync(cancellationToken);
+            var balances = await _context.Database.SqlQueryRaw<ReconciliationBalanceRow>(Sql(balanceSql, mySql), Parameters()).ToListAsync(cancellationToken);
             const string controlSql = @"
                 SELECT a.SystemKey AS Kind,COUNT(DISTINCT a.Id) AS AccountCount,
                     COALESCE(SUM(CASE WHEN j.Id IS NOT NULL THEN l.BaseDebitAmount-l.BaseCreditAmount ELSE 0 END),0) AS Balance
                 FROM accounting.Accounts a LEFT JOIN accounting.JournalEntryLines l ON l.AccountId=a.Id
                 LEFT JOIN accounting.JournalEntries j ON j.Id=l.JournalEntryId AND j.CompanyId=@company AND j.EntryDate<=@asOf AND j.Status IN(N'Posted',N'Reversed')
                 WHERE a.CompanyId=@company AND a.SystemKey IN(N'ACCOUNTS_RECEIVABLE',N'ACCOUNTS_PAYABLE') GROUP BY a.SystemKey";
-            var controls = await _context.Database.SqlQueryRaw<ControlRow>(controlSql, Parameters()).ToListAsync(cancellationToken);
+            var controls = await _context.Database.SqlQueryRaw<ControlRow>(Sql(controlSql, mySql), Parameters()).ToListAsync(cancellationToken);
             foreach (var kind in new[]
             {
                 "Receivables",
@@ -158,17 +164,18 @@ namespace AccountingService.API.Services
                 OUTER APPLY(SELECT SUM(x.BaseDebitAmount-x.BaseCreditAmount) AS Balance FROM accounting.JournalEntryLines x INNER JOIN accounting.JournalEntries j ON j.Id=x.JournalEntryId WHERE x.AccountId=b.AccountingAccountId AND j.CompanyId=@company AND j.EntryDate<=@asOf AND j.Status IN(N'Posted',N'Reversed'))l
                 OUTER APPLY(SELECT TOP(1) q.Id,q.PeriodEnd FROM banking.BankReconciliations q WHERE q.BankAccountId=b.Id AND q.CompanyId=@company AND q.Status=N'Completed' AND q.PeriodEnd<=@asOf ORDER BY q.PeriodEnd DESC,q.Id DESC)r
                 WHERE b.CompanyId=@company";
-            var banks = await _context.Database.SqlQueryRaw<ReconciliationBankRow>(bankSql, Parameters()).ToListAsync(cancellationToken);
+            var banks = await _context.Database.SqlQueryRaw<ReconciliationBankRow>(Sql(bankSql, mySql), Parameters()).ToListAsync(cancellationToken);
             foreach (var bank in banks)
             {
                 report.Checks.Add(ReconciliationRules.Bank(bank, companyId, company.Currency, precision));
                 report.Checks.Add(new ReconciliationCheckDto { Id = $"statement-{bank.Id}", Group = "Banking", Title = "Completed statement coverage", Reference = bank.Name, Status = bank.UnmatchedStatementLines > 0 ? "Issue" : bank.LastCompletedDate == asOf ? "Matched" : "Review", Explanation = bank.LastCompletedDate.HasValue ? $"Last completed statement ends {bank.LastCompletedDate:yyyy-MM-dd}; {bank.UnmatchedStatementLines} unmatched statement lines. Later register activity still needs reconciliation." : "No completed statement was found through the cutoff.", Link = "/banking/reconciliation" });
             }
 
-            var claimRisks = await _context.Database.SqlQuery<ClaimRiskRow>($@"SELECT c.Id,c.Reference,c.PaymentAccountId,a.Type,a.SystemKey,p.SystemKey AS ParentKey,
+            var claimSql = $@"SELECT c.Id,c.Reference,c.PaymentAccountId,a.Type,a.SystemKey,p.SystemKey AS ParentKey,
                 (SELECT COUNT(*) FROM expenses.BankAccounts b WHERE b.CompanyId=c.CompanyId AND b.AccountingAccountId=c.PaymentAccountId) AS BankMappings
                 FROM expenses.ExpenseClaims c LEFT JOIN accounting.Accounts a ON a.Id=c.PaymentAccountId LEFT JOIN accounting.Accounts p ON p.Id=a.ParentAccountId
-                WHERE c.CompanyId={companyId} AND c.Status=N'Paid' AND c.PaidDate<={asOf}").ToListAsync(cancellationToken);
+                WHERE c.CompanyId=@company AND c.Status=N'Paid' AND c.PaidDate<=@asOf";
+            var claimRisks = await _context.Database.SqlQueryRaw<ClaimRiskRow>(Sql(claimSql, mySql), Parameters()).ToListAsync(cancellationToken);
             foreach (var claim in claimRisks)
             {
                 var valid = claim.Type == "Asset" && (claim.SystemKey == "CASH_ON_HAND" || claim.ParentKey == "BANK_ACCOUNTS" || claim.BankMappings > 0);
@@ -176,6 +183,53 @@ namespace AccountingService.API.Services
             }
 
             return report;
+        }
+
+        private static string Sql(string sql, bool mySql)
+        {
+            if (!mySql) return sql;
+            sql = Regex.Replace(sql, @"\b(sales|purchases|expenses|amnikon|accounting|banking)\.", "$1__");
+            sql = Regex.Replace(sql, @"CONVERT\(nvarchar\(100\),\s*([\w.]+)\)", "CAST($1 AS CHAR)", RegexOptions.IgnoreCase);
+            sql = sql.Replace("N'", "'")
+                .Replace("AS Precision", "AS `Precision`")
+                .Replace("CHARINDEX(b.Name, c.Name)", "INSTR(c.Name, b.Name)")
+                .Replace("CONVERT(nvarchar(100),i.Id)", "CAST(i.Id AS CHAR)")
+                .Replace("CONVERT(nvarchar(100),b.Id)", "CAST(b.Id AS CHAR)")
+                .Replace("CONVERT(nvarchar(100),c.Id)", "CAST(c.Id AS CHAR)")
+                .Replace("CONVERT(nvarchar(100),p.Id)", "CAST(p.Id AS CHAR)")
+                .Replace("SELECT TOP(1) q.Id,q.PeriodEnd", "SELECT q.Id,q.PeriodEnd");
+            foreach (var comparison in new[] { "b.Name=i.Branch", "s.Name=b.Branch", "b.Name=p.Branch", "b.Name=c.Branch",
+                "b.Name=c.Name", "b.CompanyName=c.Name", "j.Source=s.Source", "j.SourceDocumentId=s.SourceId" })
+            {
+                sql = sql.Replace(comparison, comparison.Replace("=", " COLLATE utf8mb4_0900_ai_ci="));
+            }
+            sql = sql.Replace("SourceDocumentId=CAST", "SourceDocumentId COLLATE utf8mb4_0900_ai_ci=CAST");
+            var position = 0;
+            while ((position = sql.IndexOf("OUTER APPLY", position, StringComparison.OrdinalIgnoreCase)) >= 0)
+            {
+                var open = sql.IndexOf('(', position + 11);
+                var depth = 0;
+                var close = open;
+                for (; close < sql.Length; close++)
+                {
+                    if (sql[close] == '(') depth++;
+                    else if (sql[close] == ')' && --depth == 0) break;
+                }
+                if (open < 0 || close == sql.Length) throw new InvalidOperationException("Invalid report SQL APPLY expression.");
+                if (sql.AsSpan(open, close - open).IndexOf("q.PeriodEnd".AsSpan(), StringComparison.Ordinal) >= 0)
+                {
+                    sql = sql.Insert(close, " LIMIT 1");
+                    close += " LIMIT 1".Length;
+                }
+                var aliasStart = close + 1;
+                while (aliasStart < sql.Length && char.IsWhiteSpace(sql[aliasStart])) aliasStart++;
+                var aliasEnd = aliasStart;
+                while (aliasEnd < sql.Length && (char.IsLetterOrDigit(sql[aliasEnd]) || sql[aliasEnd] == '_')) aliasEnd++;
+                sql = sql.Insert(aliasEnd, " ON TRUE");
+                sql = sql.Remove(position, "OUTER APPLY".Length).Insert(position, "LEFT JOIN LATERAL");
+                position = aliasEnd + 1;
+            }
+            return sql;
         }
 
         public class CurrencyPrecisionRow
