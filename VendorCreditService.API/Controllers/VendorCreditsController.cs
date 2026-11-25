@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
@@ -389,9 +390,7 @@ namespace VendorCreditService.API.Controllers
                     message = exception.Message
                 });
             }
-            catch (DbUpdateException exception) when (
-                exception.InnerException is SqlException sql &&
-                (sql.Number == 2601 || sql.Number == 2627))
+            catch (DbUpdateException exception) when (DatabaseErrors.IsDuplicateKey(exception))
             {
                 _logger.LogWarning(
                     exception,

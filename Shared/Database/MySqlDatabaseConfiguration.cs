@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using MySql.Data.MySqlClient;
 
 namespace SparkFinance.Database
@@ -33,6 +34,7 @@ namespace SparkFinance.Database
             // Financial writes keep their explicit transaction and idempotency handling.
             // Automatic retries cannot be enabled until ambiguous commits are verified.
             options.UseMySQL(connection.ConnectionString);
+            options.ReplaceService<IModelCacheKeyFactory, MySqlModelCacheKeyFactory>();
             options.AddInterceptors(MySqlRowVersionInterceptor.Instance);
             return options;
         }

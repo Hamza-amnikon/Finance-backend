@@ -1,15 +1,22 @@
 using Microsoft.EntityFrameworkCore;
 using RoleService.API.Models;
+using SparkFinance.Database;
 
 namespace RoleService.API.Data
 {
-    public class RoleDbContext : DbContext
+    public class RoleDbContext : DbContext, IMySqlTableMappingContext
     {
         public RoleDbContext(
-            DbContextOptions<RoleDbContext> options)
+            DbContextOptions<RoleDbContext> options,
+            IConfiguration? configuration = null)
             : base(options)
         {
+            MySqlTableMappings = configuration?
+                .GetSection("Database:MySql:TableMappings")
+                .Get<Dictionary<string, string>>() ?? new Dictionary<string, string>();
         }
+
+        public IReadOnlyDictionary<string, string> MySqlTableMappings { get; }
 
         public DbSet<Roles> Roles => Set<Roles>();
 
@@ -54,6 +61,11 @@ namespace RoleService.API.Data
                     .HasForeignKey(user => user.RoleId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+
+            if (Database.ProviderName == "MySql.EntityFrameworkCore")
+            {
+                modelBuilder.ApplyVerifiedTableMappings(MySqlTableMappings);
+            }
         }
     }
 }

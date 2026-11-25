@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.Data;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
@@ -132,9 +133,10 @@ namespace VendorCreditService.API.Repositories
             int id,
             CancellationToken cancellationToken)
         {
-            return _context.VendorCredits
-                .FromSqlInterpolated(
-                    $"SELECT * FROM [purchases].[VendorCredits] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {id}")
+            return _context.VendorCredits.LockForUpdate(
+                    _context,
+                    "Id",
+                    id)
                 .Include(row => row.Items)
                 .SingleOrDefaultAsync(cancellationToken);
         }
@@ -292,9 +294,10 @@ namespace VendorCreditService.API.Repositories
                     "yyyyMM",
                     CultureInfo.InvariantCulture);
 
-                var counter = await _context.NumberCounters
-                    .FromSqlInterpolated(
-                        $"SELECT * FROM [purchases].[VendorCreditNumberCounters] WITH (UPDLOCK,HOLDLOCK) WHERE [PeriodKey] = {period}")
+                var counter = await _context.NumberCounters.LockForUpdate(
+                    _context,
+                    "PeriodKey",
+                    period)
                     .SingleOrDefaultAsync(cancellationToken);
 
                 if (counter == null)

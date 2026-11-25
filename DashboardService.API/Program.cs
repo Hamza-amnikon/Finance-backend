@@ -60,10 +60,13 @@ builder.Services.AddDbContext<DashboardDbContext>(options =>
             maxRetryDelay: TimeSpan.FromSeconds(5),
             errorNumbersToAdd: new[] { -1983577846 })));
 
-builder.Services.AddHostedService(serviceProvider =>
-    new LocalDbKeepAliveWorker(
-        connectionString,
-        serviceProvider.GetRequiredService<ILogger<LocalDbKeepAliveWorker>>()));
+if (LocalDbKeepAliveWorker.IsLocalDbConnection(connectionString))
+{
+    builder.Services.AddHostedService(serviceProvider =>
+        new LocalDbKeepAliveWorker(
+            connectionString,
+            serviceProvider.GetRequiredService<ILogger<LocalDbKeepAliveWorker>>()));
+}
 
 builder.Services.AddScoped<
     IDashboardService,

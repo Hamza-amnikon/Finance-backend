@@ -19,7 +19,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.0" />
-    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,4 +37,7 @@
   <ItemGroup>
     <Compile Include="../Shared/Http/FinanceCompanyAccess.cs" Link="Shared/FinanceCompanyAccess.cs" />
   </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="../Shared/Database/SparkFinance.MySql.csproj" />
+    </ItemGroup>
 </Project>

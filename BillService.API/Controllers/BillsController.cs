@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using BillService.API.Data;
@@ -528,8 +529,7 @@ namespace BillService.API.Controllers
                     });
             }
             catch (DbUpdateException exception)
-                when (exception.InnerException is SqlException sqlException &&
-                      (sqlException.Number == 2601 || sqlException.Number == 2627))
+                when (DatabaseErrors.IsDuplicateKey(exception))
             {
                 return Conflict(new
                 {
@@ -622,8 +622,7 @@ namespace BillService.API.Controllers
                     });
             }
             catch (DbUpdateException exception)
-                when (exception.InnerException is SqlException sqlException &&
-                      (sqlException.Number == 2601 || sqlException.Number == 2627))
+                when (DatabaseErrors.IsDuplicateKey(exception))
             {
                 return Conflict(new
                 {

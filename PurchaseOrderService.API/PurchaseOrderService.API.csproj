@@ -11,7 +11,7 @@
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
 		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.3.0" />
 
-		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
+		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
 
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
 
@@ -37,4 +37,7 @@
     <Compile Include="../Shared/Http/FinanceCompanyAccess.cs" Link="Shared/FinanceCompanyAccess.cs" />
     <Compile Include="../Shared/Http/FinanceSessionForwarding.cs" Link="Shared/FinanceSessionForwarding.cs" />
   </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="../Shared/Database/SparkFinance.MySql.csproj" />
+    </ItemGroup>
 </Project>

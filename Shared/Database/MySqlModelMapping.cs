@@ -15,11 +15,13 @@ namespace SparkFinance.Database
             foreach (var entity in model.Model.GetEntityTypes())
             {
                 var table = entity.GetTableName();
+                var viewMapping = table == null;
+                table ??= entity.GetViewName();
                 if (table == null)
                 {
                     continue;
                 }
-                var schema = entity.GetSchema();
+                var schema = viewMapping ? entity.GetViewSchema() : entity.GetSchema();
                 var source = string.IsNullOrEmpty(schema) ? table : schema + "." + table;
                 if (!tableMappings.TryGetValue(source, out var target) ||
                     string.IsNullOrWhiteSpace(target) || target.Length > 64 || target.Contains('\0'))
@@ -31,8 +33,16 @@ namespace SparkFinance.Database
                     throw new InvalidOperationException("Different source tables cannot share the MySQL table " + target + ".");
                 }
                 targets[target] = source;
-                entity.SetSchema(null);
-                entity.SetTableName(target);
+                if (viewMapping)
+                {
+                    entity.SetViewSchema(null);
+                    entity.SetViewName(target);
+                }
+                else
+                {
+                    entity.SetSchema(null);
+                    entity.SetTableName(target);
+                }
                 foreach (var property in entity.GetProperties())
                 {
                     if (property.ClrType == typeof(byte[]) && property.IsConcurrencyToken &&

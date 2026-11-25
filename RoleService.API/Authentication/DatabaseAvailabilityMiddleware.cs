@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using SparkFinance.Http;
+using MySql.Data.MySqlClient;
 
 namespace RoleService.API.Authentication
 {
@@ -46,7 +47,7 @@ namespace RoleService.API.Authentication
 
         public static bool IsDatabaseFailure(Exception exception)
         {
-            if (exception is SqlException)
+            if (exception is SqlException || exception is MySqlException)
             {
                 return true;
             }

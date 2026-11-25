@@ -5,6 +5,7 @@ using RoleService.API.Authentication;
 using RoleService.API.Data;
 using RoleService.API.Repositories;
 using SparkFinance.Http;
+using SparkFinance.Database;
 
 namespace AuthService.API
 {
@@ -36,15 +37,10 @@ namespace AuthService.API
                     };
                 });
 
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                throw new InvalidOperationException("Configure ConnectionStrings:DefaultConnection for MERIT AuthService.");
-            }
-
             builder.Services.AddDbContext<RoleDbContext>(options =>
-                options.UseSqlServer(connectionString));
+            {
+                options.UseMeritMySql(builder.Configuration);
+            });
             builder.Services.TryAddScoped<IUserRepository, UserRepository>();
             builder.Services.TryAddScoped<IRoleRepository, RoleRepository>();
             builder.Services.TryAddScoped<IUserPagePermissionRepository, UserPagePermissionRepository>();
@@ -55,6 +51,7 @@ namespace AuthService.API
             var app = builder.Build();
 
             app.UseFinanceRequestCancellation();
+            app.UseMiddleware<DatabaseAvailabilityMiddleware>();
             app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();

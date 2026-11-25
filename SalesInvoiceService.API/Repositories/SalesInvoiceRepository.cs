@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.Data;
@@ -49,8 +50,10 @@ namespace SalesInvoiceService.API.Repositories
             }
 
             var periodKey = $"{invoice.InvoiceDate.Year:D4}{invoice.InvoiceDate.Month:D2}";
-            var counter = await _context.Set<InvoiceNumberCounter>()
-                .FromSqlInterpolated($"SELECT * FROM [sales].[InvoiceNumberCounters] WITH (UPDLOCK, HOLDLOCK) WHERE [PeriodKey] = {periodKey}")
+            var counter = await _context.Set<InvoiceNumberCounter>().LockForUpdate(
+                    _context,
+                    "PeriodKey",
+                    periodKey)
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (counter == null)

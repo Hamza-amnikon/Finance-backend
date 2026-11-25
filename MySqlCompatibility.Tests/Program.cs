@@ -56,6 +56,46 @@ catch (InvalidOperationException exception) when (exception.Message.Contains("ve
 {
     Check(true, "Unverified table names cannot be activated");
 }
+var mysqlLock = FinancialRowLock.BuildCommandText<PermissionRow>(context, nameof(PermissionRow.Id));
+Check(mysqlLock == "SELECT * FROM `security_Permissions` WHERE `Id` = {0} FOR UPDATE",
+    "MySQL row lock uses the verified table, parameter placeholder and FOR UPDATE");
+Check(!mysqlLock.Contains("UPDLOCK") && !mysqlLock.Contains("HOLDLOCK"),
+    "MySQL locking does not emit SQL Server table hints");
+try
+{
+    context.Permissions.LockForUpdate(context, nameof(PermissionRow.Id), 1);
+    throw new Exception("A financial lock without a transaction was accepted.");
+}
+catch (InvalidOperationException exception) when (exception.Message.Contains("active database transaction"))
+{
+    Check(true, "Financial row locks cannot run outside a transaction");
+}
+try
+{
+    FinancialRowLock.BuildCommandText<PermissionRow>(context, "Id; DROP TABLE Permissions");
+    throw new Exception("Unmapped lock column was accepted.");
+}
+catch (InvalidOperationException exception) when (exception.Message.Contains("not mapped"))
+{
+    Check(true, "Lock columns are resolved from model metadata rather than request SQL");
+}
+await using var sqlServer = new SqlServerLockContext(new DbContextOptionsBuilder<SqlServerLockContext>()
+    .UseSqlServer("Server=unused;Database=TestOnly;Integrated Security=True;TrustServerCertificate=True").Options);
+var sqlServerLock = FinancialRowLock.BuildCommandText<PermissionRow>(sqlServer, nameof(PermissionRow.Id));
+Check(sqlServerLock == "SELECT * FROM [security].[Permissions] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {0}",
+    "Existing SQL Server lock and schema behavior are preserved");
+var mysqlLookupLock = FinancialRowLock.BuildCommandText<BillReadRow>(context, nameof(BillReadRow.Id));
+Check(mysqlLookupLock == "SELECT * FROM `purchases_Bills` WHERE `Id` = {0} FOR UPDATE",
+    "MySQL financial lookup locks use explicitly mapped view identifiers");
+var lookupSql = context.Set<BillReadRow>().Where(row => row.Id == 1).ToQueryString();
+Check(lookupSql.Contains("`purchases_Bills`") && !lookupSql.Contains("[purchases]"),
+    "MySQL keyless lookup queries preserve their configured physical source");
+var composedLock = context.Permissions.FromSqlRaw(mysqlLock, 7)
+    .Include(row => row.Items).Take(2).ToQueryString();
+Check(composedLock.Contains("FOR UPDATE") && composedLock.Contains("LEFT JOIN") &&
+    composedLock.Contains("security_PermissionItems"),
+    "MySQL row locks remain composable with the item includes used by financial repositories");
+DatabaseErrorChecks.Run(Check);
 Console.WriteLine($"{checks} MySQL compatibility checks passed without database writes.");
 
 sealed class PermissionRow
@@ -64,6 +104,7 @@ sealed class PermissionRow
     public int CompanyId { get; set; }
     public bool CanView { get; set; }
     public byte[] RowVersion { get; set; } = [];
+    public List<PermissionItemRow> Items { get; set; } = [];
 }
 
 sealed class PermissionContext(DbContextOptions<PermissionContext> options) : DbContext(options)
@@ -74,9 +115,15 @@ sealed class PermissionContext(DbContextOptions<PermissionContext> options) : Db
     {
         model.Entity<PermissionRow>().ToTable("Permissions", "security");
         model.Entity<PermissionRow>().Property(row => row.RowVersion).IsRowVersion();
+        model.Entity<BillReadRow>().HasNoKey().ToView("Bills", "purchases");
+        model.Entity<PermissionItemRow>().ToTable("PermissionItems", "security");
+        model.Entity<PermissionRow>().HasMany(row => row.Items).WithOne()
+            .HasForeignKey(row => row.PermissionRowId);
         model.ApplyVerifiedTableMappings(new Dictionary<string, string>
         {
-            ["security.Permissions"] = "security_Permissions"
+            ["security.Permissions"] = "security_Permissions",
+            ["purchases.Bills"] = "purchases_Bills",
+            ["security.PermissionItems"] = "security_PermissionItems"
         });
     }
 }
@@ -97,4 +144,23 @@ sealed class NoDatabaseWrites : SaveChangesInterceptor
         NewVersion = property.CurrentValue.ToArray();
         return ValueTask.FromResult(InterceptionResult<int>.SuppressWithResult(1));
     }
+}
+
+sealed class SqlServerLockContext(DbContextOptions<SqlServerLockContext> options) : DbContext(options)
+{
+    protected override void OnModelCreating(ModelBuilder model)
+    {
+        model.Entity<PermissionRow>().ToTable("Permissions", "security");
+    }
+}
+
+sealed class BillReadRow
+{
+    public int Id { get; set; }
+}
+
+sealed class PermissionItemRow
+{
+    public int Id { get; set; }
+    public int PermissionRowId { get; set; }
 }

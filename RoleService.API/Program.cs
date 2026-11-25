@@ -1,6 +1,7 @@
 ﻿using SparkFinance.Http;
 using Microsoft.EntityFrameworkCore;
 using RoleService.API.Data;
+using SparkFinance.Database;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
 using RoleService.API;
@@ -51,23 +52,9 @@ if (builder.Environment.IsDevelopment())
     });
 }
 
-var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection");
-
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    throw new InvalidOperationException(
-        "Connection string 'DefaultConnection' was not found.");
-}
-
 builder.Services.AddDbContext<RoleDbContext>(options =>
 {
-    options.UseSqlServer(connectionString, sqlOptions =>
-    {
-        sqlOptions.MigrationsHistoryTable(
-            "__RoleMigrationsHistory",
-            "security");
-    });
+    options.UseMeritMySql(builder.Configuration);
 });
 
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();

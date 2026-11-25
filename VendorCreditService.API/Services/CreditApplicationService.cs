@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
@@ -157,9 +158,7 @@ namespace VendorCreditService.API.Services
 
                 return ToResponse(saved);
             }
-            catch (DbUpdateException exception) when (
-                exception.InnerException is SqlException sql &&
-                (sql.Number == 2601 || sql.Number == 2627))
+            catch (DbUpdateException exception) when (DatabaseErrors.IsDuplicateKey(exception))
             {
                 _context.ChangeTracker.Clear();
 
