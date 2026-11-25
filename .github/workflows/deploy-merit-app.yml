@@ -1,0 +1,79 @@
+name: Deploy MERIT backend
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: merit-backend-deploy
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Publish APIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p published
+          for project in *Service.API/*Service.API.csproj; do
+            name=$(basename "${project%/*}" .API)
+            dotnet publish "$project" -c Release -o "published/$name"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: merit-api-publish
+          path: published/
+          if-no-files-found: error
+  deploy:
+    needs: build
+    runs-on: [self-hosted, linux, x64, merit-app, finance-backend-deploy]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: merit-api-publish
+          path: ${{ runner.temp }}/merit-api-publish
+      - name: Activate APIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          checkout=/home/hamza/merit-backend
+          cd "$checkout"
+          test -z "$(git status --porcelain)" || { echo 'Checkout has local changes. Deployment stopped.'; exit 1; }
+          git fetch origin main
+          git merge --ff-only "${GITHUB_SHA}"
+          host=/home/hamza/.local/share/merit-host
+          while read -r project service unit; do
+            source="${RUNNER_TEMP}/merit-api-publish/$project"
+            test -f "$source/$project.API.dll"
+            rsync -a --exclude='*.env' --exclude='appsettings*.json' "$source/" "$host/$service/"
+            systemctl --user restart "$unit"
+            systemctl --user is-active --quiet "$unit"
+          done <<'SERVICES'
+          AuthService auth-service merit-auth
+          ClientService client-write-service merit-client
+          DashboardService dashboard-service merit-dashboard
+          AccountingService accounting-audit-service merit-finance-read@accounting
+          BankingService banking-service merit-finance-read@banking
+          BillService bill-service merit-finance-read@bill
+          ExchangeRateService exchange-rate-service merit-finance-read@exchange-rate
+          ExpenseService expense-claims-service merit-finance-read@expense
+          PaymentMadeService payment-made-service merit-finance-read@payment-made
+          PermissionService permission-write-service merit-finance-read@permission
+          PurchaseOrderService purchase-order-service merit-finance-read@purchase-order
+          RoleService role-write-service merit-finance-read@role
+          SalesEstimateService sales-estimate-service merit-finance-read@sales-estimate
+          SalesInvoiceService sales-invoice-tax-service merit-finance-read@sales-invoice
+          VendorCreditService vendor-credit-service merit-finance-read@vendor-credit
+          VendorService vendor-service merit-finance-read@vendor
+          SERVICES
+          "$host/runtime/usr/bin/caddy" validate --config "$host/Caddyfile" --adapter caddyfile
+          systemctl --user restart merit-frontend
+          curl --noproxy '*' --fail --silent --show-error --max-time 10 \
+            --cacert /home/hamza/MERIT-APP-Root-CA.crt \
+            https://172.31.3.11:5174/ >/dev/null
