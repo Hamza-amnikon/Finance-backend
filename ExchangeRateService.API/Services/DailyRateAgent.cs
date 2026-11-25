@@ -3,11 +3,13 @@ using ExchangeRateService.API.Data;
 using ExchangeRateService.API.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using SparkFinance.Database;
 
 namespace ExchangeRateService.API.Services
 {
     public class DailyRateAgent
     {
+        private const string MySqlLockNameSql = "SHA2(CONCAT(DATABASE(), ':FinanceDailyExchangeRates'), 256)";
         private readonly ExchangeRateDbContext _context;
         private readonly IDailyRateProvider _provider;
         private readonly IOptions<DailyRateOptions> _options;
@@ -35,22 +37,33 @@ namespace ExchangeRateService.API.Services
             var now = _timeProvider.GetUtcNow();
             var day = _options.Value.ScheduledDate(now);
             await _context.Database.OpenConnectionAsync(cancellationToken);
-            var locked = false;
+            var isMySql = _context.Database.IsFinanceMySql();
+            var releaseLock = isMySql;
             try
             {
                 // Serialize workers across API instances without holding a transaction during HTTP calls.
-                var result = await _context.Database.SqlQueryRaw<int>("""
+                var acquireLockSql = isMySql
+                    ? $"SELECT GET_LOCK({MySqlLockNameSql}, 0) AS Value"
+                    : """
                     DECLARE @result int;
                     EXEC @result = sys.sp_getapplock @Resource=N'FinanceDailyExchangeRates',
                         @LockMode='Exclusive', @LockOwner='Session', @LockTimeout=0;
                     SELECT @result AS Value;
-                    """).ToListAsync(cancellationToken);
-                if (result[0] < 0)
+                    """;
+                var result = (await _context.Database.SqlQueryRaw<int?>(acquireLockSql)
+                    .ToListAsync(cancellationToken)).Single();
+                if (result is null)
                 {
+                    throw new InvalidOperationException("MySQL could not acquire the daily exchange-rate lock.");
+                }
+
+                if (isMySql ? result.Value != 1 : result.Value < 0)
+                {
+                    releaseLock = false;
                     return;
                 }
 
-                locked = true;
+                releaseLock = true;
                 var check = await _context.ExchangeRateChecks.FindAsync([day], cancellationToken);
                 if (check?.Status == "Succeeded")
                 {
@@ -75,7 +88,10 @@ namespace ExchangeRateService.API.Services
                 check.CheckedAtUtc = now;
                 check.Error = null;
                 await _context.SaveChangesAsync(cancellationToken);
-                var currencies = await _context.Database.SqlQueryRaw<string>("SELECT CurrencyCode AS Value FROM sales.CurrencyMasters WHERE IsActive = 1").ToListAsync(cancellationToken);
+                var currencySql = isMySql
+                    ? "SELECT CurrencyCode AS Value FROM sales__CurrencyMasters WHERE IsActive = 1"
+                    : "SELECT CurrencyCode AS Value FROM sales.CurrencyMasters WHERE IsActive = 1";
+                var currencies = await _context.Database.SqlQueryRaw<string>(currencySql).ToListAsync(cancellationToken);
                 currencies.Add("INR");
                 var errors = new List<string>();
                 foreach (var currency in currencies.Select(value => value.Trim().ToUpperInvariant()).Distinct())
@@ -149,15 +165,20 @@ namespace ExchangeRateService.API.Services
             }
             finally
             {
-                if (locked)
+                try
                 {
-                    await _context.Database.ExecuteSqlRawAsync(
-                                        "EXEC sys.sp_releaseapplock @Resource=N'FinanceDailyExchangeRates', @LockOwner='Session'",
-                                        CancellationToken.None
-                                    );
+                    if (releaseLock)
+                    {
+                        var releaseLockSql = isMySql
+                            ? $"DO RELEASE_LOCK({MySqlLockNameSql})"
+                            : "EXEC sys.sp_releaseapplock @Resource=N'FinanceDailyExchangeRates', @LockOwner='Session'";
+                        await _context.Database.ExecuteSqlRawAsync(releaseLockSql, CancellationToken.None);
+                    }
                 }
-
-                await _context.Database.CloseConnectionAsync();
+                finally
+                {
+                    await _context.Database.CloseConnectionAsync();
+                }
             }
         }
     }

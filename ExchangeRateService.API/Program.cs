@@ -24,16 +24,22 @@ builder.Services.AddHttpClient<IDailyRateProvider, ExchangeRateProvider>((servic
     client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
     client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
 });
-builder.Services.AddDbContext<ExchangeRateDbContext>(options => options.UseFinanceDatabase(
-    builder.Configuration,
-    builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("DefaultConnection is missing.")));
+builder.Services.AddDbContext<ExchangeRateDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("DefaultConnection is missing.");
+    if (builder.Configuration["Database:Provider"] == "MySql")
+    {
+        options.UseMySQL(connectionString);
+    }
+    else
+    {
+        options.UseFinanceDatabase(builder.Configuration, connectionString);
+    }
+});
 builder.Services.AddScoped<IExchangeRateService, StoredExchangeRateService>();
 builder.Services.AddScoped<DailyRateAgent>();
-if (builder.Configuration["Database:Provider"] != "MySql")
-{
-    builder.Services.AddHostedService<DailyRateWorker>();
-}
+builder.Services.AddHostedService<DailyRateWorker>();
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
