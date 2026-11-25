@@ -19,13 +19,21 @@ var connectionString = builder.Configuration
         "DefaultConnection is missing from appsettings.json.");
 
 builder.Services.AddDbContext<VendorDbContext>(options =>
-    options.UseFinanceDatabase(
-        builder.Configuration,
-        connectionString,
-        sqlOptions =>
-            sqlOptions.MigrationsHistoryTable(
-                "__VendorMigrationsHistory",
-                "purchases")));
+{
+    if (builder.Configuration["Database:Provider"] == "MySql" &&
+        builder.Configuration.GetValue<bool>("Database:AllowMySqlVendorWrites"))
+    {
+        options.UseMySQL(connectionString);
+    }
+    else
+    {
+        options.UseFinanceDatabase(
+            builder.Configuration,
+            connectionString,
+            sqlOptions => sqlOptions.MigrationsHistoryTable(
+                "__VendorMigrationsHistory", "purchases"));
+    }
+});
 
 // The location context reads the existing master table in the same database.
 // It owns no tables and is never used to run migrations.

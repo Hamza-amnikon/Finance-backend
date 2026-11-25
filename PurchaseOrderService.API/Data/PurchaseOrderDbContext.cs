@@ -2,6 +2,7 @@ using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using PurchaseOrderService.API.Models;
+using System.Security.Cryptography;
 
 namespace PurchaseOrderService.API.Data
 {
@@ -34,6 +35,27 @@ namespace PurchaseOrderService.API.Data
         public DbSet<PurchasePaymentModeLookup> PaymentModes =>
             Set<PurchasePaymentModeLookup>();
 
+        public override Task<int> SaveChangesAsync(
+            bool acceptAllChangesOnSuccess,
+            CancellationToken cancellationToken = default)
+        {
+            if (Database.IsFinanceMySql())
+            {
+                foreach (var entry in ChangeTracker.Entries<PurchaseOrder>()
+                    .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+                {
+                    var version = entry.Property(order => order.RowVersion);
+                    version.CurrentValue = RandomNumberGenerator.GetBytes(8);
+                    if (entry.State == EntityState.Modified)
+                    {
+                        version.IsModified = true;
+                    }
+                }
+            }
+
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -58,8 +80,17 @@ namespace PurchaseOrderService.API.Data
                     .HasConversion<string>()
                     .HasMaxLength(20);
 
-                entity.Property(row => row.RowVersion)
-                    .IsRowVersion();
+                var rowVersion = entity.Property(row => row.RowVersion);
+                if (Database.IsFinanceMySql())
+                {
+                    rowVersion.HasColumnType("binary(8)")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedNever();
+                }
+                else
+                {
+                    rowVersion.IsRowVersion();
+                }
 
                 entity.Property(row => row.SubTotal)
                     .HasPrecision(18, 4);

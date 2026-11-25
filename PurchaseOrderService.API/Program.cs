@@ -19,13 +19,21 @@ var connectionString = builder.Configuration
         "DefaultConnection is missing from appsettings.json.");
 
 builder.Services.AddDbContext<PurchaseOrderDbContext>(options =>
-    options.UseFinanceDatabase(
-        builder.Configuration,
-        connectionString,
-        sqlOptions =>
-            sqlOptions.MigrationsHistoryTable(
-                "__PurchaseOrderMigrationsHistory",
-                "purchases")));
+{
+    if (builder.Configuration["Database:Provider"] == "MySql" &&
+        builder.Configuration.GetValue<bool>("Database:AllowMySqlPurchaseWrites"))
+    {
+        options.UseMySQL(connectionString);
+    }
+    else
+    {
+        options.UseFinanceDatabase(
+            builder.Configuration,
+            connectionString,
+            sqlOptions => sqlOptions.MigrationsHistoryTable(
+                "__PurchaseOrderMigrationsHistory", "purchases"));
+    }
+});
 
 builder.Services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
 builder.Services.AddScoped<IPurchaseOrderCalculator, PurchaseOrderCalculator>();

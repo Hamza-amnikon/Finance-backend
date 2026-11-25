@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PurchaseOrderService.API.Data;
 using PurchaseOrderService.API.DTOs;
 using PurchaseOrderService.API.Models;
+using SparkFinance.Database;
 
 namespace PurchaseOrderService.API.Services
 {
@@ -54,7 +55,19 @@ namespace PurchaseOrderService.API.Services
                 throw new ArgumentException("The selected branch must be linked to an accounting company.");
             }
 
-            return await _context.Database.SqlQuery<PurchaseOrderTaxChoice>($"""
+            FormattableString query = _context.Database.IsFinanceMySql() ? (FormattableString)$"""
+                SELECT r.Id, r.CompanyId, r.Code, r.Name, r.Rate, t.Treatment,
+                    r.ComponentsJson, r.EffectiveFrom, r.EffectiveTo, r.RowVersion
+                FROM accounting__TaxRates r
+                INNER JOIN accounting__TaxTypes t ON t.Id = r.TaxTypeId
+                INNER JOIN expenses__Companies c ON c.Id = r.CompanyId
+                WHERE r.CompanyId = {branch.AccountingCompanyId.Value}
+                    AND t.CountryCode = c.Country AND c.Country = {branch.CountryCode}
+                    AND r.IsActive = 1 AND t.IsActive = 1
+                    AND r.EffectiveFrom <= {documentDate}
+                    AND (r.EffectiveTo IS NULL OR r.EffectiveTo >= {documentDate})
+                ORDER BY r.Code, r.EffectiveFrom
+                """ : (FormattableString)$"""
                 SELECT r.Id, r.CompanyId, r.Code, r.Name, r.Rate, t.Treatment,
                     r.ComponentsJson, r.EffectiveFrom, r.EffectiveTo, r.RowVersion
                 FROM accounting.TaxRates r
@@ -66,7 +79,9 @@ namespace PurchaseOrderService.API.Services
                     AND r.EffectiveFrom <= {documentDate}
                     AND (r.EffectiveTo IS NULL OR r.EffectiveTo >= {documentDate})
                 ORDER BY r.Code, r.EffectiveFrom
-                """).ToListAsync(cancellationToken);
+                """;
+            return await _context.Database.SqlQuery<PurchaseOrderTaxChoice>(query)
+                .ToListAsync(cancellationToken);
         }
 
         private static PurchaseOrderTaxTreatment Treatment(PurchaseOrderTaxChoice choice)

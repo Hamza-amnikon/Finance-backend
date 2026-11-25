@@ -2,6 +2,7 @@ using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection.Emit;
+using System.Security.Cryptography;
 using VendorService.API.Models;
 
 namespace VendorService.API.Data
@@ -15,6 +16,27 @@ namespace VendorService.API.Data
         }
 
         public DbSet<Vendor> Vendors => Set<Vendor>();
+
+        public override Task<int> SaveChangesAsync(
+            bool acceptAllChangesOnSuccess,
+            CancellationToken cancellationToken = default)
+        {
+            if (Database.IsFinanceMySql())
+            {
+                foreach (var entry in ChangeTracker.Entries<Vendor>()
+                    .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+                {
+                    var version = entry.Property(vendor => vendor.RowVersion);
+                    version.CurrentValue = RandomNumberGenerator.GetBytes(8);
+                    if (entry.State == EntityState.Modified)
+                    {
+                        version.IsModified = true;
+                    }
+                }
+            }
+
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
 
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
@@ -30,8 +52,17 @@ namespace VendorService.API.Data
                 entity.Property(x => x.Id)
                     .ValueGeneratedNever();
 
-                entity.Property(x => x.RowVersion)
-                    .IsRowVersion();
+                var rowVersion = entity.Property(x => x.RowVersion);
+                if (Database.IsFinanceMySql())
+                {
+                    rowVersion.HasColumnType("binary(8)")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedNever();
+                }
+                else
+                {
+                    rowVersion.IsRowVersion();
+                }
 
                 entity.HasIndex(x => x.Name);
 

@@ -10,10 +10,14 @@ namespace PurchaseOrderService.API.Controllers
     public class PurchaseOrderTaxSettingsController : ControllerBase
     {
         private readonly PurchaseOrderTaxSettingsService _tax;
+        private readonly FinanceCompanyAccess _access;
 
-        public PurchaseOrderTaxSettingsController(PurchaseOrderTaxSettingsService tax)
+        public PurchaseOrderTaxSettingsController(
+            PurchaseOrderTaxSettingsService tax,
+            FinanceCompanyAccess access)
         {
             _tax = tax;
+            _access = access;
         }
 
         [HttpGet]
@@ -24,6 +28,17 @@ namespace PurchaseOrderService.API.Controllers
         {
             try
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+                if (!scope.Allows(branch))
+                {
+                    return Forbid();
+                }
+
                 return Ok(await _tax.ChoicesAsync(branch, orderDate, cancellationToken));
             }
             catch (ArgumentException exception)
