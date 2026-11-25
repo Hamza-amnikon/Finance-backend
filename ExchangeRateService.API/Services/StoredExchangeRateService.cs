@@ -33,7 +33,10 @@ namespace ExchangeRateService.API.Services
         {
             baseCurrency = Normalize(baseCurrency);
             quoteCurrency = Normalize(quoteCurrency);
-            var today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
+            // Finance dates follow the India business day; UTC can still be yesterday after local midnight.
+            var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(
+                _timeProvider.GetUtcNow(),
+                TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata")).DateTime);
             if (date > today)
             {
                 throw new ValidationException(
