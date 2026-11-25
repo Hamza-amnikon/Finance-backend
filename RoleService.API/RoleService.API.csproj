@@ -14,6 +14,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -32,5 +33,8 @@
 
   <ItemGroup>
     <Compile Include="../Shared/Http/RequestCancellation.cs" Link="Shared/RequestCancellation.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Database/FinanceDatabase.cs" Link="Shared/FinanceDatabase.cs" />
   </ItemGroup>
 </Project>

@@ -21,14 +21,16 @@ namespace VendorService.API.Services
                 int pageSize,
                 string? search,
                 bool? isActive,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                string[]? allowedBranches = null)
         {
             var (vendors, total) = await _repository.GetPagedAsync(
                 page,
                 pageSize,
                 search,
                 isActive,
-                cancellationToken);
+                cancellationToken,
+                allowedBranches);
 
             return (vendors.Select(ToResponse).ToList(), total);
         }

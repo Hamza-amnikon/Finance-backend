@@ -1,4 +1,5 @@
 using SparkFinance.Http;
+using SparkFinance.Database;
 using System.ComponentModel.DataAnnotations;
 using ExchangeRateService.API.Data;
 using ExchangeRateService.API.Services;
@@ -51,9 +52,10 @@ namespace ExchangeRateService.API.Controllers
                     .OrderBy(row => row.Currency)
                     .ToListAsync(cancellationToken);
 
-                var currencies = await _context.Database
-                    .SqlQueryRaw<string>(
-                        "SELECT CurrencyCode AS Value FROM sales.CurrencyMasters WHERE IsActive = 1")
+                var currencySql = _context.Database.IsFinanceMySql()
+                    ? "SELECT CurrencyCode AS Value FROM sales__CurrencyMasters WHERE IsActive = 1"
+                    : "SELECT CurrencyCode AS Value FROM sales.CurrencyMasters WHERE IsActive = 1";
+                var currencies = await _context.Database.SqlQueryRaw<string>(currencySql)
                     .ToListAsync(cancellationToken);
 
                 currencies.Add("INR");

@@ -32,6 +32,7 @@ namespace BillService.API.Controllers
         }
 
         [HttpGet]
+        [FinanceBranchRead("/purchases/bills")]
         public Task<IActionResult> GetPaged(
             [FromQuery] BillQueryDto query,
             CancellationToken cancellationToken)
@@ -53,6 +54,7 @@ namespace BillService.API.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [FinanceBranchRead("/purchases/bills", detail: true)]
         public Task<IActionResult> GetById(
             [Range(1, int.MaxValue)] int id,
             CancellationToken cancellationToken)

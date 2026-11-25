@@ -128,7 +128,8 @@ namespace SalesInvoiceService.API.Services
                 string? search,
                 SalesCreditNoteStatus? status,
                 CancellationToken cancellationToken,
-                string? branch = null)
+                string? branch = null,
+                string[]? allowedBranches = null)
         {
             var result = await _repository.GetPagedAsync(
                 page,
@@ -136,7 +137,8 @@ namespace SalesInvoiceService.API.Services
                 search,
                 status,
                 cancellationToken,
-                branch);
+                branch,
+                allowedBranches);
 
             return (
                 result.Items.Select(ToResponse).ToList(),

@@ -1,10 +1,14 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using PurchaseOrderService.API.Models;
 
 namespace PurchaseOrderService.API.DTOs;
 
-public class PurchaseOrderQueryDto
+public class PurchaseOrderQueryDto : IFinanceBranchQuery
 {
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public string[]? AllowedBranches { get; set; }
+
     [Range(1, int.MaxValue)] public int Page { get; set; } = 1;
     [Range(1, 100)] public int PageSize { get; set; } = 25;
     [MaxLength(200)]

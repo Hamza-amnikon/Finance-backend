@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RoleService.API.Authentication;
@@ -15,6 +16,16 @@ namespace AuthService.API
             builder.Services.AddControllers()
                 .AddApplicationPart(typeof(RoleService.API.Controllers.AuthController).Assembly);
             builder.Services.AddOpenApi();
+
+            var useLoopbackProxy = builder.Configuration.GetValue<bool>("ReverseProxy:TrustLoopback");
+            if (useLoopbackProxy)
+            {
+                builder.Services.Configure<ForwardedHeadersOptions>(options =>
+                {
+                    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                    options.ForwardLimit = 1;
+                });
+            }
 
             // Local Admin credentials continue to be handled only by RoleService.
             builder.Services.AddAuthentication()
@@ -43,8 +54,21 @@ namespace AuthService.API
                 throw new InvalidOperationException("Configure ConnectionStrings:DefaultConnection for MERIT AuthService.");
             }
 
+            var databaseProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
             builder.Services.AddDbContext<RoleDbContext>(options =>
-                options.UseSqlServer(connectionString));
+            {
+                switch (databaseProvider)
+                {
+                    case "SqlServer":
+                        options.UseSqlServer(connectionString);
+                        break;
+                    case "MySql":
+                        options.UseMySQL(connectionString);
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unsupported database provider '{databaseProvider}'.");
+                }
+            });
             builder.Services.TryAddScoped<IUserRepository, UserRepository>();
             builder.Services.TryAddScoped<IRoleRepository, RoleRepository>();
             builder.Services.TryAddScoped<IUserPagePermissionRepository, UserPagePermissionRepository>();
@@ -53,6 +77,11 @@ namespace AuthService.API
             builder.Services.AddFinanceMicrosoftAuthentication(builder.Configuration, builder.Environment);
 
             var app = builder.Build();
+
+            if (useLoopbackProxy)
+            {
+                app.UseForwardedHeaders();
+            }
 
             app.UseFinanceRequestCancellation();
             app.UseHttpsRedirection();

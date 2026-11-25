@@ -67,14 +67,7 @@ namespace BankingService.API.Services
         {
             try
             {
-                if (!Uri.TryCreate(configuration["Services:AccountingService:BaseUrl"], UriKind.Absolute, out var baseUrl) ||
-                    baseUrl.Scheme != Uri.UriSchemeHttps)
-                {
-                    throw new InvalidOperationException("Configure the trusted HTTPS Accounting Service URL.");
-                }
-
-                using var message = new HttpRequestMessage(HttpMethod.Get,
-                    new Uri(baseUrl, "/api/accounts/company-access?route=" + Uri.EscapeDataString(route)));
+                using var message = new HttpRequestMessage(HttpMethod.Get, FinanceCompanyAccess.CreateEndpoint(configuration, route));
                 FinanceSessionForwarding.AttachTo(message, request);
                 using var response = await client.SendAsync(message, cancellationToken);
                 if (!response.IsSuccessStatusCode)

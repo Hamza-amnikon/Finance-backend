@@ -24,6 +24,7 @@ namespace BankingService.API.Controllers
         }
 
         [HttpGet]
+        [FinanceBranchRead("/banking/reconciliation", companyScoped: true)]
         public Task<IActionResult> GetPaged(
             [FromQuery] BankReconciliationQueryDto query,
             CancellationToken cancellationToken)
@@ -41,6 +42,7 @@ namespace BankingService.API.Controllers
         }
 
         [HttpGet("{id:int:min(1)}")]
+        [FinanceBranchRead("/banking/reconciliation", detail: true, companyScoped: true)]
         public Task<IActionResult> GetById(
             int id,
             CancellationToken cancellationToken)

@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using Microsoft.EntityFrameworkCore;
 using VendorService.API.Data;
@@ -6,6 +7,8 @@ using VendorService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<FinanceCompanyAccess>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false });
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -16,7 +19,8 @@ var connectionString = builder.Configuration
         "DefaultConnection is missing from appsettings.json.");
 
 builder.Services.AddDbContext<VendorDbContext>(options =>
-    options.UseSqlServer(
+    options.UseFinanceDatabase(
+        builder.Configuration,
         connectionString,
         sqlOptions =>
             sqlOptions.MigrationsHistoryTable(
@@ -26,7 +30,7 @@ builder.Services.AddDbContext<VendorDbContext>(options =>
 // The location context reads the existing master table in the same database.
 // It owns no tables and is never used to run migrations.
 builder.Services.AddDbContext<VendorLocationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseFinanceDatabase(builder.Configuration, connectionString));
 
 builder.Services.AddScoped<ICountryMasterRepository, CountryMasterRepository>();
 builder.Services.AddScoped<ICountryMasterService, CountryMasterService>();

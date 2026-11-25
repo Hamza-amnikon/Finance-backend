@@ -14,13 +14,19 @@ namespace VendorService.API.Controllers
     {
         private readonly IVendorService _vendorService;
         private readonly ILogger<VendorsController> _logger;
+        private readonly IConfiguration _configuration;
+        private readonly FinanceCompanyAccess _access;
 
         public VendorsController(
             IVendorService vendorService,
-            ILogger<VendorsController> logger)
+            ILogger<VendorsController> logger,
+            IConfiguration configuration,
+            FinanceCompanyAccess access)
         {
             _vendorService = vendorService;
             _logger = logger;
+            _configuration = configuration;
+            _access = access;
         }
 
         [HttpGet]
@@ -33,13 +39,20 @@ namespace VendorService.API.Controllers
         {
             return ExecuteAsync(async () =>
             {
+                var scope = await GetReadScopeAsync(cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var (vendors, total) =
                     await _vendorService.GetPagedAsync(
                         page,
                         pageSize,
                         search,
                         isActive,
-                        cancellationToken);
+                        cancellationToken,
+                        scope.Branches);
 
                 return Ok(new
                 {
@@ -58,11 +71,17 @@ namespace VendorService.API.Controllers
         {
             return ExecuteAsync(async () =>
             {
+                var scope = await GetReadScopeAsync(cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var vendor = await _vendorService.GetByIdAsync(
                     id,
                     cancellationToken);
 
-                if (vendor == null)
+                if (vendor == null || !scope.Allows(vendor.Branch))
                 {
                     return NotFound(new
                     {
@@ -143,6 +162,17 @@ namespace VendorService.API.Controllers
 
                 return NoContent();
             });
+        }
+
+        private Task<FinanceCompanyScope> GetReadScopeAsync(CancellationToken cancellationToken)
+        {
+            if (_configuration["Database:Provider"] != "MySql")
+            {
+                return Task.FromResult(new FinanceCompanyScope(200, null));
+            }
+
+            Response.Headers.CacheControl = "no-store";
+            return _access.GetAsync(Request, "/purchases/vendors", cancellationToken);
         }
 
         private async Task<IActionResult> ExecuteAsync(

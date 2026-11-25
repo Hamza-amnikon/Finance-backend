@@ -1,4 +1,5 @@
 using SparkFinance.Http;
+using SparkFinance.Database;
 using System.ComponentModel.DataAnnotations;
 using ExpenseService.API.Data;
 using ExpenseService.API.DTOs;
@@ -32,6 +33,7 @@ namespace ExpenseService.API.Controllers
         }
 
         [HttpGet]
+        [FinanceBranchRead("/expenses", companyScoped: true)]
         public Task<IActionResult> GetPaged(
             [FromQuery] ExpenseQueryDto query,
             CancellationToken cancellationToken)
@@ -47,6 +49,7 @@ namespace ExpenseService.API.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [FinanceBranchRead("/expenses", detail: true, companyScoped: true)]
         public Task<IActionResult> GetById(
             int id,
             CancellationToken cancellationToken,
@@ -186,8 +189,19 @@ namespace ExpenseService.API.Controllers
         {
             return HandleAsync(async () =>
             {
-                var companies = await _context.Companies
-                    .AsNoTracking()
+                var scope = await GetCompanyLookupScopeAsync(cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var query = _context.Companies.AsNoTracking();
+                if (scope.CompanyIds is { } companyIds)
+                {
+                    query = companyIds.Length == 0 ? query.Where(_ => false) : query.Where(row => companyIds.Contains(row.Id));
+                }
+
+                var companies = await query
                     .OrderBy(row => row.Name)
                     .ToListAsync(cancellationToken);
 
@@ -231,8 +245,19 @@ namespace ExpenseService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await GetCompanyLookupScopeAsync(cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var query = _context.BankAccounts
                     .AsNoTracking();
+
+                if (scope.CompanyIds is { } companyIds)
+                {
+                    query = companyIds.Length == 0 ? query.Where(_ => false) : query.Where(row => companyIds.Contains(row.CompanyId));
+                }
 
                 if (companyId.HasValue)
                 {
@@ -254,6 +279,17 @@ namespace ExpenseService.API.Controllers
 
                 return Ok(accounts);
             }, cancellationToken);
+        }
+
+        private Task<FinanceCompanyScope> GetCompanyLookupScopeAsync(CancellationToken cancellationToken)
+        {
+            if (!_context.Database.IsFinanceMySql())
+            {
+                return Task.FromResult(new FinanceCompanyScope(200, null));
+            }
+
+            Response.Headers.CacheControl = "no-store";
+            return HttpContext.RequestServices.GetRequiredService<FinanceCompanyAccess>().GetAsync(Request, "/expenses", cancellationToken);
         }
 
         [HttpPost("bank-accounts")]

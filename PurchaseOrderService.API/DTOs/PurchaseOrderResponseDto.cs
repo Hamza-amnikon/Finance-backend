@@ -1,9 +1,10 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using PurchaseOrderService.API.Models;
 
 namespace PurchaseOrderService.API.DTOs
 {
-    public class PurchaseOrderResponseDto
+    public class PurchaseOrderResponseDto : IFinanceBranchRecord
     {
         public int Id { get; set; }
         public Guid RequestId { get; set; }

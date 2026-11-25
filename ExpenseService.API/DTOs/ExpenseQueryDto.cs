@@ -1,9 +1,13 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 
 namespace ExpenseService.API.DTOs
 {
-    public class ExpenseQueryDto
+    public class ExpenseQueryDto : IFinanceCompanyQuery
     {
+        [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+        public int[]? AllowedCompanyIds { get; set; }
+
         [Range(1, int.MaxValue)]
         public int? CompanyId { get; set; }
 

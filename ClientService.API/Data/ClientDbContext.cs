@@ -1,6 +1,7 @@
 using SparkFinance.Auditing;
 using ClientService.API.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 
 namespace ClientService.API.Data
 {
@@ -17,6 +18,41 @@ namespace ClientService.API.Data
 
         public DbSet<Client> Clients => Set<Client>();
 
+        private bool IsMySql => Database.ProviderName == "MySql.EntityFrameworkCore";
+        private readonly bool _allowMySqlWrites;
+        internal override bool UsesMySqlAudit => IsMySql && _allowMySqlWrites;
+
+        public ClientDbContext(DbContextOptions<ClientDbContext> options, IConfiguration configuration) : this(options)
+        {
+            _allowMySqlWrites = configuration.GetValue<bool>("Database:AllowMySqlClientWrites");
+        }
+
+        public override Task<int> SaveChangesAsync(
+            bool acceptAllChangesOnSuccess,
+            CancellationToken cancellationToken = default)
+        {
+            if (IsMySql && !_allowMySqlWrites)
+            {
+                throw new NotSupportedException("MySQL client writes are disabled in this deployment.");
+            }
+
+            if (UsesMySqlAudit)
+            {
+                foreach (var entry in ChangeTracker.Entries<Client>()
+                    .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+                {
+                    var version = entry.Property(client => client.RowVersion);
+                    version.CurrentValue = RandomNumberGenerator.GetBytes(8);
+                    if (entry.State == EntityState.Modified)
+                    {
+                        version.IsModified = true;
+                    }
+                }
+            }
+
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
         {
@@ -24,22 +60,37 @@ namespace ClientService.API.Data
 
             modelBuilder.Entity<Client>(entity =>
             {
-                entity.ToTable("ClientMaster");
+                entity.ToTable(IsMySql ? "dbo__ClientMaster" : "ClientMaster");
 
                 entity.HasKey(x => x.Id);
 
-                entity.Property(x => x.RowVersion)
-                    .IsRowVersion();
+                var rowVersion = entity.Property(x => x.RowVersion);
+                if (IsMySql)
+                {
+                    rowVersion.HasColumnType("binary(8)").IsConcurrencyToken().ValueGeneratedNever();
+                    entity.Property(x => x.Id).HasColumnType("char(36)");
+                }
+                else
+                {
+                    rowVersion.IsRowVersion();
+                }
             });
 
             modelBuilder.Entity<CountryMaster>(entity =>
             {
-                entity.ToTable("countrymasters");
+                entity.ToTable(IsMySql ? "dbo__countrymasters" : "countrymasters");
 
                 entity.HasKey(x => x.CountryId);
 
-                entity.Property(x => x.CountryId)
-                    .UseIdentityColumn();
+                var countryId = entity.Property(x => x.CountryId);
+                if (IsMySql)
+                {
+                    countryId.ValueGeneratedOnAdd();
+                }
+                else
+                {
+                    countryId.UseIdentityColumn();
+                }
 
                 entity.HasIndex(x => new
                 {

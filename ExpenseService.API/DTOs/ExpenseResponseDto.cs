@@ -1,6 +1,7 @@
+using SparkFinance.Http;
 namespace ExpenseService.API.DTOs
 {
-    public class ExpenseResponseDto
+    public class ExpenseResponseDto : IFinanceCompanyRecord
     {
         public int Id { get; set; }
 

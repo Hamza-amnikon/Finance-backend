@@ -5,6 +5,7 @@ using AuthService.API;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -47,10 +48,14 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 });
 builder.Logging.ClearProviders();
 builder.WebHost.ConfigureKestrel(options =>
-    options.Listen(IPAddress.Loopback, 0, endpoint => endpoint.UseHttps(certificate)));
+{
+    options.Listen(IPAddress.Loopback, 0, endpoint => endpoint.UseHttps(certificate));
+    options.Listen(IPAddress.Loopback, 0);
+});
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["ConnectionStrings:DefaultConnection"] = "Server=unused;Database=unused;Integrated Security=true",
+    ["ReverseProxy:TrustLoopback"] = "true",
     ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
     ["AzureAd:TenantId"] = tenantId.ToString(),
     ["AzureAd:ClientId"] = clientId.ToString(),
@@ -85,7 +90,8 @@ await app.StartAsync();
 
 try
 {
-    var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+    var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses;
+    var address = addresses.Single(value => value.StartsWith("https://", StringComparison.Ordinal));
     using var handler = new HttpClientHandler
     {
         UseCookies = false,
@@ -115,6 +121,20 @@ try
 
     await WebFlowChecks.RunAsync(client, app.Services, tokenEndpoint, users.User,
         signingKey, issuer, clientId, HttpStatusCode.NotFound);
+
+    var proxyAddress = addresses.Single(value => value.StartsWith("http://", StringComparison.Ordinal));
+    using var forwardedLogin = new HttpRequestMessage(HttpMethod.Get, new Uri(new Uri(proxyAddress), "api/auth/login"));
+    forwardedLogin.Headers.Host = "172.31.3.11:8443";
+    forwardedLogin.Headers.Add("X-Forwarded-Proto", "https");
+    forwardedLogin.Headers.Add("X-Forwarded-For", "192.0.2.10");
+    using var proxied = await client.SendAsync(forwardedLogin);
+    if (proxied.StatusCode != HttpStatusCode.Redirect || proxied.Headers.Location is not { IsAbsoluteUri: true } location ||
+        QueryHelpers.ParseQuery(location.Query)["redirect_uri"] != "https://172.31.3.11:8443/signin-oidc")
+    {
+        throw new Exception("The login challenge did not preserve the public HTTPS callback through the loopback proxy.");
+    }
+
+    Console.WriteLine("PASS: The loopback reverse proxy preserves the public HTTPS callback.");
     Console.WriteLine("Standalone AuthService SSO/JWT checks passed over local HTTPS. No database connections were opened.");
 }
 finally

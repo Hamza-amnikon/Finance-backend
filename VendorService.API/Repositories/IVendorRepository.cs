@@ -9,7 +9,8 @@ namespace VendorService.API.Repositories
             int pageSize,
             string? search,
             bool? isActive,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            string[]? allowedBranches = null);
 
         Task<Vendor?> GetByIdAsync(
             Guid id,

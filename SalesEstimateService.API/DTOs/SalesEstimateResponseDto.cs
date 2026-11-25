@@ -1,8 +1,9 @@
+using SparkFinance.Http;
 using SalesEstimateService.API.Models;
 
 namespace SalesEstimateService.API.DTOs
 {
-    public class SalesEstimateResponseDto
+    public class SalesEstimateResponseDto : IFinanceBranchRecord
     {
         public int Id { get; set; }
 

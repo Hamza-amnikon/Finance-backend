@@ -51,7 +51,8 @@ namespace SalesEstimateService.API.Repositories
                 string? search,
                 SalesEstimateStatus? status,
                 CancellationToken cancellationToken,
-                string? branch = null)
+                string? branch = null,
+                string[]? allowedBranches = null)
         {
             if (page < 1 || pageSize < 1 || pageSize > 100)
             {
@@ -59,6 +60,11 @@ namespace SalesEstimateService.API.Repositories
             }
 
             var query = _context.SalesEstimates.AsNoTracking();
+
+            if (allowedBranches is { } branches)
+            {
+                query = branches.Length == 0 ? query.Where(_ => false) : query.Where(row => branches.Contains(row.Branch));
+            }
 
             if (!string.IsNullOrWhiteSpace(branch))
             {

@@ -29,6 +29,7 @@ namespace PurchaseOrderService.API.Controllers
         }
 
         [HttpGet]
+        [FinanceBranchRead("/purchases/orders")]
         public Task<IActionResult> GetPaged(
             [FromQuery] PurchaseOrderQueryDto query,
             CancellationToken cancellationToken)
@@ -50,6 +51,7 @@ namespace PurchaseOrderService.API.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [FinanceBranchRead("/purchases/orders", detail: true)]
         public Task<IActionResult> GetById(
             [Range(1, int.MaxValue)] int id,
             CancellationToken cancellationToken)

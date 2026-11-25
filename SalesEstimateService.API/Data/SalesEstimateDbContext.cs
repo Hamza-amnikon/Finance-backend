@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using SalesEstimateService.API.Models;
@@ -124,6 +125,8 @@ namespace SalesEstimateService.API.Data
                 entity.Property(x => x.LineTotal)
                     .HasPrecision(18, 4);
             });
+
+            modelBuilder.MapFinanceMySql(Database);
         }
     }
 }

@@ -1,8 +1,9 @@
+using SparkFinance.Http;
 using VendorCreditService.API.Models;
 
 namespace VendorCreditService.API.DTOs
 {
-    public class VendorCreditResponseDto
+    public class VendorCreditResponseDto : IFinanceBranchRecord
     {
         public int Id { get; set; }
 

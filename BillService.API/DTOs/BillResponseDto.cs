@@ -1,10 +1,11 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using BillService.API.Models;
 
 namespace BillService.API.DTOs
 {
-    public class BillResponseDto
+    public class BillResponseDto : IFinanceBranchRecord
     {
         public int Id { get; set; }
         public Guid RequestId { get; set; }

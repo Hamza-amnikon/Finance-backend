@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.Models;
@@ -536,6 +537,8 @@ namespace SalesInvoiceService.API.Data
                 entity.HasIndex(x => x.Name)
                     .IsUnique();
             });
+
+            modelBuilder.MapFinanceMySql(Database);
         }
     }
 }

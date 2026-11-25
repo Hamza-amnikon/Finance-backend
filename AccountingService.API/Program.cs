@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using SparkFinance.Authentication;
 using AccountingService.API.Authentication;
@@ -6,6 +7,8 @@ using AccountingService.API.Data;
 using AccountingService.API.Repositories;
 using AccountingService.API.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthentication()
@@ -60,7 +63,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<AccountingDbContext>(options =>
 {
-    options.UseSqlServer(
+    options.UseFinanceDatabase(
+        builder.Configuration,
         connectionString,
         sqlOptions =>
         {
@@ -152,6 +156,13 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<PurchaseBillReversalService>();
 
 var app = builder.Build();
+
+var forwardedHeaders = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto
+};
+forwardedHeaders.KnownProxies.Add(IPAddress.Loopback);
+app.UseForwardedHeaders(forwardedHeaders);
 
 app.UseExceptionHandler();
 

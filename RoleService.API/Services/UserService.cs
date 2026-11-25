@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using MySql.Data.MySqlClient;
 using RoleService.API.DTOs;
 using RoleService.API.Models;
 using RoleService.API.Repositories;
@@ -305,7 +306,8 @@ namespace RoleService.API.Services
 
         private static bool IsDuplicateIdentity(DbUpdateException exception)
         {
-            return exception.InnerException is SqlException { Number: 2601 or 2627 };
+            return exception.InnerException is SqlException { Number: 2601 or 2627 }
+                or MySqlException { Number: 1062 };
         }
 
         private static UserResponse MapToResponse(

@@ -5,7 +5,7 @@ namespace SalesInvoiceService.API.Services
     public interface ICustomerStatementService
     {
         Task<List<CustomerStatementClientDto>> GetClientsAsync(
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken, string[]? allowedBranches = null);
 
         Task<CustomerStatementDto> GetAsync(
             Guid clientId,

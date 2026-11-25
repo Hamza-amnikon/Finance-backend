@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using Microsoft.EntityFrameworkCore;
 using PaymentMadeService.API.Data;
@@ -6,6 +7,8 @@ using PaymentMadeService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<FinanceCompanyAccess>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false });
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -16,7 +19,8 @@ var connectionString = builder.Configuration
         "DefaultConnection is missing from appsettings.json.");
 
 builder.Services.AddDbContext<PaymentMadeDbContext>(options =>
-    options.UseSqlServer(
+    options.UseFinanceDatabase(
+        builder.Configuration,
         connectionString,
         sqlOptions => sqlOptions.MigrationsHistoryTable(
             "__PaymentMadeMigrationsHistory",

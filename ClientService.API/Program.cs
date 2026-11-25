@@ -31,9 +31,20 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "Connection string 'DefaultConnection' was not found.");
 }
 
+var databaseProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
 builder.Services.AddDbContext<ClientDbContext>(options =>
 {
-    options.UseSqlServer(connectionString);
+    switch (databaseProvider)
+    {
+        case "SqlServer":
+            options.UseSqlServer(connectionString);
+            break;
+        case "MySql":
+            options.UseMySQL(connectionString);
+            break;
+        default:
+            throw new InvalidOperationException($"Unsupported database provider '{databaseProvider}'.");
+    }
 });
 
 // Client repository
@@ -107,6 +118,29 @@ else
 app.UseCors("ReactPolicy");
 
 app.UseFinanceRequestCancellation();
+
+if (databaseProvider == "MySql" && builder.Configuration.GetValue<bool>("Database:AllowMySqlClientWrites"))
+{
+    var frontendOrigin = builder.Configuration["Services:Frontend:Origin"];
+    if (!Uri.TryCreate(frontendOrigin, UriKind.Absolute, out var origin) || origin.Scheme != Uri.UriSchemeHttps ||
+        !string.IsNullOrEmpty(origin.UserInfo) || frontendOrigin != origin.GetLeftPart(UriPartial.Authority))
+    {
+        throw new InvalidOperationException("Configure the trusted HTTPS frontend origin before enabling MySQL client writes.");
+    }
+
+    app.Use(async (context, next) =>
+    {
+        var method = context.Request.Method;
+        if ((HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsDelete(method)) &&
+            !string.Equals(context.Request.Headers.Origin, frontendOrigin, StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+
+        await next(context);
+    });
+}
 
 app.MapControllers();
 

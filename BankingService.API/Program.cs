@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using BankingService.API.Data;
 using BankingService.API.Repositories;
@@ -6,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<FinanceCompanyAccess>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false });
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -20,7 +23,9 @@ builder.Services.AddOptions<BankingExchangeRateOptions>()
     .Validate(
         options =>
             Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var uri) &&
-            uri.Scheme == Uri.UriSchemeHttps &&
+            (uri.Scheme == Uri.UriSchemeHttps ||
+                (builder.Configuration["Database:Provider"] == "MySql" && uri.IsLoopback &&
+                    uri.Scheme == Uri.UriSchemeHttp && uri.AbsolutePath == "/api/exchange-rates/")) &&
             string.IsNullOrEmpty(uri.Query) &&
             string.IsNullOrEmpty(uri.Fragment),
         "Configure a valid HTTPS exchange-rate provider base URL.")
@@ -56,7 +61,8 @@ var connectionString = builder.Configuration
         "DefaultConnection is missing from appsettings.json.");
 
 builder.Services.AddDbContext<BankingDbContext>(options =>
-    options.UseSqlServer(
+    options.UseFinanceDatabase(
+        builder.Configuration,
         connectionString,
         sqlOptions =>
             sqlOptions.MigrationsHistoryTable(
@@ -97,7 +103,10 @@ builder.Services.AddScoped<
 
 builder.Services.Configure<PaymentBankingOptions>(builder.Configuration.GetSection("PaymentBanking"));
 builder.Services.AddScoped<PaymentBankingService>();
-builder.Services.AddHostedService<PaymentBankingWorker>();
+if (builder.Configuration["Database:Provider"] != "MySql")
+{
+    builder.Services.AddHostedService<PaymentBankingWorker>();
+}
 
 builder.Services.AddScoped<InternalPaymentRequestRepository>();
 builder.Services.AddScoped<InternalPaymentRequestService>();

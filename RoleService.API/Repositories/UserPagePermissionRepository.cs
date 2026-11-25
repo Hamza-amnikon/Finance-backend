@@ -18,6 +18,21 @@ namespace RoleService.API.Repositories
             CancellationToken cancellationToken)
         {
             // Keep denied routes so a permitted parent cannot grant a separately controlled child page.
+            if (_context.IsMySql)
+            {
+                return _context.Database.SqlQuery<UserPagePermissionResponse>($"""
+                    SELECT p.PermissionCode, p.Module, p.Route, rp.CompanyId,
+                        (rp.CompanyId IS NOT NULL) AS CanView,
+                        COALESCE(rp.CanCreate, FALSE) AS CanCreate,
+                        COALESCE(rp.CanEdit, FALSE) AS CanEdit
+                    FROM security__Permissions p
+                    LEFT JOIN security__RolePermissions rp
+                        ON rp.PermissionId = p.PermissionId AND rp.RoleId = {roleId}
+                        AND rp.CanView = 1 AND rp.CompanyId > 0 AND p.Status = 'Active'
+                    ORDER BY p.Module, p.PageName, rp.CompanyId
+                    """).ToListAsync(cancellationToken);
+            }
+
             return _context.Database.SqlQuery<UserPagePermissionResponse>($"""
                 SELECT p.PermissionCode, p.Module, p.Route, rp.CompanyId,
                     CAST(CASE WHEN rp.CompanyId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanView,

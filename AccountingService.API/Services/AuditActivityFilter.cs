@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using AccountingService.API.Data;
 using AccountingService.API.Models;
 using Microsoft.EntityFrameworkCore;
+using SparkFinance.Database;
 
 namespace AccountingService.API.Services
 {
@@ -51,6 +52,48 @@ namespace AccountingService.API.Services
 
         public static IQueryable<AuditEvent> Apply(AccountingDbContext context, string? activity)
         {
+            if (context.Database.IsFinanceMySql())
+            {
+                const string technical = """
+                    e.EntityType = 'PaymentBankingLink' AND e.Action = 'Updated'
+                    AND e.ActorKind = 'System'
+                    AND CASE WHEN JSON_VALID(e.BeforeJson) AND JSON_VALID(e.AfterJson)
+                        THEN JSON_REMOVE(e.BeforeJson, '$.NextAttemptAtUtc', '$.UpdatedAtUtc') =
+                             JSON_REMOVE(e.AfterJson, '$.NextAttemptAtUtc', '$.UpdatedAtUtc',
+                                 '$."Other fields changed (values excluded)"')
+                        ELSE FALSE END
+                    AND (JSON_UNQUOTE(JSON_EXTRACT(e.AfterJson,
+                        '$."Other fields changed (values excluded)"')) IS NULL OR
+                        JSON_UNQUOTE(JSON_EXTRACT(e.AfterJson,
+                        '$."Other fields changed (values excluded)"')) = 'NextAttemptAtUtc, UpdatedAtUtc')
+                    """;
+                var mysqlPredicate = activity switch
+                {
+                    null or "" or "All" => "1 = 1",
+                    "Business" => "e.Action <> 'Snapshot' AND NOT (" + technical + ")",
+                    "Technical" => technical,
+                    "Snapshots" => "e.Action = 'Snapshot'",
+                    _ => throw new ValidationException("Select Business, Technical, Snapshots or All activity.")
+                };
+                var mysqlSql = """
+                    SELECT e.Id, e.AtUtc, e.Service, e.EntityType, e.EntityId,
+                        e.Action, e.Actor, e.ActorKind,
+                        CASE WHEN e.Service = 'BankingService.API'
+                            AND NULLIF(TRIM(e.Branch), '') IS NULL
+                            THEN mapped.Name ELSE e.Branch END AS Branch,
+                        e.CompanyId, e.CorrelationId, e.BeforeJson, e.AfterJson
+                    FROM audit__Events e
+                    LEFT JOIN (
+                        SELECT AccountingCompanyId, MIN(Name) AS Name
+                        FROM amnikon__Branches
+                        GROUP BY AccountingCompanyId
+                        HAVING COUNT(*) = 1
+                    ) mapped ON mapped.AccountingCompanyId = e.CompanyId
+                    WHERE
+                    """ + " " + mysqlPredicate;
+                return context.AuditEvents.FromSqlRaw(mysqlSql).AsNoTracking();
+            }
+
             var predicate = activity switch
             {
                 null or "" or "All" => "1 = 1",

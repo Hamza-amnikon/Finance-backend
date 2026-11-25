@@ -27,6 +27,7 @@ namespace AccountingService.API.Controllers
         }
 
         [HttpGet]
+        [MySqlCompanyRead("accounting.trial-balance")]
         public async Task<IActionResult> Get(
             [FromQuery] TrialBalanceQueryDto query,
             CancellationToken cancellationToken)

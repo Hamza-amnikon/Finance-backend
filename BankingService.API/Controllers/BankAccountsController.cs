@@ -24,6 +24,7 @@ namespace BankingService.API.Controllers
         }
 
         [HttpGet]
+        [FinanceBranchRead("/banking/accounts", companyScoped: true)]
         public Task<IActionResult> GetAll(
             [FromQuery] BankAccountQueryDto query,
             CancellationToken cancellationToken)
@@ -41,6 +42,7 @@ namespace BankingService.API.Controllers
         }
 
         [HttpGet("{id:int:min(1)}")]
+        [FinanceBranchRead("/banking/accounts", detail: true, companyScoped: true)]
         public Task<IActionResult> GetById(
             int id,
             CancellationToken cancellationToken)
@@ -143,6 +145,7 @@ namespace BankingService.API.Controllers
         }
 
         [HttpGet("{id:int:min(1)}/balance")]
+        [FinanceBranchRead("/banking/accounts", detail: true, companyScoped: true)]
         public Task<IActionResult> GetBalance(
             int id,
             CancellationToken cancellationToken)

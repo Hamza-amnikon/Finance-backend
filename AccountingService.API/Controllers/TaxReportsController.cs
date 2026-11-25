@@ -22,6 +22,7 @@ namespace AccountingService.API.Controllers
         }
 
         [HttpGet]
+        [MySqlCompanyRead("reports.tax")]
         public async Task<IActionResult> Get(
             [FromQuery] int companyId,
             [FromQuery] DateOnly fromDate,

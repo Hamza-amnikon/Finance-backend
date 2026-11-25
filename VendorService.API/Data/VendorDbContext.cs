@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection.Emit;
@@ -40,6 +41,8 @@ namespace VendorService.API.Data
                     x.IsActive
                 });
             });
+
+            modelBuilder.MapFinanceMySql(Database);
         }
     }
 }

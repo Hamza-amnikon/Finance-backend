@@ -54,19 +54,29 @@ namespace SalesInvoiceService.API.Services
                 throw new ArgumentException("The selected branch must be linked to an accounting company.");
             }
 
-            return await _context.Database.SqlQuery<InvoiceTaxChoice>($"""
+            var sql = """
                 SELECT r.Id, r.CompanyId, r.Code, r.Name, r.Rate, t.Treatment,
                     r.ComponentsJson, r.EffectiveFrom, r.EffectiveTo, r.RowVersion
                 FROM accounting.TaxRates r
                 INNER JOIN accounting.TaxTypes t ON t.Id = r.TaxTypeId
                 INNER JOIN expenses.Companies c ON c.Id = r.CompanyId
-                WHERE r.CompanyId = {branch.AccountingCompanyId.Value}
-                    AND t.CountryCode = c.Country AND c.Country = {branch.CountryCode}
+                WHERE r.CompanyId = {0}
+                    AND t.CountryCode = c.Country AND c.Country = {1}
                     AND r.IsActive = 1 AND t.IsActive = 1
-                    AND r.EffectiveFrom <= {invoiceDate}
-                    AND (r.EffectiveTo IS NULL OR r.EffectiveTo >= {invoiceDate})
+                    AND r.EffectiveFrom <= {2}
+                    AND (r.EffectiveTo IS NULL OR r.EffectiveTo >= {2})
                 ORDER BY r.Code, r.EffectiveFrom
-                """).ToListAsync(cancellationToken);
+                """;
+            if (_context.Database.ProviderName == "MySql.EntityFrameworkCore")
+            {
+                sql = sql.Replace("accounting.TaxRates", "accounting__TaxRates")
+                    .Replace("accounting.TaxTypes", "accounting__TaxTypes")
+                    .Replace("expenses.Companies", "expenses__Companies");
+            }
+
+            return await _context.Database.SqlQueryRaw<InvoiceTaxChoice>(sql,
+                branch.AccountingCompanyId.Value, branch.CountryCode, invoiceDate)
+                .ToListAsync(cancellationToken);
         }
 
         private static SalesInvoiceTaxTreatment Treatment(InvoiceTaxChoice choice)

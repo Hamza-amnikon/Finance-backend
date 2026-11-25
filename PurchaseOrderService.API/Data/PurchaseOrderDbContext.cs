@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using PurchaseOrderService.API.Models;
@@ -151,6 +152,8 @@ namespace PurchaseOrderService.API.Data
                 entity.Property(mode => mode.IsActive)
                     .IsRequired();
             });
+
+            builder.MapFinanceMySql(Database);
         }
     }
 }

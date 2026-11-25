@@ -34,14 +34,24 @@ public sealed class PayrollExpensePreviewController(
             return Forbid(FinanceAuthenticationSchemes.BrowserSession);
         }
 
-        var grants = await db.Database.SqlQuery<int>($"""
+        var grantSql = db.IsMySql ? """
+            SELECT 1 AS Value
+            FROM security__RolePermissions AS rp
+            INNER JOIN security__Permissions AS p ON p.PermissionId = rp.PermissionId
+            WHERE rp.RoleId = {0} AND rp.CompanyId = {1}
+                AND rp.CanView = 1 AND rp.CanCreate = 1
+                AND p.Status = 'Active' AND p.Route = '/expenses'
+            LIMIT 1
+            """ : """
             SELECT TOP (1) 1 AS [Value]
             FROM [security].[RolePermissions] AS rp
             INNER JOIN [security].[Permissions] AS p ON p.PermissionId = rp.PermissionId
-            WHERE rp.RoleId = {roleId} AND rp.CompanyId = {companyId}
+            WHERE rp.RoleId = {0} AND rp.CompanyId = {1}
                 AND rp.CanView = 1 AND rp.CanCreate = 1
                 AND p.[Status] = 'Active' AND p.[Route] = '/expenses'
-            """).ToListAsync(cancellationToken);
+            """;
+        var grants = await db.Database.SqlQueryRaw<int>(grantSql, roleId, companyId)
+            .ToListAsync(cancellationToken);
 
         if (grants.Count == 0)
         {

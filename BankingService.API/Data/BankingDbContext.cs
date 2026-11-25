@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using BankingService.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -538,6 +539,8 @@ namespace BankingService.API.Data
                     .HasForeignKey(line => line.MatchedBankTransactionId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+
+            modelBuilder.MapFinanceMySql(Database);
         }
     }
 }

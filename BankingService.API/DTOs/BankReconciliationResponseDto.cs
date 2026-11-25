@@ -1,6 +1,7 @@
-﻿namespace BankingService.API.DTOs
+﻿using SparkFinance.Http;
+namespace BankingService.API.DTOs
 {
-    public class BankReconciliationResponseDto
+    public class BankReconciliationResponseDto : IFinanceCompanyRecord
     {
         public int Id { get; set; }
 

@@ -14,6 +14,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -31,5 +32,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Shared/Http/DevelopmentServiceStartup.cs" Link="Shared/DevelopmentServiceStartup.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Database/FinanceDatabase.cs" Link="Shared/FinanceDatabase.cs" />
   </ItemGroup>
 </Project>

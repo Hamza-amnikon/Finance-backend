@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection.Emit;
@@ -205,6 +206,8 @@ namespace VendorCreditService.API.Data
                 entity.Property(row => row.GrandTotal)
                     .HasPrecision(18, 4);
             });
+
+            builder.MapFinanceMySql(Database);
         }
     }
 }

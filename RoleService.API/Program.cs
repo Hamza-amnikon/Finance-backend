@@ -1,8 +1,11 @@
-﻿using SparkFinance.Http;
+﻿using SparkFinance.Database;
+using SparkFinance.Http;
 using Microsoft.EntityFrameworkCore;
 using RoleService.API.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 using RoleService.API;
 using RoleService.API.Authentication;
 using RoleService.API.Repositories;
@@ -69,12 +72,17 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<RoleDbContext>(options =>
 {
-    options.UseSqlServer(connectionString, sqlOptions =>
+    if (builder.Configuration["Database:Provider"] == "MySql")
     {
-        sqlOptions.MigrationsHistoryTable(
-            "__RoleMigrationsHistory",
-            "security");
-    });
+        options.UseMySQL(connectionString);
+    }
+    else
+    {
+        options.UseFinanceDatabase(builder.Configuration, connectionString, sqlOptions =>
+        {
+            sqlOptions.MigrationsHistoryTable("__RoleMigrationsHistory", "security");
+        });
+    }
 });
 
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
@@ -103,6 +111,13 @@ builder.Services.AddFinanceMicrosoftAuthentication(
     builder.Environment);
 
 var app = builder.Build();
+
+var forwardedHeaders = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto
+};
+forwardedHeaders.KnownProxies.Add(IPAddress.Loopback);
+app.UseForwardedHeaders(forwardedHeaders);
 
 var requiredMicrosoftScopes = builder.Configuration
     .GetSection("AzureAd:RequiredScopes")

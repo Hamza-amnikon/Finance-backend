@@ -34,7 +34,8 @@ namespace SalesInvoiceService.API.Repositories
                 string? branch,
                 string? currency,
                 string? paymentMode,
-                CancellationToken cancellationToken);
+                CancellationToken cancellationToken,
+                string[]? allowedBranches = null);
 
         Task<SalesInvoicePayment> CreateAsync(
             SalesInvoicePayment payment,

@@ -1,4 +1,5 @@
 using SparkFinance.Http;
+using SparkFinance.Auditing;
 using ClientService.API.DTOs;
 using ClientService.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -96,6 +97,8 @@ namespace ClientService.API.Controllers
                     return StatusCode(scope.Status == 200 ? 403 : scope.Status);
                 }
 
+                SetVerifiedAuditActor(scope);
+
                 var client = await _service.CreateAsync(
                     dto,
                     cancellationToken);
@@ -134,6 +137,8 @@ namespace ClientService.API.Controllers
                 {
                     return StatusCode(403);
                 }
+
+                SetVerifiedAuditActor(scope);
 
                 var client = await _service.UpdateAsync(
                     id,
@@ -177,6 +182,8 @@ namespace ClientService.API.Controllers
                     return StatusCode(403);
                 }
 
+                SetVerifiedAuditActor(scope);
+
                 var archived = await _service.ArchiveAsync(
                     id,
                     dto.RowVersion,
@@ -192,6 +199,14 @@ namespace ClientService.API.Controllers
 
                 return NoContent();
             }, cancellationToken);
+        }
+
+        private void SetVerifiedAuditActor(FinanceCompanyScope scope)
+        {
+            if (Guid.TryParse(scope.ActorId, out var actorId) && actorId != Guid.Empty)
+            {
+                HttpContext.Items[FinanceAudit.VerifiedActorItem] = actorId.ToString();
+            }
         }
 
         private async Task<IActionResult> HandleReadAsync(

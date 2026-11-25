@@ -31,6 +31,11 @@ namespace BankingService.API.Services
 
             var transfers = _repository.Query();
 
+            if (query.AllowedCompanyIds is { } allowedCompanyIds)
+            {
+                transfers = allowedCompanyIds.Length == 0 ? transfers.Where(_ => false) : transfers.Where(row => allowedCompanyIds.Contains(row.SourceCompanyId) && allowedCompanyIds.Contains(row.DestinationCompanyId));
+            }
+
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
                 var search = query.Search.Trim();

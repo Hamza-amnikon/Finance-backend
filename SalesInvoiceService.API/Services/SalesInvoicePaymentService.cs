@@ -187,7 +187,8 @@ namespace SalesInvoiceService.API.Services
                 string? branch,
                 string? currency,
                 string? paymentMode,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                string[]? allowedBranches = null)
         {
             var result = await _paymentRepository.GetPagedAsync(
                 page,
@@ -199,7 +200,8 @@ namespace SalesInvoiceService.API.Services
                 branch,
                 currency,
                 paymentMode,
-                cancellationToken);
+                cancellationToken,
+                allowedBranches);
 
             var items = result.Items
                 .Select(ToResponse)

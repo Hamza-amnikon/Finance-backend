@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.Data;
@@ -27,7 +28,8 @@ var connectionString = builder.Configuration
         "DefaultConnection is missing from appsettings.json.");
 
 builder.Services.AddDbContext<SalesInvoiceDbContext>(options =>
-    options.UseSqlServer(
+    options.UseFinanceDatabase(
+        builder.Configuration,
         connectionString,
         sqlOptions =>
             sqlOptions.MigrationsHistoryTable(

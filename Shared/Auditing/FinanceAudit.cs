@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -14,6 +15,7 @@ namespace SparkFinance.Auditing
 {
     public static class FinanceAudit
     {
+        public const string VerifiedActorItem = "Finance.VerifiedActorId";
         public static readonly JsonSerializerOptions JsonOptions = new()
         {
             Converters =
@@ -174,7 +176,8 @@ namespace SparkFinance.Auditing
             CancellationToken cancellationToken
         )
         {
-            if (!context.Database.IsSqlServer())
+            var mySqlAudit = context is AuditedDbContext { UsesMySqlAudit: true };
+            if (!context.Database.IsSqlServer() && !mySqlAudit)
             {
                 return;
             }
@@ -183,6 +186,7 @@ namespace SparkFinance.Auditing
             var identity = http?.User;
             var authenticated = identity?.Identity?.IsAuthenticated == true;
             var actor = authenticated ? identity!.FindFirstValue(ClaimTypes.NameIdentifier) ?? identity!.FindFirstValue("sub") : null;
+            actor ??= http?.Items[VerifiedActorItem] as string;
             var kind = actor != null ? "Authenticated" : http == null ? "System" : "Unattributed";
             if (actor == null && http?.RequestServices.GetService<IHostEnvironment>()?.IsDevelopment() == true)
             {
@@ -235,6 +239,18 @@ namespace SparkFinance.Auditing
             var beforeJson = before == null ? null : JsonSerializer.Serialize(before, JsonOptions);
             var afterJson = after == null ? null : JsonSerializer.Serialize(after, JsonOptions);
             var correlation = http?.TraceIdentifier;
+            if (mySqlAudit)
+            {
+                var atUtc = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fffffffzzz", CultureInfo.InvariantCulture);
+                await context.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO audit__Events (AtUtc, Service, EntityType, EntityId, Action, Actor, ActorKind,
+                        Branch, CompanyId, CorrelationId, BeforeJson, AfterJson)
+                    VALUES ({atUtc}, {service}, {entityType}, {entityId}, {action}, {actor}, {kind},
+                        {branch}, {companyId}, {correlation}, {beforeJson}, {afterJson})
+                    """, cancellationToken);
+                return;
+            }
+
             await context.Database.ExecuteSqlInterpolatedAsync(
                 $@"
                 IF OBJECT_ID(N'audit.Events', N'U') IS NOT NULL
@@ -249,6 +265,7 @@ namespace SparkFinance.Auditing
 
     public abstract class AuditedDbContext : DbContext
     {
+        internal virtual bool UsesMySqlAudit => false;
         protected AuditedDbContext(DbContextOptions options) : base(options)
         {
         }
@@ -263,7 +280,7 @@ namespace SparkFinance.Auditing
         {
             ChangeTracker.DetectChanges();
             var changes = ChangeTracker.Entries().Where(entry => entry.Metadata.GetSchema() != "audit" && entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).Select(entry => new { Entry = entry, State = entry.State, ExcludedChanges = entry.Properties.Where(property => property.IsModified && !property.Metadata.IsConcurrencyToken && !FinanceAudit.Fields.Contains(property.Metadata.Name)).Select(property => property.Metadata.Name).Order().ToArray(), Before = entry.State == EntityState.Added ? null : FinanceAudit.Snapshot(entry.OriginalValues) }).ToList();
-            if (!changes.Any() || !Database.IsSqlServer())
+            if (!changes.Any() || (!Database.IsSqlServer() && !UsesMySqlAudit))
             {
                 return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
             }
@@ -272,7 +289,7 @@ namespace SparkFinance.Auditing
             await using var transaction = ownTransaction ? await Database.BeginTransactionAsync(cancellationToken) : null;
             try
             {
-                var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess && !UsesMySqlAudit, cancellationToken);
                 foreach (var change in changes)
                 {
                     var after = change.State == EntityState.Deleted ? null : FinanceAudit.Snapshot(change.Entry.CurrentValues);
@@ -308,6 +325,11 @@ namespace SparkFinance.Auditing
                 if (transaction != null)
                 {
                     await transaction.CommitAsync(cancellationToken);
+                }
+
+                if (UsesMySqlAudit && acceptAllChangesOnSuccess)
+                {
+                    ChangeTracker.AcceptAllChanges();
                 }
 
                 return result;

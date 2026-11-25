@@ -26,7 +26,8 @@ namespace SalesInvoiceService.API.Repositories
             string? search,
             SalesCreditNoteStatus? status,
             CancellationToken cancellationToken,
-            string? branch = null);
+            string? branch = null,
+            string[]? allowedBranches = null);
 
         Task<SalesCreditNote> CreateDraftAsync(
             SalesCreditNote creditNote,

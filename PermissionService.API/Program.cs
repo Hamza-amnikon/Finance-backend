@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using Microsoft.EntityFrameworkCore;
 using PermissionService.API.Authentication;
 using PermissionService.API.CallOtherApis;
@@ -49,12 +50,17 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<PermissionDbContext>(options =>
 {
-    options.UseSqlServer(connectionString, sqlOptions =>
+    if (builder.Configuration["Database:Provider"] == "MySql")
     {
-        sqlOptions.MigrationsHistoryTable(
-            "__PermissionMigrationsHistory",
-            "security");
-    });
+        options.UseMySQL(connectionString);
+    }
+    else
+    {
+        options.UseFinanceDatabase(builder.Configuration, connectionString, sqlOptions =>
+        {
+            sqlOptions.MigrationsHistoryTable("__PermissionMigrationsHistory", "security");
+        });
+    }
 });
 
 builder.Services.AddScoped<

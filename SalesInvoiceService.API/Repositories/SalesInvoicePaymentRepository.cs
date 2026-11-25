@@ -103,7 +103,8 @@ namespace SalesInvoiceService.API.Repositories
                 string? branch,
                 string? currency,
                 string? paymentMode,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken,
+                string[]? allowedBranches = null)
         {
             if (page < 1 || pageSize < 1 || pageSize > 100)
             {
@@ -123,6 +124,12 @@ namespace SalesInvoiceService.API.Repositories
                 .IgnoreQueryFilters()
                 .AsNoTracking()
                 .AsQueryable();
+
+            if (allowedBranches is { } branches)
+            {
+                query = branches.Length == 0 ? query.Where(_ => false) :
+                    query.Where(row => branches.Contains(row.SalesInvoice.Branch));
+            }
 
             var term = search?.Trim();
 

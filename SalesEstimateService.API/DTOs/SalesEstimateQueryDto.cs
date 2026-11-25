@@ -1,10 +1,14 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using SalesEstimateService.API.Models;
 
 namespace SalesEstimateService.API.DTOs
 {
-    public class SalesEstimateQueryDto
+    public class SalesEstimateQueryDto : IFinanceBranchQuery
     {
+        [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+        public string[]? AllowedBranches { get; set; }
+
         [Range(1, int.MaxValue)]
         public int Page { get; set; } = 1;
 

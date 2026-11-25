@@ -15,14 +15,17 @@ namespace PermissionService.API.Authentication
             var section = configuration.GetSection("Authentication");
             var settings = section.Get<LoginSessionSettings>()
                 ?? new LoginSessionSettings();
+            var trustedRoleService = roleServiceUri.Scheme == Uri.UriSchemeHttps ||
+                (configuration["Database:Provider"] == "MySql" && roleServiceUri.IsLoopback &&
+                    roleServiceUri.Scheme == Uri.UriSchemeHttp && string.IsNullOrEmpty(roleServiceUri.UserInfo));
 
             services.AddOptions<LoginSessionSettings>()
                 .Bind(section)
-                .Validate(options => roleServiceUri.Scheme == Uri.UriSchemeHttps &&
+                .Validate(options => trustedRoleService &&
                     !string.IsNullOrWhiteSpace(options.MicrosoftSessionCookieName) &&
                     options.MicrosoftSessionCookieName.All(character =>
                         char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_'),
-                    "Microsoft session verification requires HTTPS Role Service and a valid cookie name.")
+                    "Microsoft session verification requires a trusted Role Service and a valid cookie name.")
                 .Validate(options => !options.UseDevelopmentSession ||
                     (environment.IsDevelopment() &&
                      roleServiceUri.Scheme == Uri.UriSchemeHttps &&

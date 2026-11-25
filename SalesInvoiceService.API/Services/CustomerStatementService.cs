@@ -16,11 +16,22 @@ namespace SalesInvoiceService.API.Services
         }
 
         public Task<List<CustomerStatementClientDto>> GetClientsAsync(
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken, string[]? allowedBranches = null)
         {
-            return _context.SalesInvoices
+            var invoices = _context.SalesInvoices
                 .AsNoTracking()
-                .Where(invoice => invoice.Status == SalesInvoiceStatus.Issued)
+                .Where(invoice => invoice.Status == SalesInvoiceStatus.Issued);
+            if (allowedBranches is { } branches)
+            {
+                if (branches.Length == 0)
+                {
+                    return Task.FromResult(new List<CustomerStatementClientDto>());
+                }
+
+                invoices = invoices.Where(invoice => branches.Contains(invoice.Branch));
+            }
+
+            return invoices
                 .Select(invoice => new CustomerStatementClientDto
                 {
                     ClientId = invoice.ClientId,

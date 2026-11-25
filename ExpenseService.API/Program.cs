@@ -1,11 +1,21 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
+using SparkFinance.Authentication;
 using ExpenseService.API.Data;
 using ExpenseService.API.Repositories;
 using ExpenseService.API.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+const string expenseJwtScheme = "ExpenseMeritJwt";
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = expenseJwtScheme;
+    options.DefaultChallengeScheme = expenseJwtScheme;
+}).AddMeritJwtValidation(builder.Configuration.GetSection("JwtValidation"), expenseJwtScheme);
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<FinanceCompanyAccess>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false });
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -16,7 +26,8 @@ var connectionString = builder.Configuration
         "DefaultConnection is missing from appsettings.json.");
 
 builder.Services.AddDbContext<ExpenseDbContext>(options =>
-    options.UseSqlServer(
+    options.UseFinanceDatabase(
+        builder.Configuration,
         connectionString,
         sqlOptions =>
             sqlOptions.MigrationsHistoryTable(
@@ -41,7 +52,7 @@ builder.Services.AddScoped<
 
 builder.Services.AddDbContext<CompanySetupDbContext>(options =>
 {
-    options.UseSqlServer(connectionString);
+    options.UseFinanceDatabase(builder.Configuration, connectionString);
 });
 
 builder.Services.AddScoped<CompanySetupRepository>();
@@ -55,7 +66,9 @@ builder.Services.AddOptions<ExchangeRateOptions>()
     .Bind(builder.Configuration.GetSection("ExchangeRates"))
     .Validate(options =>
         Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var uri) &&
-        uri.Scheme == Uri.UriSchemeHttps &&
+        (uri.Scheme == Uri.UriSchemeHttps ||
+                (builder.Configuration["Database:Provider"] == "MySql" && uri.IsLoopback &&
+                    uri.Scheme == Uri.UriSchemeHttp && uri.AbsolutePath == "/api/exchange-rates/")) &&
         options.BaseUrl.EndsWith("/") &&
         options.TimeoutSeconds > 0 &&
         options.CacheMinutes > 0 &&
@@ -92,6 +105,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseFinanceRequestCancellation();

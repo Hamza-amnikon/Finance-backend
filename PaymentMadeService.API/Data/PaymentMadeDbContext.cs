@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using PaymentMadeService.API.Models;
@@ -78,6 +79,8 @@ namespace PaymentMadeService.API.Data
             builder.Entity<PaymentModeLookup>()
                 .HasNoKey()
                 .ToView("PaymentModes", "sales");
+
+            builder.MapFinanceMySql(Database);
         }
     }
 }

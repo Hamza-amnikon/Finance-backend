@@ -1,10 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using SparkFinance.Http;
+using System.ComponentModel.DataAnnotations;
 using BankingService.API.Models;
 
 namespace BankingService.API.DTOs
 {
-    public class BankTransactionQueryDto : IValidatableObject
+    public class BankTransactionQueryDto : IValidatableObject, IFinanceCompanyQuery
     {
+        [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+        public int[]? AllowedCompanyIds { get; set; }
+
         [Range(1, int.MaxValue)]
         public int Page { get; set; } = 1;
 

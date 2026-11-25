@@ -30,7 +30,9 @@ builder.Services.AddOptions<DashboardExchangeRateOptions>()
     .Validate(
         options =>
             Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var uri) &&
-            uri.Scheme == Uri.UriSchemeHttps &&
+            (uri.Scheme == Uri.UriSchemeHttps ||
+                (builder.Configuration["Database:Provider"] == "MySql" && uri.IsLoopback &&
+                    uri.Scheme == Uri.UriSchemeHttp && uri.AbsolutePath == "/api/exchange-rates/")) &&
             string.IsNullOrEmpty(uri.Query) &&
             string.IsNullOrEmpty(uri.Fragment),
         "Configure a valid HTTPS exchange-rate provider base URL.")
@@ -52,18 +54,24 @@ var connectionString = builder.Configuration
     ?? throw new InvalidOperationException(
         "DefaultConnection is missing from appsettings.json.");
 
-builder.Services.AddDbContext<DashboardDbContext>(options =>
-    options.UseSqlServer(
-        connectionString,
-        sqlServerOptions => sqlServerOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(5),
-            errorNumbersToAdd: new[] { -1983577846 })));
-
-builder.Services.AddHostedService(serviceProvider =>
-    new LocalDbKeepAliveWorker(
-        connectionString,
-        serviceProvider.GetRequiredService<ILogger<LocalDbKeepAliveWorker>>()));
+switch (builder.Configuration["Database:Provider"] ?? "SqlServer")
+{
+    case "MySql":
+        builder.Services.AddDbContext<DashboardDbContext>(options => options.UseMySQL(connectionString));
+        break;
+    case "SqlServer":
+        builder.Services.AddDbContext<DashboardDbContext>(options =>
+            options.UseSqlServer(connectionString, sqlServerOptions => sqlServerOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: new[] { -1983577846 })));
+        builder.Services.AddHostedService(serviceProvider =>
+            new LocalDbKeepAliveWorker(connectionString,
+                serviceProvider.GetRequiredService<ILogger<LocalDbKeepAliveWorker>>()));
+        break;
+    default:
+        throw new InvalidOperationException("Configure a supported Dashboard database provider.");
+}
 
 builder.Services.AddScoped<
     IDashboardService,

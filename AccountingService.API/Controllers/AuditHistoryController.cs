@@ -8,6 +8,9 @@ using AccountingService.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
+using AccountingService.API.Authentication;
+using SparkFinance.Database;
 
 namespace AccountingService.API.Controllers
 {
@@ -62,10 +65,15 @@ namespace AccountingService.API.Controllers
             _logger = logger;
         }
 
-        private bool Allowed() => User.Identity?.IsAuthenticated == true ? User.IsInRole("Admin") : _environment.IsDevelopment() && Request.Headers["X-Audit-Role"] == "Admin";
+        private async Task<bool> AllowedAsync()
+        {
+            var authentication = await HttpContext.AuthenticateAsync(AccountingAuthenticationSchemes.MeritJwt);
+            return authentication.Succeeded && authentication.Principal?.IsInRole("Admin") == true ||
+                _environment.IsDevelopment() && Request.Headers["X-Audit-Role"] == "Admin";
+        }
         private async Task<IActionResult> Handle(Func<Task<IActionResult>> action)
         {
-            if (!Allowed())
+            if (!await AllowedAsync())
             {
                 return StatusCode(
                                 403,
@@ -187,8 +195,11 @@ namespace AccountingService.API.Controllers
         public Task<IActionResult> Lookups([FromQuery] string? activity, CancellationToken cancellationToken) => Handle(async () =>
         {
             var rows = AuditActivityFilter.Apply(_context, activity);
+            var branchSql = _context.Database.IsFinanceMySql()
+                ? "SELECT Name AS Value FROM amnikon__Branches"
+                : "SELECT Name AS Value FROM amnikon.Branches";
             var savedBranches = await _context.Database
-                .SqlQueryRaw<string>("SELECT Name AS Value FROM amnikon.Branches")
+                .SqlQueryRaw<string>(branchSql)
                 .ToListAsync(cancellationToken);
             var metadata = await rows.Select(row => new
             {

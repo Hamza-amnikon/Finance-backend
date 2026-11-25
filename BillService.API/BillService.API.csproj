@@ -13,6 +13,7 @@
 		<PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
 
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+		<PackageReference Include="MySql.EntityFrameworkCore" Version="10.0.12" />
 
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
 			<PrivateAssets>all</PrivateAssets>
@@ -36,5 +37,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Shared/Http/FinanceSessionForwarding.cs" Link="Shared/FinanceSessionForwarding.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Http/FinanceBranchReadFilter.cs" Link="Shared/FinanceBranchReadFilter.cs" />
+    <Compile Include="../Shared/Http/FinanceCompanyAccess.cs" Link="Shared/FinanceCompanyAccess.cs" />
+    <Compile Include="../Shared/Database/FinanceDatabase.cs" Link="Shared/FinanceDatabase.cs" />
   </ItemGroup>
 </Project>

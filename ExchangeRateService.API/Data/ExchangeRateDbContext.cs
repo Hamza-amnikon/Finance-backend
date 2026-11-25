@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using ExchangeRateService.API.Models;
@@ -33,6 +34,8 @@ namespace ExchangeRateService.API.Data
                 entity.Property(row => row.Status).HasMaxLength(20);
                 entity.Property(row => row.Error).HasMaxLength(1000);
             });
+
+            builder.MapFinanceMySql(Database);
         }
     }
 }

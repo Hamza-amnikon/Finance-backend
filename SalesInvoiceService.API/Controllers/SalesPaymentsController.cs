@@ -35,6 +35,12 @@ namespace SalesInvoiceService.API.Controllers
         {
             try
             {
+                var scope = await FinanceCompanyAccess.GetMySqlReadScopeAsync(HttpContext, "/sales/payments", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var result = await _paymentService.GetPagedAsync(
                     page,
                     pageSize,
@@ -45,7 +51,8 @@ namespace SalesInvoiceService.API.Controllers
                     branch,
                     currency,
                     paymentMode,
-                    cancellationToken);
+                    cancellationToken,
+                    scope.Branches);
 
                 return Ok(new
                 {

@@ -28,6 +28,7 @@ namespace AccountingService.API.Controllers
         }
 
         [HttpGet]
+        [MySqlCompanyRead("accounting.journal-entries")]
         public Task<IActionResult> GetAll(
             [FromQuery] JournalEntryQueryDto query,
             CancellationToken cancellationToken)
@@ -46,6 +47,7 @@ namespace AccountingService.API.Controllers
         }
 
         [HttpGet("{id:int:min(1)}")]
+        [MySqlCompanyRead("accounting.journal-entries")]
         public Task<IActionResult> GetById(
             int id,
             [FromQuery]

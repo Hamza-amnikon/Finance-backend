@@ -27,6 +27,7 @@ namespace SalesEstimateService.API.Controllers
         }
 
         [HttpGet]
+        [FinanceBranchRead("/sales/estimates")]
         [ProducesResponseType(typeof(SalesEstimateListResponseDto), StatusCodes.Status200OK)]
         public Task<IActionResult> GetAll(
             [FromQuery] SalesEstimateQueryDto query,
@@ -49,6 +50,7 @@ namespace SalesEstimateService.API.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [FinanceBranchRead("/sales/estimates", detail: true)]
         [ProducesResponseType(typeof(SalesEstimateResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public Task<IActionResult> GetById(

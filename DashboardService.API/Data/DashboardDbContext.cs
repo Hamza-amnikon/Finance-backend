@@ -8,5 +8,7 @@ namespace DashboardService.API.Data
         public DashboardDbContext(DbContextOptions<DashboardDbContext> options) : base(options)
         {
         }
+
+        internal bool IsMySql => Database.ProviderName == "MySql.EntityFrameworkCore";
     }
 }

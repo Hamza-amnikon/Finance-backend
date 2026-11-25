@@ -34,13 +34,20 @@ namespace SalesInvoiceService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await GetReadScopeAsync(cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var result = await _service.GetPagedAsync(
                     page,
                     pageSize,
                     search,
                     status,
                     cancellationToken,
-                    branch);
+                    branch,
+                    scope.Branches);
 
                 return Ok(new
                 {
@@ -62,11 +69,17 @@ namespace SalesInvoiceService.API.Controllers
         {
             return HandleAsync(async () =>
             {
+                var scope = await GetReadScopeAsync(cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var creditNote = await _service.GetByIdAsync(
                     id,
                     cancellationToken);
 
-                if (creditNote == null)
+                if (creditNote == null || !scope.Allows(creditNote.Branch))
                 {
                     return NotFound(new
                     {
@@ -77,6 +90,9 @@ namespace SalesInvoiceService.API.Controllers
                 return Ok(creditNote);
             }, cancellationToken);
         }
+
+        private Task<FinanceCompanyScope> GetReadScopeAsync(CancellationToken cancellationToken) =>
+            FinanceCompanyAccess.GetMySqlReadScopeAsync(HttpContext, "/sales/credit-notes", cancellationToken);
 
         [HttpPost("preview")]
         [ProducesResponseType(

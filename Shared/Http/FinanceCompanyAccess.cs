@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace SparkFinance.Http
@@ -10,6 +11,17 @@ namespace SparkFinance.Http
         IConfiguration configuration,
         ILogger<FinanceCompanyAccess> logger)
     {
+        public static Task<FinanceCompanyScope> GetMySqlReadScopeAsync(HttpContext? context, string route, CancellationToken cancellationToken)
+        {
+            if (context?.RequestServices?.GetService<IConfiguration>()?["Database:Provider"] != "MySql")
+            {
+                return Task.FromResult(new FinanceCompanyScope(200, null));
+            }
+
+            context.Response.Headers.CacheControl = "no-store";
+            return context.RequestServices.GetRequiredService<FinanceCompanyAccess>().GetAsync(context.Request, route, cancellationToken);
+        }
+
         public async Task<FinanceCompanyScope> GetAsync(
             HttpRequest request,
             string route,
@@ -17,13 +29,7 @@ namespace SparkFinance.Http
         {
             try
             {
-                if (!Uri.TryCreate(configuration["Services:AccountingService:BaseUrl"], UriKind.Absolute, out var baseUrl) ||
-                    baseUrl.Scheme != Uri.UriSchemeHttps)
-                {
-                    throw new InvalidOperationException("Configure the trusted HTTPS Accounting Service URL.");
-                }
-
-                var url = new Uri(baseUrl, "/api/accounts/company-access?route=" + Uri.EscapeDataString(route));
+                var url = CreateEndpoint(configuration, route);
                 using var message = new HttpRequestMessage(HttpMethod.Get, url);
                 FinanceSessionForwarding.AttachTo(message, request);
 
@@ -41,6 +47,8 @@ namespace SparkFinance.Http
                     200,
                     payload.IsAdmin ? null : payload.Branches.Select(branch => branch.Name).ToArray())
                 {
+                    CompanyIds = payload.IsAdmin ? null : payload.CompanyIds ?? [],
+                    ActorId = payload.ActorId,
                     CreatableBranches = MapBranches(payload, payload.CreatableCompanyIds),
                     EditableBranches = MapBranches(payload, payload.EditableCompanyIds),
                     DeletableBranches = MapBranches(payload, payload.DeletableCompanyIds),
@@ -54,6 +62,32 @@ namespace SparkFinance.Http
             }
         }
 
+        internal static Uri CreateEndpoint(IConfiguration configuration, string route) =>
+            new UriBuilder(CompanyAccessEndpoint(configuration)) { Query = "route=" + Uri.EscapeDataString(route) }.Uri;
+
+        private static Uri CompanyAccessEndpoint(IConfiguration configuration)
+        {
+            if (configuration["Services:AuthService:CompanyAccessUrl"] is string authAccess)
+            {
+                if (Uri.TryCreate(authAccess, UriKind.Absolute, out var authUrl) && authUrl.IsLoopback &&
+                    authUrl.AbsolutePath == "/api/auth/company-access" && string.IsNullOrEmpty(authUrl.UserInfo) &&
+                    authUrl.Scheme is "http" or "https")
+                {
+                    return authUrl;
+                }
+
+                throw new InvalidOperationException("Configure the loopback Auth Service company access URL.");
+            }
+
+            if (!Uri.TryCreate(configuration["Services:AccountingService:BaseUrl"], UriKind.Absolute, out var baseUrl) ||
+                baseUrl.Scheme != Uri.UriSchemeHttps)
+            {
+                throw new InvalidOperationException("Configure the trusted HTTPS Accounting Service URL.");
+            }
+
+            return new Uri(baseUrl, "/api/accounts/company-access");
+        }
+
         private static string[] MapBranches(CompanyAccessResponse scope, int[] companyIds)
         {
             return scope.Branches.Where(branch => branch.AccountingCompanyId is int id && companyIds.Contains(id))
@@ -64,6 +98,8 @@ namespace SparkFinance.Http
         private sealed record CompanyAccessResponse(
             bool IsAdmin,
             Branch[] Branches,
+            int[]? CompanyIds,
+            string? ActorId,
             int[] CreatableCompanyIds,
             int[] EditableCompanyIds,
             int[] DeletableCompanyIds,
@@ -74,6 +110,8 @@ namespace SparkFinance.Http
 
     public sealed record FinanceCompanyScope(int Status, string[]? Branches)
     {
+        public int[]? CompanyIds { get; init; }
+        public string? ActorId { get; init; }
         public string[] CreatableBranches { get; init; } = [];
         public string[] EditableBranches { get; init; } = [];
         public string[] DeletableBranches { get; init; } = [];
@@ -88,5 +126,8 @@ namespace SparkFinance.Http
         {
             return Status == 200 && (Branches == null || Branches.Contains(branch, StringComparer.OrdinalIgnoreCase));
         }
+
+        public bool AllowsCompany(int companyId) => Status == 200 && companyId > 0 &&
+            (CompanyIds == null || CompanyIds.Contains(companyId));
     }
 }

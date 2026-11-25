@@ -112,7 +112,8 @@ namespace SalesEstimateService.API.Services
                 query.Search,
                 query.Status,
                 cancellationToken,
-                query.Branch);
+                query.Branch,
+                query.AllowedBranches);
 
             return (result.Data.Select(ToResponse).ToList(), result.Total);
         }

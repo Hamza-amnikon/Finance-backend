@@ -25,6 +25,7 @@ namespace SalesInvoiceService.API.Services
                 string? branch,
                 string? currency,
                 string? paymentMode,
-                CancellationToken cancellationToken);
+                CancellationToken cancellationToken,
+                string[]? allowedBranches = null);
     }
 }

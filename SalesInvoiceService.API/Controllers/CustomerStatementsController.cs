@@ -20,8 +20,14 @@ namespace SalesInvoiceService.API.Controllers
         public async Task<IActionResult> GetClients(
             CancellationToken cancellationToken)
         {
+            var scope = await FinanceCompanyAccess.GetMySqlReadScopeAsync(HttpContext, "/sales/customer-statements", cancellationToken);
+            if (scope.Status != 200)
+            {
+                return StatusCode(scope.Status);
+            }
+
             return Ok(await _service.GetClientsAsync(
-                cancellationToken));
+                cancellationToken, scope.Branches));
         }
 
         [HttpGet]
@@ -35,9 +41,15 @@ namespace SalesInvoiceService.API.Controllers
         {
             try
             {
+                var scope = await FinanceCompanyAccess.GetMySqlReadScopeAsync(HttpContext, "/sales/customer-statements", cancellationToken);
+                if (scope.Status != 200 || !scope.Allows(branch?.Trim()))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 return Ok(await _service.GetAsync(
                     clientId,
-                    branch,
+                    branch ?? string.Empty,
                     currency,
                     cancellationToken,
                     fromDate,

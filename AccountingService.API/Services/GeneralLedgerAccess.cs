@@ -7,6 +7,7 @@ using AccountingService.API.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using SparkFinance.Authentication;
+using SparkFinance.Database;
 
 namespace AccountingService.API.Services
 {
@@ -123,7 +124,9 @@ namespace AccountingService.API.Services
 
             var setting = microsoft ? "AuthSessionUrl" : "AdminSessionUrl";
             if (!Uri.TryCreate(_configuration["GeneralLedgerAccess:" + setting], UriKind.Absolute, out var uri) ||
-                uri.Scheme != Uri.UriSchemeHttps)
+                (uri.Scheme != Uri.UriSchemeHttps && !(_context.Database.IsFinanceMySql() && microsoft &&
+                    uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback && uri.AbsolutePath == "/api/auth/session" &&
+                    string.IsNullOrEmpty(uri.UserInfo))))
             {
                 throw new HttpRequestException("Configure the HTTPS session verification URL.");
             }
@@ -183,14 +186,22 @@ namespace AccountingService.API.Services
             }
 
             // The identity service validates active users and roles. Never accept a role from the browser.
-            var companies = await _context.Database.SqlQuery<CompanyPermission>($"""
+            var permissions = _context.Database.IsFinanceMySql() ? (FormattableString)$"""
+                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel
+                FROM security__RolePermissions rp
+                INNER JOIN security__Permissions p ON p.PermissionId = rp.PermissionId
+                WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId > 0
+                    AND rp.CanView = 1 AND p.Status = 'Active'
+                    AND ({permissionCode} IS NULL OR p.PermissionCode = {permissionCode})
+                """ : (FormattableString)$"""
                 SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel
                 FROM security.RolePermissions rp
                 INNER JOIN security.Permissions p ON p.PermissionId = rp.PermissionId
                 WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId > 0
                     AND rp.CanView = 1 AND p.Status = 'Active'
                     AND ({permissionCode} IS NULL OR p.PermissionCode = {permissionCode})
-                """).ToListAsync(cancellationToken);
+                """;
+            var companies = await _context.Database.SqlQuery<CompanyPermission>(permissions).ToListAsync(cancellationToken);
 
             return new LedgerAccess(200, false, companies.Select(company => company.CompanyId).Distinct().ToArray())
             {

@@ -46,7 +46,17 @@ namespace RoleService.API.Authentication
                 _ => string.Empty
             };
 
-            var allowed = await _context.Database.SqlQueryRaw<int>("""
+            var permissionSql = _context.IsMySql ? """
+                SELECT EXISTS (
+                    SELECT 1 FROM security__RolePermissions rp
+                    INNER JOIN security__Permissions p ON p.PermissionId = rp.PermissionId
+                    WHERE rp.RoleId = {0} AND rp.CompanyId > 0
+                        AND p.PermissionCode = 'settings.users' AND p.Status = 'Active'
+                        AND rp.CanView = 1
+                        AND (({1} = 'view') OR ({1} = 'create' AND rp.CanCreate = 1)
+                            OR ({1} = 'edit' AND rp.CanEdit = 1))
+                ) AS Value
+                """ : """
                 SELECT CAST(CASE WHEN EXISTS (
                     SELECT 1 FROM security.RolePermissions rp
                     INNER JOIN security.Permissions p ON p.PermissionId = rp.PermissionId
@@ -56,7 +66,9 @@ namespace RoleService.API.Authentication
                         AND (({1} = N'view') OR ({1} = N'create' AND rp.CanCreate = 1)
                             OR ({1} = N'edit' AND rp.CanEdit = 1))
                 ) THEN 1 ELSE 0 END AS int) AS Value
-                """, roleId, action).SingleAsync(context.HttpContext.RequestAborted);
+                """;
+            var allowed = await _context.Database.SqlQueryRaw<int>(permissionSql, roleId, action)
+                .SingleAsync(context.HttpContext.RequestAborted);
 
             if (allowed != 1)
             {

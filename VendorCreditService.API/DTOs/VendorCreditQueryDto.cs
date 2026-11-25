@@ -1,10 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using SparkFinance.Http;
+using System.ComponentModel.DataAnnotations;
 using VendorCreditService.API.Models;
 
 namespace VendorCreditService.API.DTOs
 {
-    public class VendorCreditQueryDto : IValidatableObject
+    public class VendorCreditQueryDto : IValidatableObject, IFinanceBranchQuery
     {
+        [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+        public string[]? AllowedBranches { get; set; }
+
         [Range(1, int.MaxValue)]
         public int Page { get; set; } = 1;
 

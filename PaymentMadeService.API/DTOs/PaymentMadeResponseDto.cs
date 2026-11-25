@@ -1,8 +1,9 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using PaymentMadeService.API.Models;
 namespace PaymentMadeService.API.DTOs
 {
-    public class PaymentMadeResponseDto
+    public class PaymentMadeResponseDto : IFinanceBranchRecord
     {
         public int Id { get; set; }
 

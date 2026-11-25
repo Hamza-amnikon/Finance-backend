@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using BillService.API.Models;
@@ -66,6 +67,8 @@ namespace BillService.API.Data
             builder.Entity<PurchaseVendorLookup>().HasNoKey().ToView("VendorMaster", "purchases");
             builder.Entity<PurchaseCurrencyLookup>().HasNoKey().ToView("CurrencyMasters", "sales");
             builder.Entity<PurchaseBranchLookup>().HasNoKey().ToView("Branches", "amnikon");
+
+            builder.MapFinanceMySql(Database);
         }
     }
 }

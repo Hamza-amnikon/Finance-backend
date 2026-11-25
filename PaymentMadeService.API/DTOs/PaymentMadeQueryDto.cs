@@ -1,9 +1,13 @@
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using PaymentMadeService.API.Models;
 namespace PaymentMadeService.API.DTOs
 {
-    public class PaymentMadeQueryDto
+    public class PaymentMadeQueryDto : IFinanceBranchQuery
     {
+        [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+        public string[]? AllowedBranches { get; set; }
+
         [Range(1, int.MaxValue)]
         public int Page { get; set; } = 1;
 

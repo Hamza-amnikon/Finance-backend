@@ -29,6 +29,7 @@ namespace PaymentMadeService.API.Controllers
         }
 
         [HttpGet]
+        [FinanceBranchRead("/purchases/payments")]
         public Task<IActionResult> GetPaged(
             [FromQuery] PaymentMadeQueryDto query,
             CancellationToken cancellationToken)
@@ -50,6 +51,7 @@ namespace PaymentMadeService.API.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [FinanceBranchRead("/purchases/payments", detail: true)]
         public Task<IActionResult> GetById(
             [Range(1, int.MaxValue)] int id,
             CancellationToken cancellationToken)

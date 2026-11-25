@@ -18,6 +18,11 @@ namespace DashboardService.API.Services
             HttpRequest request,
             CancellationToken cancellationToken)
         {
+            if (context.IsMySql)
+            {
+                return await GetMySqlBranchesAsync(request, cancellationToken);
+            }
+
             if (!Uri.TryCreate(configuration["DashboardAccess:CompaniesUrl"], UriKind.Absolute, out var url) ||
                 url.Scheme != Uri.UriSchemeHttps)
             {
@@ -62,6 +67,50 @@ namespace DashboardService.API.Services
                 branch.BranchName,
                 currencies[branch.CompanyId])).ToArray());
         }
+
+        private async Task<(int Status, IReadOnlyList<DashboardBranch> Branches)> GetMySqlBranchesAsync(
+            HttpRequest request, CancellationToken cancellationToken)
+        {
+            if (!Uri.TryCreate(configuration["DashboardAccess:AuthSessionUrl"], UriKind.Absolute, out var url) ||
+                !url.IsLoopback || (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new InvalidOperationException("Configure the loopback Dashboard Auth Service session URL.");
+            }
+
+            using var message = new HttpRequestMessage(HttpMethod.Get, url);
+            FinanceSessionForwarding.AttachTo(message, request);
+            using var response = await client.SendAsync(message, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var status = (int)response.StatusCode;
+                return (status is 401 or 403 ? status : 503, []);
+            }
+
+            var session = await response.Content.ReadFromJsonAsync<DashboardSession>(cancellationToken);
+            if (session is null || session.UserId == Guid.Empty || session.RoleId <= 0)
+            {
+                return (401, []);
+            }
+
+            var branches = await context.Database.SqlQuery<DashboardBranch>($"""
+                SELECT b.Id AS BranchId, c.Id AS CompanyId, b.Name AS BranchName, c.Currency
+                FROM amnikon__Branches b
+                INNER JOIN expenses__Companies c ON c.Id = b.AccountingCompanyId
+                WHERE b.IsActive = 1 AND NOT EXISTS (
+                    SELECT 1 FROM amnikon__Branches other WHERE other.Name = b.Name AND other.Id <> b.Id
+                ) AND ({session.IsAdmin} = TRUE OR EXISTS (
+                    SELECT 1 FROM security__RolePermissions rp
+                    INNER JOIN security__Permissions p ON p.PermissionId = rp.PermissionId
+                    WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId = c.Id AND rp.CompanyId > 0
+                        AND rp.CanView = 1 AND p.Status = 'Active' AND p.PermissionCode = 'dashboard'
+                ))
+                ORDER BY b.Name
+                """).ToListAsync(cancellationToken);
+
+            return branches.Count == 0 ? (403, []) : (200, branches);
+        }
+
+        private sealed record DashboardSession(Guid UserId, int RoleId, bool IsAdmin);
 
         public sealed class DashboardBranchRow
         {

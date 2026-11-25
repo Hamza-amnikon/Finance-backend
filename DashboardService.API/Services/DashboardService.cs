@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using System.Data.Common;
 using DashboardService.API.Data;
 using DashboardService.API.DTOs;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using MySql.Data.MySqlClient;
 
 namespace DashboardService.API.Services
 {
@@ -43,20 +45,14 @@ namespace DashboardService.API.Services
                 WITH invoiceBalances AS
                 (
                     SELECT i.Currency,
-                        i.GrandTotal - COALESCE(p.Paid, 0) - COALESCE(c.Credited, 0) AS Balance
+                        i.GrandTotal - COALESCE((
+                            SELECT SUM(Amount) FROM sales.SalesInvoicePayments
+                            WHERE Status = N'Recorded' AND SalesInvoiceId = i.Id
+                        ), 0) - COALESCE((
+                            SELECT SUM(GrandTotal) FROM sales.SalesCreditNotes
+                            WHERE SalesInvoiceId = i.Id AND Status = N'Issued'
+                        ), 0) AS Balance
                     FROM sales.SalesInvoices i
-                    OUTER APPLY
-                    (
-                        SELECT SUM(Amount) AS Paid
-                        FROM sales.SalesInvoicePayments
-                        WHERE Status = N'Recorded' AND SalesInvoiceId = i.Id
-                    ) p
-                    OUTER APPLY
-                    (
-                        SELECT SUM(GrandTotal) AS Credited
-                        FROM sales.SalesCreditNotes
-                        WHERE SalesInvoiceId = i.Id AND Status = N'Issued'
-                    ) c
                     WHERE i.Status = N'Issued'
                         AND (@branch = N'' OR i.Branch = @branch)
                         AND (i.Branch IN (SELECT value FROM OPENJSON(@branches)))
@@ -139,10 +135,10 @@ namespace DashboardService.API.Services
 
             var rows = await _context.Database
                 .SqlQueryRaw<DashboardAmountRowDto>(
-                    sql,
-                    new SqlParameter("@from", from.ToDateTime(TimeOnly.MinValue)),
-                    new SqlParameter("@to", to.ToDateTime(TimeOnly.MaxValue)),
-                    new SqlParameter("@branch", branch),
+                    SqlForProvider(sql),
+                    Parameter("@from", from.ToDateTime(TimeOnly.MinValue)),
+                    Parameter("@to", to.ToDateTime(TimeOnly.MaxValue)),
+                    Parameter("@branch", branch),
                     BranchParameter(scope),
                     CompanyParameter(scope, branch))
                 .ToListAsync(cancellationToken);
@@ -196,24 +192,24 @@ namespace DashboardService.API.Services
             }
 
             var customerCount = await _context.Database
-                .SqlQueryRaw<int>(@"
+                .SqlQueryRaw<int>(SqlForProvider(@"
                     SELECT COUNT(*) AS Value
                     FROM dbo.ClientMaster
                     WHERE IsActive = 1
                         AND (@branch = N'' OR Branch = @branch)
-                        AND (Branch IN (SELECT value FROM OPENJSON(@branches)))",
-                    new SqlParameter("@branch", branch),
+                        AND (Branch IN (SELECT value FROM OPENJSON(@branches)))"),
+                    Parameter("@branch", branch),
                     BranchParameter(scope))
                 .SingleAsync(cancellationToken);
 
             var vendorCount = await _context.Database
-                .SqlQueryRaw<int>(@"
+                .SqlQueryRaw<int>(SqlForProvider(@"
                     SELECT COUNT(*) AS Value
                     FROM purchases.VendorMaster
                     WHERE IsActive = 1
                         AND (@branch = N'' OR Branch = @branch)
-                        AND (Branch IN (SELECT value FROM OPENJSON(@branches)))",
-                    new SqlParameter("@branch", branch),
+                        AND (Branch IN (SELECT value FROM OPENJSON(@branches)))"),
+                    Parameter("@branch", branch),
                     BranchParameter(scope))
                 .SingleAsync(cancellationToken);
 
@@ -320,19 +316,19 @@ namespace DashboardService.API.Services
 
             return await _context.Database
                 .SqlQueryRaw<DashboardActivityDto>(
-                    sql,
-                    new SqlParameter("@branch", branch?.Trim() ?? string.Empty),
+                    _context.IsMySql ? SqlForProvider(sql).Replace("SELECT TOP (10)", "SELECT") + " LIMIT 10" : sql,
+                    Parameter("@branch", branch?.Trim() ?? string.Empty),
                     BranchParameter(scope),
                     CompanyParameter(scope, branch))
                 .ToListAsync(cancellationToken);
         }
 
-        private static SqlParameter BranchParameter(IReadOnlyList<DashboardBranch> scope)
+        private DbParameter BranchParameter(IReadOnlyList<DashboardBranch> scope)
         {
             return JsonParameter("@branches", scope.Select(branch => branch.BranchName));
         }
 
-        private static SqlParameter CompanyParameter(IReadOnlyList<DashboardBranch> scope, string? branch)
+        private DbParameter CompanyParameter(IReadOnlyList<DashboardBranch> scope, string? branch)
         {
             var companyIds = scope.Where(item => string.IsNullOrWhiteSpace(branch) ||
                     string.Equals(item.BranchName, branch.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -342,13 +338,33 @@ namespace DashboardService.API.Services
             return JsonParameter("@companyIds", companyIds);
         }
 
-        private static SqlParameter JsonParameter<T>(string name, IEnumerable<T> values)
+        private DbParameter Parameter(string name, object value) =>
+            _context.IsMySql ? new MySqlParameter(name, value) : new SqlParameter(name, value);
+
+        private DbParameter JsonParameter<T>(string name, IEnumerable<T> values)
         {
+            var json = System.Text.Json.JsonSerializer.Serialize(values);
+            if (_context.IsMySql)
+            {
+                return new MySqlParameter(name, MySqlDbType.LongText) { Value = json };
+            }
+
             return new SqlParameter(name, System.Data.SqlDbType.NVarChar, -1)
             {
-                Value = System.Text.Json.JsonSerializer.Serialize(values)
+                Value = json
             };
         }
+
+        private string SqlForProvider(string sql) => !_context.IsMySql ? sql : sql
+            .Replace("sales.", "sales__")
+            .Replace("purchases.", "purchases__")
+            .Replace("expenses.", "expenses__")
+            .Replace("dbo.", "dbo__")
+            .Replace("SELECT value FROM OPENJSON(@branches)",
+                "SELECT value COLLATE utf8mb4_0900_as_ci FROM JSON_TABLE(@branches, '$[*]' COLUMNS (value VARCHAR(160) PATH '$')) AS branch_scope")
+            .Replace("OPENJSON(@companyIds) WITH (value int '$')", "JSON_TABLE(@companyIds, '$[*]' COLUMNS (value INT PATH '$')) AS company_scope")
+            .Replace(" AS datetime2)", " AS DATETIME(6))")
+            .Replace("N'", "'");
 
     }
 }

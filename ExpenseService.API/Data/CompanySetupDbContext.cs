@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using ExpenseService.API.Models;
 using Microsoft.EntityFrameworkCore;
 using SparkFinance.Auditing;
@@ -35,6 +36,8 @@ namespace ExpenseService.API.Data
 
                 entity.Property(branch => branch.RowVersion).IsRowVersion();
             });
+
+            builder.MapFinanceMySql(Database);
         }
     }
 }

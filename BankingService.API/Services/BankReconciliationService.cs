@@ -33,6 +33,11 @@ namespace BankingService.API.Services
 
             var reconciliations = _repository.Query();
 
+            if (query.AllowedCompanyIds is { } allowedCompanyIds)
+            {
+                reconciliations = allowedCompanyIds.Length == 0 ? reconciliations.Where(_ => false) : reconciliations.Where(row => allowedCompanyIds.Contains(row.CompanyId));
+            }
+
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
                 var search = query.Search.Trim();

@@ -26,9 +26,15 @@ namespace SalesInvoiceService.API.Controllers
         {
             try
             {
+                var scope = await FinanceCompanyAccess.GetMySqlReadScopeAsync(HttpContext, "/sales/credit-notes", cancellationToken);
+                if (scope.Status != 200 || !scope.Allows(branch?.Trim()))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 return Ok(await _service.GetAsync(
                     clientId,
-                    branch,
+                    branch ?? string.Empty,
                     currency,
                     cancellationToken));
             }

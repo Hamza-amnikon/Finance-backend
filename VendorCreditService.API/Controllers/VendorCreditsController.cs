@@ -29,6 +29,7 @@ namespace VendorCreditService.API.Controllers
         }
 
         [HttpGet]
+        [FinanceBranchRead("/purchases/vendor-credits")]
         public Task<IActionResult> GetPaged(
             [FromQuery] VendorCreditQueryDto query,
             CancellationToken cancellationToken)
@@ -50,6 +51,7 @@ namespace VendorCreditService.API.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [FinanceBranchRead("/purchases/vendor-credits", detail: true)]
         public Task<IActionResult> GetById(
             [Range(1, int.MaxValue)] int id,
             CancellationToken cancellationToken)

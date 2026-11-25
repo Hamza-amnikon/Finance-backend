@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using ExpenseService.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -162,6 +163,8 @@ namespace ExpenseService.API.Data
                 .WithOne(row => row.Receipt)
                 .HasForeignKey<Receipt>(row => row.ExpenseId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.MapFinanceMySql(Database);
         }
     }
 }

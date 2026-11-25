@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using Microsoft.EntityFrameworkCore;
 using VendorService.API.Models;
@@ -32,6 +33,8 @@ namespace VendorService.API.Data
                 entity.Property(row => row.City).HasMaxLength(100);
                 entity.Property(row => row.CurrencyCode).HasMaxLength(3);
             });
+
+            modelBuilder.MapFinanceMySql(Database);
         }
     }
 }

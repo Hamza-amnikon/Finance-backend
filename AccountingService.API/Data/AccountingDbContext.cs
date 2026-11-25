@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Auditing;
 using AccountingService.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -69,6 +70,8 @@ namespace AccountingService.API.Data
             ConfigureAccounts(modelBuilder);
             ConfigureJournalEntries(modelBuilder);
             ConfigureJournalEntryLines(modelBuilder);
+
+            modelBuilder.MapFinanceMySql(Database);
         }
 
         private static void ConfigureCompanies(

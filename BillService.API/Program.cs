@@ -1,3 +1,4 @@
+using SparkFinance.Database;
 using SparkFinance.Http;
 using BillService.API.Data;
 using BillService.API.Repositories;
@@ -6,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<FinanceCompanyAccess>()
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false });
 
 // Controllers and API documentation
 builder.Services.AddControllers();
@@ -24,7 +27,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<BillDbContext>(options =>
 {
-    options.UseSqlServer(
+    options.UseFinanceDatabase(
+        builder.Configuration,
         connectionString,
         sqlOptions => sqlOptions.MigrationsHistoryTable(
             "__BillMigrationsHistory",
@@ -87,7 +91,10 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddHostedService<BillReversalWorker>();
+if (builder.Configuration["Database:Provider"] != "MySql")
+{
+    builder.Services.AddHostedService<BillReversalWorker>();
+}
 
 var app = builder.Build();
 
