@@ -51,7 +51,11 @@ jobs:
           host=/home/hamza/.local/share/merit-host
           while read -r project service unit; do
             source="${RUNNER_TEMP}/merit-api-publish/$project"
-            test -f "$source/$project.API.dll"
+            if [[ "$project" == AzureADService ]]; then
+              test -f "$source/AzureADService.dll"
+            else
+              test -f "$source/$project.API.dll"
+            fi
             rsync -a --exclude='*.env' --exclude='appsettings*.json' "$source/" "$host/$service/"
             systemctl --user restart "$unit"
             systemctl --user is-active --quiet "$unit"
