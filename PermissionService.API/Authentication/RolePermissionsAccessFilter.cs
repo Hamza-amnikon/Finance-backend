@@ -51,11 +51,10 @@ namespace PermissionService.API.Authentication
 
             try
             {
-                var roleId = await _context.Database.SqlQuery<int>($"""
-                    SELECT RoleId AS Value
-                    FROM security.Roles
-                    WHERE Role = {roleName} AND Status = N'Active'
-                    """).SingleOrDefaultAsync(http.RequestAborted);
+                var roleId = await _context.Set<PermissionRoleLookup>().AsNoTracking()
+                    .Where(role => role.Role == roleName && role.Status == "Active")
+                    .Select(role => role.RoleId)
+                    .SingleOrDefaultAsync(http.RequestAborted);
 
                 if (roleId <= 0)
                 {
@@ -84,14 +83,10 @@ namespace PermissionService.API.Authentication
 
                 if (request != null)
                 {
-                    var targetIsAdmin = await _context.Database.SqlQuery<int>($"""
-                        SELECT CAST(CASE WHEN EXISTS (
-                            SELECT 1 FROM security.Roles
-                            WHERE RoleId = {request.RoleId} AND Role = N'Admin'
-                        ) THEN 1 ELSE 0 END AS int) AS Value
-                        """).SingleAsync(http.RequestAborted);
+                    var targetIsAdmin = await _context.Set<PermissionRoleLookup>().AsNoTracking()
+                        .AnyAsync(role => role.RoleId == request.RoleId && role.Role == "Admin", http.RequestAborted);
 
-                    if (targetIsAdmin == 1)
+                    if (targetIsAdmin)
                     {
                         context.Result = Error(403, "Only Admin can change Admin permissions.");
                         return;

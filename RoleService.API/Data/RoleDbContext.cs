@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RoleService.API.Models;
 
 namespace RoleService.API.Data
@@ -18,6 +18,17 @@ namespace RoleService.API.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<PagePermissionLookup>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToTable("Permissions", "security", table => table.ExcludeFromMigrations());
+            });
+            modelBuilder.Entity<CompanyPageGrantLookup>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToTable("RolePermissions", "security", table => table.ExcludeFromMigrations());
+            });
 
             modelBuilder.Entity<Roles>(entity =>
             {

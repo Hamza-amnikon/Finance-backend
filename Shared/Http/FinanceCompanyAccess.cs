@@ -15,6 +15,11 @@ namespace SparkFinance.Http
             string route,
             CancellationToken cancellationToken)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return new FinanceCompanyScope(499, []);
+            }
+
             try
             {
                 if (!Uri.TryCreate(configuration["Services:AccountingService:BaseUrl"], UriKind.Absolute, out var baseUrl) ||
@@ -42,6 +47,10 @@ namespace SparkFinance.Http
                     payload.IsAdmin ? null : payload.Branches.Select(branch => branch.Name).ToArray())
                 {
                     CompanyIds = payload.IsAdmin ? null : payload.CompanyIds ?? [],
+                    IsAdmin = payload.IsAdmin,
+                    ActorId = payload.ActorId,
+                    ApprovableCompanyIds = payload.ApprovableCompanyIds ?? [],
+                    IssuableCompanyIds = payload.IssuableCompanyIds ?? [],
                     CreatableCompanyIds = payload.CreatableCompanyIds ?? [],
                     EditableCompanyIds = payload.EditableCompanyIds ?? [],
                     CancellableCompanyIds = payload.CancellableCompanyIds ?? [],
@@ -61,10 +70,24 @@ namespace SparkFinance.Http
                     ReconcilableBranches = MapBranches(payload, payload.ReconcilableCompanyIds)
                 };
             }
-            catch (Exception exception) when (!RequestCancellation.IsCancellation(exception, cancellationToken))
+            catch (OperationCanceledException exception)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return new FinanceCompanyScope(499, []);
+                }
+
+                logger.LogWarning(
+                    exception,
+                    "Company access verification timed out for {Route}.",
+                    route);
+
+                return new FinanceCompanyScope(503, []);
+            }
+            catch (Exception exception)
             {
                 logger.LogWarning(exception, "Company scope could not be loaded for {Route}.", route);
-                return new FinanceCompanyScope(503, null);
+                return new FinanceCompanyScope(503, []);
             }
         }
 
@@ -94,7 +117,8 @@ namespace SparkFinance.Http
             int[]? PostableCompanyIds,
             int[]? VoidableCompanyIds,
             int[]? ReversibleCompanyIds,
-            int[]? ReconcilableCompanyIds);
+            int[]? ReconcilableCompanyIds,
+            string? ActorId = null);
 
         private sealed record Branch(string Name, int? AccountingCompanyId);
     }
@@ -102,6 +126,10 @@ namespace SparkFinance.Http
     public sealed record FinanceCompanyScope(int Status, string[]? Branches)
     {
         public int[]? CompanyIds { get; init; } = [];
+        public bool IsAdmin { get; init; }
+        public string? ActorId { get; init; }
+        public int[] ApprovableCompanyIds { get; init; } = [];
+        public int[] IssuableCompanyIds { get; init; } = [];
         public int[] CreatableCompanyIds { get; init; } = [];
         public int[] EditableCompanyIds { get; init; } = [];
         public int[] CancellableCompanyIds { get; init; } = [];

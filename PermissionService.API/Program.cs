@@ -6,6 +6,7 @@ using PermissionService.API.Repositories;
 using PermissionService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<PermissionService.API.Authentication.RolePermissionsAccessFilter>();
 
 builder.Services.AddControllers();
@@ -123,11 +124,10 @@ if (!Uri.TryCreate(
     companyServiceBaseUrl,
     UriKind.Absolute,
     out var companyServiceUri) ||
-    (companyServiceUri.Scheme != Uri.UriSchemeHttps &&
-     companyServiceUri.Scheme != Uri.UriSchemeHttp))
+    companyServiceUri.Scheme != Uri.UriSchemeHttps)
 {
     throw new InvalidOperationException(
-        "Configure a valid Services:CompanyService:BaseUrl.");
+        "Configure a valid HTTPS Services:CompanyService:BaseUrl.");
 }
 
 var companyServiceTimeoutSeconds =
@@ -150,6 +150,10 @@ builder.Services.AddHttpClient<
 
         client.Timeout = TimeSpan.FromSeconds(
             companyServiceTimeoutSeconds.Value);
+    }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        AllowAutoRedirect = false,
+        UseCookies = false
     });
 
 builder.Services.AddFinanceLoginSession(

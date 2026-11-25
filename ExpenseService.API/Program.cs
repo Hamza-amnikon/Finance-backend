@@ -17,6 +17,7 @@ builder.Services.AddHttpClient<FinanceCompanyAccess>(client =>
     UseCookies = false
 });
 builder.Services.AddScoped<ExpenseAccessFilter>();
+builder.Services.AddScoped<ExpenseClaimAccessFilter>();
 builder.Services.AddOpenApi();
 
 var connectionString = builder.Configuration

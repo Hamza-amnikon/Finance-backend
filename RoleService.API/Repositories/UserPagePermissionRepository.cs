@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RoleService.API.Data;
 using RoleService.API.DTOs;
+using RoleService.API.Models;
 
 namespace RoleService.API.Repositories
 {
@@ -18,26 +19,37 @@ namespace RoleService.API.Repositories
             CancellationToken cancellationToken)
         {
             // Keep denied routes so a permitted parent cannot grant a separately controlled child page.
-            return _context.Database.SqlQuery<UserPagePermissionResponse>($"""
-                SELECT p.PermissionCode, p.Module, p.Route, rp.CompanyId,
-                    CAST(CASE WHEN rp.CompanyId IS NOT NULL THEN 1 ELSE 0 END AS bit) AS CanView,
-                    CAST(COALESCE(rp.CanCreate, 0) AS bit) AS CanCreate,
-                    CAST(COALESCE(rp.CanEdit, 0) AS bit) AS CanEdit,
-                    CAST(COALESCE(rp.CanDelete, 0) AS bit) AS CanDelete,
-                    CAST(COALESCE(rp.CanApprove, 0) AS bit) AS CanApprove,
-                    CAST(COALESCE(rp.CanExport, 0) AS bit) AS CanExport,
-                    CAST(COALESCE(rp.CanCancel, 0) AS bit) AS CanCancel,
-                    CAST(COALESCE(rp.CanIssue, 0) AS bit) AS CanIssue,
-                    CAST(COALESCE(rp.CanPost, 0) AS bit) AS CanPost,
-                    CAST(COALESCE(rp.CanVoid, 0) AS bit) AS CanVoid,
-                    CAST(COALESCE(rp.CanReverse, 0) AS bit) AS CanReverse,
-                    CAST(COALESCE(rp.CanReconcile, 0) AS bit) AS CanReconcile
-                FROM security.Permissions p
-                LEFT JOIN security.RolePermissions rp
-                    ON rp.PermissionId = p.PermissionId AND rp.RoleId = {roleId}
-                    AND rp.CanView = 1 AND rp.CompanyId > 0 AND p.Status = 'Active'
-                ORDER BY p.Module, p.PageName, rp.CompanyId
-                """).ToListAsync(cancellationToken);
+            var grants = _context.Set<CompanyPageGrantLookup>().AsNoTracking()
+                .Where(grant => grant.RoleId == roleId && grant.CanView && grant.CompanyId > 0);
+
+            var query =
+                from permission in _context.Set<PagePermissionLookup>().AsNoTracking()
+                join grant in grants
+                    on new { permission.PermissionId, Active = permission.Status }
+                    equals new { grant.PermissionId, Active = "Active" } into matchingGrants
+                from grant in matchingGrants.DefaultIfEmpty()
+                orderby permission.Module, permission.PageName, grant.CompanyId
+                select new UserPagePermissionResponse
+                {
+                    PermissionCode = permission.PermissionCode,
+                    Module = permission.Module,
+                    Route = permission.Route,
+                    CompanyId = grant.CompanyId,
+                    CanView = grant.CompanyId != null,
+                    CanCreate = grant.CompanyId != null && grant.CanCreate,
+                    CanEdit = grant.CompanyId != null && grant.CanEdit,
+                    CanDelete = grant.CompanyId != null && grant.CanDelete,
+                    CanApprove = grant.CompanyId != null && grant.CanApprove,
+                    CanExport = grant.CompanyId != null && grant.CanExport,
+                    CanCancel = grant.CompanyId != null && grant.CanCancel,
+                    CanIssue = grant.CompanyId != null && grant.CanIssue,
+                    CanPost = grant.CompanyId != null && grant.CanPost,
+                    CanVoid = grant.CompanyId != null && grant.CanVoid,
+                    CanReverse = grant.CompanyId != null && grant.CanReverse,
+                    CanReconcile = grant.CompanyId != null && grant.CanReconcile
+                };
+
+            return query.ToListAsync(cancellationToken);
         }
     }
 }

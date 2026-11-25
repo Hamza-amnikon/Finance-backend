@@ -1,6 +1,5 @@
 using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using ExpenseService.API.Data;
 using ExpenseService.API.DTOs;
 using ExpenseService.API.Models;
@@ -13,6 +12,7 @@ namespace ExpenseService.API.Controllers
 {
     [ApiController]
     [Route("api/expense-claims")]
+    [ServiceFilter(typeof(ExpenseClaimAccessFilter))]
     public class ExpenseClaimsController : ControllerBase
     {
         private readonly ExpenseDbContext _context;
@@ -32,26 +32,16 @@ namespace ExpenseService.API.Controllers
             _environment = environment;
         }
 
+        private FinanceCompanyScope Scope =>
+            (FinanceCompanyScope)HttpContext.Items[typeof(ExpenseClaimAccessFilter)]!;
+
         private (string Id, bool Admin) Actor()
         {
-            if (User.Identity?.IsAuthenticated == true)
+            if (string.IsNullOrWhiteSpace(Scope.ActorId))
             {
-                var id = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-                if (!string.IsNullOrWhiteSpace(id))
-                {
-                    return (id, User.IsInRole("Admin"));
-                }
+                throw new UnauthorizedAccessException("Sign in to manage expense claims.");
             }
-
-            // Explicit local operator mode only. This is not authentication.
-            // Production will require a verified identity when the auth module is connected.
-            var local = Request.Headers["X-Claim-Operator"].ToString().Trim();
-            if (_environment.IsDevelopment() && local.Length is > 0 and <= 200)
-            {
-                return (local, Request.Headers["X-Claim-Role"] == "Admin");
-            }
-
-            throw new UnauthorizedAccessException("Sign in first, or select a local operator in Development mode.");
+            return (Scope.ActorId, Scope.IsAdmin);
         }
 
         private async Task<IActionResult> Handle(Func<Task<IActionResult>> action)
@@ -118,11 +108,59 @@ namespace ExpenseService.API.Controllers
             }
         }
 
+        [HttpGet("lookups/choices")]
+        public Task<IActionResult> Choices(
+            [FromServices] CompanySetupService setup,
+            CancellationToken cancellationToken)
+        {
+            return Handle(async () =>
+            {
+                var companies = await setup.GetAllAsync(cancellationToken);
+                var currencies = await _lookups.GetCurrenciesAsync(cancellationToken);
+                return Ok(new
+                {
+                    branches = companies.Where(company => Scope.AllowsCompany(company.CompanyId))
+                        .Select(company => new
+                        {
+                            name = company.BranchName,
+                            accountingCompanyId = company.CompanyId,
+                            currency = company.Currency
+                        }),
+                    currencies = currencies.Where(currency => currency.IsActive)
+                        .Select(currency => currency.CurrencyCode)
+                });
+            });
+        }
+
+        [HttpGet("lookups/accounts")]
+        public Task<IActionResult> Accounts(
+            [FromQuery, Range(1, int.MaxValue)] int companyId,
+            CancellationToken cancellationToken)
+        {
+            return Handle(async () => Ok(await _context.Database.SqlQuery<ClaimAccountLookup>($"""
+                SELECT Id, Code, Name, Type FROM accounting.Accounts
+                WHERE CompanyId = {companyId} AND IsActive = 1 AND IsPostingAccount = 1
+                ORDER BY Code
+                """).ToListAsync(cancellationToken)));
+        }
+
+        public sealed class ClaimAccountLookup
+        {
+            public int Id { get; set; }
+            public string Code { get; set; } = "";
+            public string Name { get; set; } = "";
+            public string Type { get; set; } = "";
+        }
+
         [HttpGet]
         public Task<IActionResult> List(CancellationToken cancellationToken) => Handle(async () =>
         {
-            var actor = Actor();
-            var rows = await _context.ExpenseClaims.AsNoTracking().Where(row => actor.Admin || row.CreatedBy == actor.Id).Include(row => row.Receipts).Include(row => row.History).AsSplitQuery().OrderByDescending(row => row.Id).ToListAsync(cancellationToken);
+            var query = _context.ExpenseClaims.AsNoTracking();
+            if (Scope.CompanyIds != null)
+            {
+                query = query.Where(claim => Scope.CompanyIds.Contains(claim.CompanyId));
+            }
+            var rows = await query.Include(row => row.Receipts).Include(row => row.History).AsSplitQuery().OrderByDescending(row => row.Id).ToListAsync(cancellationToken);
             return Ok(rows);
         });
         private static void CheckVersion(
@@ -263,7 +301,13 @@ namespace ExpenseService.API.Controllers
             await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
             var claim = await Find(id, cancellationToken);
             CheckVersion(claim, dto.RowVersion);
-            ExpenseClaimWorkflow.Validate(claim.Status, dto.Status, claim.CreatedBy, actor.Id, actor.Admin, dto.Reason);
+            var permittedDecision = dto.Status switch
+            {
+                "Approved" or "Rejected" => Scope.AllowsCompanyAction(claim.CompanyId, Scope.ApprovableCompanyIds),
+                "Paid" => Scope.AllowsCompanyAction(claim.CompanyId, Scope.PostableCompanyIds),
+                _ => actor.Admin
+            };
+            ExpenseClaimWorkflow.Validate(claim.Status, dto.Status, claim.CreatedBy, actor.Id, permittedDecision, dto.Reason);
             var today = DateOnly.FromDateTime(DateTime.Today);
             if (dto.Status == "Approved")
             {
@@ -428,11 +472,6 @@ namespace ExpenseService.API.Controllers
         {
             var actor = Actor();
             var claim = await Find(id, cancellationToken);
-            if (!actor.Admin && !ExpenseClaimWorkflow.IsOwner(claim.CreatedBy, actor.Id))
-            {
-                throw new UnauthorizedAccessException("This claim belongs to a different operator.");
-            }
-
             var receipt = claim.Receipts.SingleOrDefault(row => row.Id == receiptId) ?? throw new KeyNotFoundException("Receipt not found.");
             return File(receipt.Content, receipt.ContentType, receipt.FileName);
         });

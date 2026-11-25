@@ -19,6 +19,12 @@ namespace PermissionService.API.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<PermissionRoleLookup>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToTable("Roles", "security", table => table.ExcludeFromMigrations());
+            });
+
             modelBuilder.Entity<Permission>(entity =>
             {
                 entity.ToTable("Permissions", "security");

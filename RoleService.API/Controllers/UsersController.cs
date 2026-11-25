@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using RoleService.API.Authentication;
 using RoleService.API.Data;
 using RoleService.API.DTOs;
+using RoleService.API.Models;
 using RoleService.API.Services;
 
 namespace RoleService.API.Controllers
@@ -197,30 +198,13 @@ namespace RoleService.API.Controllers
                 return false;
             }
 
-            var exceedsActorAccess = await _context.Database.SqlQueryRaw<int>("""
-                SELECT CAST(CASE WHEN EXISTS (
-                    SELECT 1 FROM security.RolePermissions target
-                    LEFT JOIN security.RolePermissions actor
-                        ON actor.RoleId = {0} AND actor.CompanyId = target.CompanyId
-                        AND actor.PermissionId = target.PermissionId
-                    WHERE target.RoleId = {1} AND (
-                        (target.CanView = 1 AND ISNULL(actor.CanView, 0) = 0) OR
-                        (target.CanCreate = 1 AND ISNULL(actor.CanCreate, 0) = 0) OR
-                        (target.CanEdit = 1 AND ISNULL(actor.CanEdit, 0) = 0) OR
-                        (target.CanDelete = 1 AND ISNULL(actor.CanDelete, 0) = 0) OR
-                        (target.CanApprove = 1 AND ISNULL(actor.CanApprove, 0) = 0) OR
-                        (target.CanExport = 1 AND ISNULL(actor.CanExport, 0) = 0) OR
-                        (target.CanCancel = 1 AND ISNULL(actor.CanCancel, 0) = 0) OR
-                        (target.CanIssue = 1 AND ISNULL(actor.CanIssue, 0) = 0) OR
-                        (target.CanPost = 1 AND ISNULL(actor.CanPost, 0) = 0) OR
-                        (target.CanVoid = 1 AND ISNULL(actor.CanVoid, 0) = 0) OR
-                        (target.CanReverse = 1 AND ISNULL(actor.CanReverse, 0) = 0) OR
-                        (target.CanReconcile = 1 AND ISNULL(actor.CanReconcile, 0) = 0)
-                    )
-                ) THEN 1 ELSE 0 END AS int) AS Value
-                """, actorRoleId, roleId).SingleAsync(cancellationToken);
+            var exceedsActorAccess = await RoleService.API.Repositories.RoleGrantComparison.ExceedsActorAsync(
+                _context,
+                actorRoleId,
+                roleId,
+                cancellationToken);
 
-            return exceedsActorAccess == 0;
+            return !exceedsActorAccess;
         }
 
         private IActionResult GetChangeResponse(

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using AccountingService.API.Authentication;
 using AccountingService.API.Data;
+using AccountingService.API.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using SparkFinance.Authentication;
@@ -191,16 +192,29 @@ namespace AccountingService.API.Services
             }
 
             // The identity service validates active users and roles. Never accept a role from the browser.
-            var companies = await _context.Database.SqlQuery<CompanyPermission>($"""
-                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete,
-                    rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel,
-                    rp.CanPost, rp.CanVoid, rp.CanReverse, rp.CanReconcile
-                FROM security.RolePermissions rp
-                INNER JOIN security.Permissions p ON p.PermissionId = rp.PermissionId
-                WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId > 0
-                    AND rp.CanView = 1 AND p.Status = 'Active'
-                    AND ({permissionCode} IS NULL OR p.PermissionCode = {permissionCode})
-                """).ToListAsync(cancellationToken);
+            var companies = await (
+                from grant in _context.Set<LedgerCompanyGrantLookup>().AsNoTracking()
+                join permission in _context.Set<LedgerPagePermissionLookup>().AsNoTracking()
+                    on grant.PermissionId equals permission.PermissionId
+                where grant.RoleId == session.RoleId && grant.CompanyId > 0 && grant.CanView &&
+                    permission.Status == "Active" &&
+                    (permissionCode == null || permission.PermissionCode == permissionCode)
+                select new CompanyPermission
+                {
+                    CompanyId = grant.CompanyId!.Value,
+                    CanCreate = grant.CanCreate,
+                    CanEdit = grant.CanEdit,
+                    CanDelete = grant.CanDelete,
+                    CanIssue = grant.CanIssue,
+                    CanApprove = grant.CanApprove,
+                    CanExport = grant.CanExport,
+                    CanCancel = grant.CanCancel,
+                    CanPost = grant.CanPost,
+                    CanVoid = grant.CanVoid,
+                    CanReverse = grant.CanReverse,
+                    CanReconcile = grant.CanReconcile
+                }
+            ).Distinct().ToListAsync(cancellationToken);
 
             return new LedgerAccess(200, false, companies.Select(company => company.CompanyId).Distinct().ToArray())
             {
