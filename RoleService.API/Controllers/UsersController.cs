@@ -110,11 +110,7 @@ namespace RoleService.API.Controllers
         {
             return HandleAsync(async () =>
             {
-                if (!await CanChangeUserAsync(request.RoleId, userId, cancellationToken))
-                {
-                    return Forbid();
-                }
-
+                // UsersPermissionFilter requires Users Edit for every role assignment.
                 var (result, user) = await _service.UpdateAsync(
                     userId,
                     request,

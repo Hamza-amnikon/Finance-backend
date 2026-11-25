@@ -18,7 +18,8 @@ namespace SalesEstimateService.API.Repositories
             string? search,
             SalesEstimateStatus? status,
             CancellationToken cancellationToken,
-            string? branch = null);
+            string? branch = null,
+            string[]? allowedBranches = null);
 
         Task<SalesEstimate?> CompleteConversionAsync(
             int id,

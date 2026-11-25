@@ -90,6 +90,7 @@ builder.Services.AddScoped<
     UserPagePermissionRepository>();
 
 builder.Services.AddScoped<UsersPermissionFilter>();
+builder.Services.AddScoped<RoleManagementPermissionFilter>();
 
 builder.Services.AddFinanceMicrosoftAuthentication(
     builder.Configuration,

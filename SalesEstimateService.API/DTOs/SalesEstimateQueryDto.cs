@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using SalesEstimateService.API.Models;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace SalesEstimateService.API.DTOs
 {
@@ -19,5 +20,8 @@ namespace SalesEstimateService.API.DTOs
 
         [EnumDataType(typeof(SalesEstimateStatus))]
         public SalesEstimateStatus? Status { get; set; }
+
+        [BindNever]
+        public string[]? AllowedBranches { get; set; }
     }
 }

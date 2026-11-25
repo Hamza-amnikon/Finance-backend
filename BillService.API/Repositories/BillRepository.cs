@@ -28,6 +28,10 @@ namespace BillService.API.Repositories
         )
         {
             var rows = _context.Bills.AsNoTracking();
+            if (query.AllowedBranches != null)
+            {
+                rows = rows.Where(row => query.AllowedBranches.Contains(row.Branch));
+            }
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
                 var search = query.Search.Trim();

@@ -33,6 +33,9 @@ namespace BankingService.API.DTOs
 
         public DateOnly? To { get; set; }
 
+        [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+        public int[]? AllowedCompanyIds { get; set; }
+
         public IEnumerable<ValidationResult> Validate(
             ValidationContext context)
         {

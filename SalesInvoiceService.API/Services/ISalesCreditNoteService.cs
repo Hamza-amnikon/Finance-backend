@@ -25,7 +25,8 @@ namespace SalesInvoiceService.API.Services
                 string? search,
                 SalesCreditNoteStatus? status,
                 CancellationToken cancellationToken,
-                string? branch = null);
+                string? branch = null,
+                string[]? allowedBranches = null);
 
         Task<SalesCreditNoteResponseDto?> IssueAsync(
             int id,

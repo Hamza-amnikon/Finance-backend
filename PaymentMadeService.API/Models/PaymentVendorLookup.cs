@@ -10,6 +10,8 @@ namespace PaymentMadeService.API.Models
 
         public string CompanyName { get; set; } = "";
 
+        public string Branch { get; set; } = "";
+
         public bool IsActive { get; set; }
     }
 }

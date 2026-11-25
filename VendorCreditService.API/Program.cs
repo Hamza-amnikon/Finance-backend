@@ -8,6 +8,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<VendorCreditAccessFilter>();
+builder.Services.AddHttpClient<FinanceCompanyAccess>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(20);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
+    UseCookies = false
+});
 builder.Services.AddOpenApi();
 
 var connectionString = builder.Configuration

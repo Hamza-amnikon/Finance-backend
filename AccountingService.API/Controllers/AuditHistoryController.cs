@@ -49,32 +49,49 @@ namespace AccountingService.API.Controllers
     public class AuditHistoryController : ControllerBase
     {
         private readonly AccountingDbContext _context;
-        private readonly IWebHostEnvironment _environment;
+        private readonly IAccountingPageAccess _access;
         private readonly ILogger<AuditHistoryController> _logger;
         public AuditHistoryController(
             AccountingDbContext context,
-            IWebHostEnvironment environment,
+            IAccountingPageAccess access,
             ILogger<AuditHistoryController> logger
         )
         {
             _context = context;
-            _environment = environment;
+            _access = access;
             _logger = logger;
         }
 
-        private bool Allowed() => User.Identity?.IsAuthenticated == true ? User.IsInRole("Admin") : _environment.IsDevelopment() && Request.Headers["X-Audit-Role"] == "Admin";
         private async Task<IActionResult> Handle(Func<Task<IActionResult>> action)
         {
-            if (!Allowed())
+            LedgerAccess access;
+            try
             {
-                return StatusCode(
-                                403,
-                                new
-                                {
-                                    message = "Administrator access is required. Local role headers are accepted only in Development mode until authentication is connected."
-                                }
-                            );
+                access = await _access.GetAsync(Request, "settings.audit", HttpContext.RequestAborted);
             }
+            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                return StatusCode(499);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "Audit History access verification failed.");
+                return StatusCode(503, new { message = "Access verification is unavailable. Please retry." });
+            }
+
+            if (access.Status != 200)
+            {
+                return StatusCode(access.Status, new { message = "Sign in to access Audit History." });
+            }
+
+            var exporting = HttpContext.Request.Path.Value?.EndsWith("/export", StringComparison.OrdinalIgnoreCase) == true;
+            if (!access.IsAdmin &&
+                (exporting ? access.ExportableCompanyIds.Count : access.CompanyIds.Count) == 0)
+            {
+                return StatusCode(403, new { message = "Your role does not have this Audit History action." });
+            }
+
+            HttpContext.Items[typeof(AuditHistoryController)] = access;
 
             try
             {
@@ -116,6 +133,14 @@ namespace AccountingService.API.Controllers
             }
 
             var rows = AuditActivityFilter.Apply(_context, query.Activity);
+            var access = (LedgerAccess)HttpContext.Items[typeof(AuditHistoryController)]!;
+            if (!access.IsAdmin)
+            {
+                var companies = HttpContext.Request.Path.Value?.EndsWith("/export", StringComparison.OrdinalIgnoreCase) == true
+                    ? access.ExportableCompanyIds.ToArray()
+                    : access.CompanyIds.ToArray();
+                rows = rows.Where(row => row.CompanyId.HasValue && companies.Contains(row.CompanyId.Value));
+            }
             if (query.From.HasValue)
             {
                 rows = rows.Where(row => row.AtUtc >= query.From.Value);
@@ -187,9 +212,17 @@ namespace AccountingService.API.Controllers
         public Task<IActionResult> Lookups([FromQuery] string? activity, CancellationToken cancellationToken) => Handle(async () =>
         {
             var rows = AuditActivityFilter.Apply(_context, activity);
-            var savedBranches = await _context.Database
-                .SqlQueryRaw<string>("SELECT Name AS Value FROM amnikon.Branches")
-                .ToListAsync(cancellationToken);
+            var access = (LedgerAccess)HttpContext.Items[typeof(AuditHistoryController)]!;
+            if (!access.IsAdmin)
+            {
+                var companies = access.CompanyIds.ToArray();
+                rows = rows.Where(row => row.CompanyId.HasValue && companies.Contains(row.CompanyId.Value));
+            }
+            var savedBranches = access.IsAdmin
+                ? await _context.Database
+                    .SqlQueryRaw<string>("SELECT Name AS Value FROM amnikon.Branches")
+                    .ToListAsync(cancellationToken)
+                : [];
             var metadata = await rows.Select(row => new
             {
                 row.Service,

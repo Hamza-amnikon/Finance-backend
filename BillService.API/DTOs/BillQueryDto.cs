@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using BillService.API.Models;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace BillService.API.DTOs
 {
@@ -11,5 +12,7 @@ namespace BillService.API.DTOs
         public string? Search { get; set; }
         [EnumDataType(typeof(BillStatus))]
         public BillStatus? Status { get; set; }
+        [BindNever]
+        public string[]? AllowedBranches { get; set; }
     }
 }

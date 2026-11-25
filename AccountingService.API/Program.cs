@@ -27,6 +27,7 @@ builder.Services.AddScoped<IGeneralLedgerAccess>(services => services.GetRequire
 builder.Services.AddScoped<IAccountingPageAccess>(services => services.GetRequiredService<GeneralLedgerAccess>());
 builder.Services.AddScoped<AccountingService.API.Controllers.GeneralLedgerAccessFilter>();
 builder.Services.AddScoped<AccountingService.API.Controllers.AccountsAccessFilter>();
+builder.Services.AddScoped<AccountingService.API.Controllers.TaxSettingsAccessFilter>();
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";

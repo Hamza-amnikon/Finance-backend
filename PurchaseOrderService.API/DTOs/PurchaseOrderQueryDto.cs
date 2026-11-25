@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using PurchaseOrderService.API.Models;
 
 namespace PurchaseOrderService.API.DTOs;
@@ -11,4 +12,7 @@ public class PurchaseOrderQueryDto
     public string? Search { get; set; }
     [EnumDataType(typeof(PurchaseOrderStatus))]
     public PurchaseOrderStatus? Status { get; set; }
+
+    [BindNever]
+    public string[]? AllowedBranches { get; set; }
 }

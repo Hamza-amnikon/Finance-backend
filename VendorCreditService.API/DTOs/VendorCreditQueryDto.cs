@@ -1,10 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using VendorCreditService.API.Models;
 
 namespace VendorCreditService.API.DTOs
 {
     public class VendorCreditQueryDto : IValidatableObject
     {
+        [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+        public string[]? AllowedBranches { get; set; }
+
         [Range(1, int.MaxValue)]
         public int Page { get; set; } = 1;
 

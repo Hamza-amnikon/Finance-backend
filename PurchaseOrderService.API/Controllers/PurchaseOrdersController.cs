@@ -16,15 +16,18 @@ namespace PurchaseOrderService.API.Controllers
     {
         private readonly IPurchaseOrderService _service;
         private readonly PurchaseOrderDbContext _context;
+        private readonly FinanceCompanyAccess _access;
         private readonly ILogger<PurchaseOrdersController> _logger;
 
         public PurchaseOrdersController(
             IPurchaseOrderService service,
             PurchaseOrderDbContext context,
+            FinanceCompanyAccess access,
             ILogger<PurchaseOrdersController> logger)
         {
             _service = service;
             _context = context;
+            _access = access;
             _logger = logger;
         }
 
@@ -35,6 +38,14 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                query.AllowedBranches = scope.Branches;
                 var result = await _service.GetPagedAsync(
                     query,
                     cancellationToken);
@@ -56,11 +67,18 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                Response.Headers.CacheControl = "no-store";
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var order = await _service.GetByIdAsync(
                     id,
                     cancellationToken);
 
-                if (order == null)
+                if (order == null || !scope.Allows(order.Branch))
                 {
                     return NotFound(new
                     {
@@ -79,6 +97,12 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch, scope.CreatableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 var order = await _service.CreateAsync(
                     dto,
                     cancellationToken);
@@ -100,6 +124,13 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (!scope.AllowsAction(dto.Branch, scope.CreatableBranches) &&
+                    !scope.AllowsAction(dto.Branch, scope.EditableBranches))
+                {
+                    return StatusCode(scope.Status == 200 ? 403 : scope.Status);
+                }
+
                 var order = await _service.PreviewAsync(
                     dto,
                     cancellationToken);
@@ -116,6 +147,24 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.EditableBranches) ||
+                    !scope.AllowsAction(dto.Branch, scope.EditableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var order = await _service.UpdateAsync(
                     id,
                     dto,
@@ -141,6 +190,23 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.IssuableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var order = await _service.ChangeStatusAsync(
                     id,
                     PurchaseOrderStatus.Issued,
@@ -167,6 +233,23 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleSaveAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing == null || !scope.Allows(existing.Branch))
+                {
+                    return NotFound();
+                }
+
+                if (!scope.AllowsAction(existing.Branch, scope.CancellableBranches))
+                {
+                    return StatusCode(403);
+                }
+
                 var order = await _service.ChangeStatusAsync(
                     id,
                     PurchaseOrderStatus.Cancelled,
@@ -191,8 +274,19 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
-                var groups = await _context.PurchaseOrders
-                    .AsNoTracking()
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var orders = _context.PurchaseOrders.AsNoTracking();
+                if (scope.Branches != null)
+                {
+                    orders = orders.Where(order => scope.Branches.Contains(order.Branch));
+                }
+
+                var groups = await orders
                     .GroupBy(order => order.Status)
                     .Select(group => new
                     {
@@ -232,9 +326,20 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var query = _context.Vendors
                     .AsNoTracking()
                     .Where(vendor => vendor.IsActive);
+
+                if (scope.Branches != null)
+                {
+                    query = query.Where(vendor => scope.Branches.Contains(vendor.Branch));
+                }
 
                 if (!string.IsNullOrWhiteSpace(search))
                 {
@@ -275,6 +380,12 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var currencies = await _context.Currencies
                     .AsNoTracking()
                     .Where(currency => currency.IsActive)
@@ -291,9 +402,22 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
-                var branches = await _context.Branches
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var branchQuery = _context.Branches
                     .AsNoTracking()
-                    .Where(branch => branch.IsActive)
+                    .Where(branch => branch.IsActive);
+
+                if (scope.Branches != null)
+                {
+                    branchQuery = branchQuery.Where(branch => scope.Branches.Contains(branch.Name));
+                }
+
+                var branches = await branchQuery
                     .OrderBy(branch => branch.Name)
                     .ToListAsync(cancellationToken);
 
@@ -307,6 +431,12 @@ namespace PurchaseOrderService.API.Controllers
         {
             return HandleReadAsync(async () =>
             {
+                var scope = await _access.GetAsync(Request, "/purchases/orders", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
                 var paymentModes = await _context.PaymentModes
                     .AsNoTracking()
                     .Where(mode => mode.IsActive)

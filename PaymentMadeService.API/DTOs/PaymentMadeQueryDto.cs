@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using PaymentMadeService.API.Models;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 namespace PaymentMadeService.API.DTOs
 {
     public class PaymentMadeQueryDto
@@ -24,5 +25,8 @@ namespace PaymentMadeService.API.DTOs
         public DateOnly? FromDate { get; set; }
 
         public DateOnly? ToDate { get; set; }
+
+        [BindNever]
+        public string[]? AllowedBranches { get; set; }
     }
 }

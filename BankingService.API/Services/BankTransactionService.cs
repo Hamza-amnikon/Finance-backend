@@ -34,6 +34,12 @@ namespace BankingService.API.Services
 
             var source = _repository.Query();
 
+            if (query.AllowedCompanyIds != null)
+            {
+                source = source.Where(transaction =>
+                    query.AllowedCompanyIds.Contains(transaction.CompanyId));
+            }
+
             if (query.BankAccountId.HasValue)
             {
                 source = source.Where(

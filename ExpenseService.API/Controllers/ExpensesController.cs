@@ -12,6 +12,7 @@ namespace ExpenseService.API.Controllers
 {
     [ApiController]
     [Route("api/expenses")]
+    [ServiceFilter(typeof(ExpenseAccessFilter))]
     public class ExpensesController : ControllerBase
     {
         private readonly IExpenseService _service;
@@ -142,6 +143,15 @@ namespace ExpenseService.API.Controllers
 
                 return Ok(currencies);
             }, cancellationToken);
+        }
+
+        [HttpGet("lookups/company-setup/{usage}")]
+        public Task<IActionResult> LookupCompanySetup(
+            string usage,
+            [FromServices] CompanySetupService setup,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync(async () => Ok(await setup.GetAllAsync(cancellationToken)), cancellationToken);
         }
 
         [HttpGet("company-setup")]

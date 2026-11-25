@@ -13,13 +13,22 @@ namespace BankingService.API.Controllers
     public class BankReconciliationsController : ControllerBase
     {
         private readonly IBankReconciliationService _service;
+        private readonly IBankAccountService _accounts;
+        private readonly IBankTransferService _transfers;
+        private readonly FinanceCompanyAccess _access;
         private readonly ILogger<BankReconciliationsController> _logger;
 
         public BankReconciliationsController(
             IBankReconciliationService service,
+            IBankAccountService accounts,
+            IBankTransferService transfers,
+            FinanceCompanyAccess access,
             ILogger<BankReconciliationsController> logger)
         {
             _service = service;
+            _accounts = accounts;
+            _transfers = transfers;
+            _access = access;
             _logger = logger;
         }
 
@@ -31,6 +40,13 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var scope = await _access.GetAsync(Request, "/banking/reconciliation", cancellationToken);
+                    if (scope.Status != 200)
+                    {
+                        return StatusCode(scope.Status);
+                    }
+
+                    query.AllowedCompanyIds = scope.CompanyIds;
                     var result = await _service.GetPagedAsync(
                         query,
                         cancellationToken);
@@ -48,11 +64,17 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var scope = await _access.GetAsync(Request, "/banking/reconciliation", cancellationToken);
+                    if (scope.Status != 200)
+                    {
+                        return StatusCode(scope.Status);
+                    }
+
                     var result = await _service.GetByIdAsync(
                         id,
                         cancellationToken);
 
-                    if (result == null)
+                    if (result == null || !scope.AllowsCompany(result.CompanyId))
                     {
                         return ReconciliationNotFound();
                     }
@@ -70,6 +92,18 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var scope = await _access.GetAsync(Request, "/banking/reconciliation", cancellationToken);
+                    if (scope.Status != 200)
+                    {
+                        return StatusCode(scope.Status);
+                    }
+
+                    var account = await _accounts.GetByIdAsync(dto.BankAccountId, cancellationToken);
+                    if (account == null || !scope.AllowsCompanyAction(account.CompanyId, scope.CreatableCompanyIds))
+                    {
+                        return StatusCode(403);
+                    }
+
                     var result = await _service.CreateAsync(
                         dto,
                         cancellationToken);
@@ -95,6 +129,12 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(id, false, cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result = await _service.MatchAsync(
                         id,
                         lineId,
@@ -120,6 +160,12 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(id, false, cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result = await _service.AutoMatchAsync(
                         id,
                         dto,
@@ -144,6 +190,12 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(id, true, cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result = await _service.CompleteAsync(
                         id,
                         dto,
@@ -157,6 +209,81 @@ namespace BankingService.API.Controllers
                     return Ok(result);
                 },
                 cancellationToken);
+        }
+
+        [HttpGet("lookups/transfers")]
+        public Task<IActionResult> Transfers(
+            [FromQuery] BankTransferQueryDto query,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync(async () =>
+            {
+                var scope = await _access.GetAsync(Request, "/banking/reconciliation", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                query.AllowedCompanyIds = scope.CompanyIds;
+                return Ok(await _transfers.GetPagedAsync(query, cancellationToken));
+            }, cancellationToken);
+        }
+
+        [HttpGet("lookups/accounts")]
+        public Task<IActionResult> Accounts(
+            [FromQuery] BankAccountQueryDto query,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync(async () =>
+            {
+                var scope = await _access.GetAsync(Request, "/banking/reconciliation", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                query.AllowedCompanyIds = scope.CompanyIds;
+                return Ok(await _accounts.GetPagedAsync(query, cancellationToken));
+            }, cancellationToken);
+        }
+
+        [HttpGet("lookups/accounts/{id:int:min(1)}")]
+        public Task<IActionResult> Account(int id, CancellationToken cancellationToken)
+        {
+            return HandleAsync(async () =>
+            {
+                var scope = await _access.GetAsync(Request, "/banking/reconciliation", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var account = await _accounts.GetByIdAsync(id, cancellationToken);
+                return account == null || !scope.AllowsCompany(account.CompanyId)
+                    ? NotFound()
+                    : Ok(account);
+            }, cancellationToken);
+        }
+
+        private async Task<IActionResult?> DenyActionAsync(
+            int id,
+            bool completing,
+            CancellationToken cancellationToken)
+        {
+            var scope = await _access.GetAsync(Request, "/banking/reconciliation", cancellationToken);
+            if (scope.Status != 200)
+            {
+                return StatusCode(scope.Status);
+            }
+
+            var record = await _service.GetByIdAsync(id, cancellationToken);
+            if (record == null || !scope.AllowsCompany(record.CompanyId))
+            {
+                return ReconciliationNotFound();
+            }
+
+            var companyIds = completing ? scope.ReconcilableCompanyIds : scope.EditableCompanyIds;
+            return scope.AllowsCompanyAction(record.CompanyId, companyIds) ? null : StatusCode(403);
         }
 
         private NotFoundObjectResult ReconciliationNotFound()

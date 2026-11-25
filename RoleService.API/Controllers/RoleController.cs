@@ -74,7 +74,8 @@ namespace RoleService.API.Controllers
             return Ok(role);
         }
 
-        [Authorize(Roles = DevelopmentAdminEndpoints.AdminRole)]
+        [Authorize]
+        [ServiceFilter(typeof(RoleManagementPermissionFilter))]
         [HttpPost]
         public async Task<ActionResult<Roles>> CreateRole(
             RoleRequest request,
@@ -103,7 +104,8 @@ namespace RoleService.API.Controllers
             }, role);
         }
 
-        [Authorize(Roles = DevelopmentAdminEndpoints.AdminRole)]
+        [Authorize]
+        [ServiceFilter(typeof(RoleManagementPermissionFilter))]
         [HttpPut("{id:int}")]
         public async Task<IActionResult> UpdateRole(
             int id,
@@ -135,7 +137,8 @@ namespace RoleService.API.Controllers
             return GetChangeResponse(result);
         }
 
-        [Authorize(Roles = DevelopmentAdminEndpoints.AdminRole)]
+        [Authorize]
+        [ServiceFilter(typeof(RoleManagementPermissionFilter))]
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteRole(
             int id,

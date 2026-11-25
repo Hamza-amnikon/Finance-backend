@@ -39,6 +39,14 @@ namespace AccountingService.API.Services
 
         public IReadOnlyList<int> IssuableCompanyIds { get; init; } = [];
 
+        public IReadOnlyList<int> PostableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> VoidableCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> ReversibleCompanyIds { get; init; } = [];
+
+        public IReadOnlyList<int> ReconcilableCompanyIds { get; init; } = [];
+
         public bool Allows(int companyId)
         {
             return Status == 200 && companyId > 0 && (IsAdmin || CompanyIds.Contains(companyId));
@@ -184,7 +192,9 @@ namespace AccountingService.API.Services
 
             // The identity service validates active users and roles. Never accept a role from the browser.
             var companies = await _context.Database.SqlQuery<CompanyPermission>($"""
-                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete, rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel
+                SELECT DISTINCT rp.CompanyId, rp.CanCreate, rp.CanEdit, rp.CanDelete,
+                    rp.CanIssue, rp.CanApprove, rp.CanExport, rp.CanCancel,
+                    rp.CanPost, rp.CanVoid, rp.CanReverse, rp.CanReconcile
                 FROM security.RolePermissions rp
                 INNER JOIN security.Permissions p ON p.PermissionId = rp.PermissionId
                 WHERE rp.RoleId = {session.RoleId} AND rp.CompanyId > 0
@@ -207,6 +217,14 @@ namespace AccountingService.API.Services
                 ApprovableCompanyIds = companies.Where(company => company.CanApprove)
                     .Select(company => company.CompanyId).Distinct().ToArray(),
                 IssuableCompanyIds = companies.Where(company => company.CanIssue)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                PostableCompanyIds = companies.Where(company => company.CanPost)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                VoidableCompanyIds = companies.Where(company => company.CanVoid)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                ReversibleCompanyIds = companies.Where(company => company.CanReverse)
+                    .Select(company => company.CompanyId).Distinct().ToArray(),
+                ReconcilableCompanyIds = companies.Where(company => company.CanReconcile)
                     .Select(company => company.CompanyId).Distinct().ToArray()
             };
         }
@@ -231,6 +249,10 @@ namespace AccountingService.API.Services
             public bool CanCancel { get; set; }
             public bool CanApprove { get; set; }
             public bool CanExport { get; set; }
+            public bool CanPost { get; set; }
+            public bool CanVoid { get; set; }
+            public bool CanReverse { get; set; }
+            public bool CanReconcile { get; set; }
         }
 
         private sealed class VerifiedSession

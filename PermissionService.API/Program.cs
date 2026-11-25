@@ -6,6 +6,7 @@ using PermissionService.API.Repositories;
 using PermissionService.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddScoped<PermissionService.API.Authentication.RolePermissionsAccessFilter>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

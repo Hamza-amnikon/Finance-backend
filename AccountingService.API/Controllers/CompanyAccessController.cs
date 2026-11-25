@@ -64,6 +64,10 @@ namespace AccountingService.API.Controllers
                     access.ApprovableCompanyIds,
                     access.CancellableCompanyIds,
                     access.ExportableCompanyIds,
+                    access.PostableCompanyIds,
+                    access.VoidableCompanyIds,
+                    access.ReversibleCompanyIds,
+                    access.ReconcilableCompanyIds,
                     actorId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
                     branches = branches.Where(branch => access.IsAdmin ||
                         (branch.AccountingCompanyId is int id && access.Allows(id)))

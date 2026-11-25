@@ -20,5 +20,8 @@ namespace BankingService.API.DTOs
         public string? Currency { get; set; }
 
         public bool? IsActive { get; set; }
+
+        [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+        public int[]? AllowedCompanyIds { get; set; }
     }
 }

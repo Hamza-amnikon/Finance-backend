@@ -1,4 +1,4 @@
-﻿using SparkFinance.Http;
+using SparkFinance.Http;
 using System.ComponentModel.DataAnnotations;
 using BankingService.API.DTOs;
 using BankingService.API.Services;
@@ -13,13 +13,19 @@ namespace BankingService.API.Controllers
     public class BankTransfersController : ControllerBase
     {
         private readonly IBankTransferService _service;
+        private readonly IBankAccountService _accounts;
+        private readonly FinanceCompanyAccess _access;
         private readonly ILogger<BankTransfersController> _logger;
 
         public BankTransfersController(
             IBankTransferService service,
+            IBankAccountService accounts,
+            FinanceCompanyAccess access,
             ILogger<BankTransfersController> logger)
         {
             _service = service;
+            _accounts = accounts;
+            _access = access;
             _logger = logger;
         }
 
@@ -31,6 +37,13 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var scope = await _access.GetAsync(Request, "/banking/transfers", cancellationToken);
+                    if (scope.Status != 200)
+                    {
+                        return StatusCode(scope.Status);
+                    }
+
+                    query.AllowedCompanyIds = scope.CompanyIds;
                     var result = await _service.GetPagedAsync(
                         query,
                         cancellationToken);
@@ -48,11 +61,17 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var scope = await _access.GetAsync(Request, "/banking/transfers", cancellationToken);
+                    if (scope.Status != 200)
+                    {
+                        return StatusCode(scope.Status);
+                    }
+
                     var result = await _service.GetByIdAsync(
                         id,
                         cancellationToken);
 
-                    if (result == null)
+                    if (result == null || !(scope.AllowsCompany(result.SourceCompanyId) || scope.AllowsCompany(result.DestinationCompanyId)))
                     {
                         return TransferNotFound();
                     }
@@ -70,6 +89,21 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var scope = await _access.GetAsync(Request, "/banking/transfers", cancellationToken);
+                    if (scope.Status != 200)
+                    {
+                        return StatusCode(scope.Status);
+                    }
+
+                    var source = await _accounts.GetByIdAsync(dto.SourceBankAccountId, cancellationToken);
+                    var destination = await _accounts.GetByIdAsync(dto.DestinationBankAccountId, cancellationToken);
+                    if (source == null || destination == null ||
+                        !scope.AllowsCompanyAction(source.CompanyId, scope.CreatableCompanyIds) ||
+                        !scope.AllowsCompany(destination.CompanyId))
+                    {
+                        return StatusCode(403);
+                    }
+
                     var result = await _service.CreateAsync(
                         dto,
                         cancellationToken);
@@ -94,6 +128,12 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(id, "edit", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result = await _service.UpdateAsync(
                         id,
                         dto,
@@ -118,6 +158,12 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(id, "send", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result = await _service.ConfirmSentAsync(
                         id,
                         dto,
@@ -142,6 +188,12 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(id, "receive", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result = await _service.ConfirmReceivedAsync(
                         id,
                         dto,
@@ -166,6 +218,12 @@ namespace BankingService.API.Controllers
             return HandleAsync(
                 async () =>
                 {
+                    var denied = await DenyActionAsync(id, "cancel", cancellationToken);
+                    if (denied != null)
+                    {
+                        return denied;
+                    }
+
                     var result = await _service.CancelAsync(
                         id,
                         dto,
@@ -179,6 +237,68 @@ namespace BankingService.API.Controllers
                     return Ok(result);
                 },
                 cancellationToken);
+        }
+
+        [HttpGet("lookups/accounts")]
+        public Task<IActionResult> Accounts(
+            [FromQuery] BankAccountQueryDto query,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync(async () =>
+            {
+                var scope = await _access.GetAsync(Request, "/banking/transfers", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                query.AllowedCompanyIds = scope.CompanyIds;
+                return Ok(await _accounts.GetPagedAsync(query, cancellationToken));
+            }, cancellationToken);
+        }
+
+        [HttpGet("lookups/companies")]
+        public Task<IActionResult> Companies(CancellationToken cancellationToken)
+        {
+            return HandleAsync(async () =>
+            {
+                var scope = await _access.GetAsync(Request, "/banking/transfers", cancellationToken);
+                if (scope.Status != 200)
+                {
+                    return StatusCode(scope.Status);
+                }
+
+                var companies = await _accounts.GetCompaniesAsync(cancellationToken);
+                return Ok(companies.Where(company => scope.AllowsCompany(company.Id)));
+            }, cancellationToken);
+        }
+
+        private async Task<IActionResult?> DenyActionAsync(
+            int id,
+            string action,
+            CancellationToken cancellationToken)
+        {
+            var scope = await _access.GetAsync(Request, "/banking/transfers", cancellationToken);
+            if (scope.Status != 200)
+            {
+                return StatusCode(scope.Status);
+            }
+
+            var record = await _service.GetByIdAsync(id, cancellationToken);
+            if (record == null || !(scope.AllowsCompany(record.SourceCompanyId) ||
+                scope.AllowsCompany(record.DestinationCompanyId)))
+            {
+                return TransferNotFound();
+            }
+
+            var companyId = action == "receive" ? record.DestinationCompanyId : record.SourceCompanyId;
+            var companyIds = action switch
+            {
+                "edit" => scope.EditableCompanyIds,
+                "cancel" => scope.CancellableCompanyIds,
+                _ => scope.PostableCompanyIds
+            };
+            return scope.AllowsCompanyAction(companyId, companyIds) ? null : StatusCode(403);
         }
 
         private NotFoundObjectResult TransferNotFound()

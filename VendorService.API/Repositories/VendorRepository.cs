@@ -18,6 +18,7 @@ namespace VendorService.API.Repositories
             int pageSize,
             string? search,
             bool? isActive,
+            string[]? allowedBranches,
             CancellationToken cancellationToken)
         {
             if (page < 1)
@@ -44,6 +45,11 @@ namespace VendorService.API.Repositories
             }
 
             var query = _context.Vendors.AsNoTracking();
+
+            if (allowedBranches != null)
+            {
+                query = query.Where(vendor => allowedBranches.Contains(vendor.Branch));
+            }
 
             if (isActive.HasValue)
             {

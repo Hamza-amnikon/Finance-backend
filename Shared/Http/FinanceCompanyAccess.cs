@@ -41,10 +41,24 @@ namespace SparkFinance.Http
                     200,
                     payload.IsAdmin ? null : payload.Branches.Select(branch => branch.Name).ToArray())
                 {
+                    CompanyIds = payload.IsAdmin ? null : payload.CompanyIds ?? [],
+                    CreatableCompanyIds = payload.CreatableCompanyIds ?? [],
+                    EditableCompanyIds = payload.EditableCompanyIds ?? [],
+                    CancellableCompanyIds = payload.CancellableCompanyIds ?? [],
+                    PostableCompanyIds = payload.PostableCompanyIds ?? [],
+                    ReconcilableCompanyIds = payload.ReconcilableCompanyIds ?? [],
+                    VoidableCompanyIds = payload.VoidableCompanyIds ?? [],
                     CreatableBranches = MapBranches(payload, payload.CreatableCompanyIds),
                     EditableBranches = MapBranches(payload, payload.EditableCompanyIds),
                     DeletableBranches = MapBranches(payload, payload.DeletableCompanyIds),
-                    IssuableBranches = MapBranches(payload, payload.IssuableCompanyIds)
+                    IssuableBranches = MapBranches(payload, payload.IssuableCompanyIds),
+                    ApprovableBranches = MapBranches(payload, payload.ApprovableCompanyIds),
+                    CancellableBranches = MapBranches(payload, payload.CancellableCompanyIds),
+                    ExportableBranches = MapBranches(payload, payload.ExportableCompanyIds),
+                    PostableBranches = MapBranches(payload, payload.PostableCompanyIds),
+                    VoidableBranches = MapBranches(payload, payload.VoidableCompanyIds),
+                    ReversibleBranches = MapBranches(payload, payload.ReversibleCompanyIds),
+                    ReconcilableBranches = MapBranches(payload, payload.ReconcilableCompanyIds)
                 };
             }
             catch (Exception exception) when (!RequestCancellation.IsCancellation(exception, cancellationToken))
@@ -54,8 +68,13 @@ namespace SparkFinance.Http
             }
         }
 
-        private static string[] MapBranches(CompanyAccessResponse scope, int[] companyIds)
+        private static string[] MapBranches(CompanyAccessResponse scope, int[]? companyIds)
         {
+            if (companyIds == null)
+            {
+                return [];
+            }
+
             return scope.Branches.Where(branch => branch.AccountingCompanyId is int id && companyIds.Contains(id))
                 .Select(branch => branch.Name)
                 .ToArray();
@@ -64,24 +83,65 @@ namespace SparkFinance.Http
         private sealed record CompanyAccessResponse(
             bool IsAdmin,
             Branch[] Branches,
+            int[] CompanyIds,
             int[] CreatableCompanyIds,
             int[] EditableCompanyIds,
             int[] DeletableCompanyIds,
-            int[] IssuableCompanyIds);
+            int[] IssuableCompanyIds,
+            int[] ApprovableCompanyIds,
+            int[] CancellableCompanyIds,
+            int[] ExportableCompanyIds,
+            int[]? PostableCompanyIds,
+            int[]? VoidableCompanyIds,
+            int[]? ReversibleCompanyIds,
+            int[]? ReconcilableCompanyIds);
 
         private sealed record Branch(string Name, int? AccountingCompanyId);
     }
 
     public sealed record FinanceCompanyScope(int Status, string[]? Branches)
     {
+        public int[]? CompanyIds { get; init; } = [];
+        public int[] CreatableCompanyIds { get; init; } = [];
+        public int[] EditableCompanyIds { get; init; } = [];
+        public int[] CancellableCompanyIds { get; init; } = [];
+        public int[] PostableCompanyIds { get; init; } = [];
+        public int[] ReconcilableCompanyIds { get; init; } = [];
+        public int[] VoidableCompanyIds { get; init; } = [];
         public string[] CreatableBranches { get; init; } = [];
         public string[] EditableBranches { get; init; } = [];
         public string[] DeletableBranches { get; init; } = [];
         public string[] IssuableBranches { get; init; } = [];
 
+        public string[] ApprovableBranches { get; init; } = [];
+
+        public string[] CancellableBranches { get; init; } = [];
+
+        public string[] ExportableBranches { get; init; } = [];
+
+        public string[] PostableBranches { get; init; } = [];
+
+        public string[] VoidableBranches { get; init; } = [];
+
+        public string[] ReversibleBranches { get; init; } = [];
+
+        public string[] ReconcilableBranches { get; init; } = [];
+
         public bool AllowsAction(string? branch, string[] actionBranches)
         {
             return Allows(branch) && (Branches == null || actionBranches.Contains(branch, StringComparer.OrdinalIgnoreCase));
+        }
+
+        public bool AllowsCompany(int companyId)
+        {
+            return Status == 200 && companyId > 0 &&
+                (CompanyIds == null || CompanyIds.Contains(companyId));
+        }
+
+        public bool AllowsCompanyAction(int companyId, int[] actionCompanyIds)
+        {
+            return AllowsCompany(companyId) &&
+                (CompanyIds == null || actionCompanyIds.Contains(companyId));
         }
 
         public bool Allows(string? branch)

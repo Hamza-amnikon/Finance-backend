@@ -8,6 +8,7 @@ namespace AccountingService.API.Controllers
 {
     [ApiController]
     [Route("api/tax-settings/vat-setup")]
+    [ServiceFilter(typeof(TaxSettingsAccessFilter))]
     public class GeneralVatSetupController : ControllerBase
     {
         private readonly GeneralVatSetupService _service;

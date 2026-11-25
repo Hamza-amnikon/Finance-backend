@@ -4,6 +4,9 @@ namespace ExpenseService.API.DTOs
 {
     public class ExpenseQueryDto
     {
+        [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+        public int[]? AllowedCompanyIds { get; set; }
+
         [Range(1, int.MaxValue)]
         public int? CompanyId { get; set; }
 

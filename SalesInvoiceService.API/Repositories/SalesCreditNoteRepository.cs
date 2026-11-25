@@ -78,7 +78,8 @@ namespace SalesInvoiceService.API.Repositories
                 string? search,
                 SalesCreditNoteStatus? status,
                 CancellationToken cancellationToken,
-                string? branch = null)
+                string? branch = null,
+                string[]? allowedBranches = null)
         {
             if (page < 1 || pageSize < 1 || pageSize > 100)
             {
@@ -98,6 +99,11 @@ namespace SalesInvoiceService.API.Repositories
             var query = _context.SalesCreditNotes
                 .AsNoTracking()
                 .AsQueryable();
+
+            if (allowedBranches != null)
+            {
+                query = query.Where(credit => allowedBranches.Contains(credit.SalesInvoice.Branch));
+            }
 
             if (!string.IsNullOrWhiteSpace(branch))
             {

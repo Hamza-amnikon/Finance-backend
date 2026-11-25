@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using BankingService.API.DTOs;
 using BankingService.API.Models;
 using BankingService.API.Repositories;
@@ -30,6 +30,13 @@ namespace BankingService.API.Services
             BankTransferHelper.Validate(query);
 
             var transfers = _repository.Query();
+
+            if (query.AllowedCompanyIds != null)
+            {
+                transfers = transfers.Where(transfer =>
+                    query.AllowedCompanyIds.Contains(transfer.SourceCompanyId) ||
+                    query.AllowedCompanyIds.Contains(transfer.DestinationCompanyId));
+            }
 
             if (!string.IsNullOrWhiteSpace(query.Search))
             {

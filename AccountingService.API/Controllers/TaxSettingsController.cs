@@ -4,6 +4,7 @@ using System.Text.Json;
 using AccountingService.API.Data;
 using AccountingService.API.DTOs;
 using AccountingService.API.Models;
+using AccountingService.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ namespace AccountingService.API.Controllers
 {
     [ApiController]
     [Route("api/tax-settings")]
+    [ServiceFilter(typeof(TaxSettingsAccessFilter))]
     public class TaxSettingsController : ControllerBase
     {
         private readonly AccountingDbContext _context;
@@ -78,7 +80,10 @@ namespace AccountingService.API.Controllers
         [HttpGet("lookups")]
         public Task<IActionResult> Lookups(CancellationToken cancellationToken) => Handle(async () =>
         {
+            var access = (LedgerAccess)HttpContext.Items[typeof(TaxSettingsAccessFilter)]!;
+            var allowedCompanies = access.CompanyIds.ToArray();
             var companies = await _context.Companies.AsNoTracking()
+                .Where(row => access.IsAdmin || allowedCompanies.Contains(row.Id))
                 .OrderBy(row => row.Name).Select(row => new { row.Id, row.Name, row.Country, row.Currency })
                 .ToListAsync(cancellationToken);
             var types = await _context.TaxTypes.AsNoTracking().OrderBy(row => row.Name).ToListAsync(cancellationToken);
