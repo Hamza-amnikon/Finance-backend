@@ -74,6 +74,11 @@ jobs:
           SERVICES
           "$host/runtime/usr/bin/caddy" validate --config "$host/Caddyfile" --adapter caddyfile
           systemctl --user restart merit-frontend
-          curl --noproxy '*' --fail --silent --show-error --max-time 10 \
-            --cacert /home/hamza/MERIT-APP-Root-CA.crt \
-            https://172.31.3.11:5174/ >/dev/null
+          for attempt in {1..15}; do
+            if curl --noproxy '*' --fail --silent --max-time 5 \
+              --cacert /home/hamza/MERIT-APP-Root-CA.crt \
+              https://172.31.3.11:5174/ >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo 'Frontend did not become healthy after backend deployment.' >&2
+          exit 1
