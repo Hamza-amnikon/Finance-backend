@@ -5,6 +5,7 @@ using BankingService.API.DTOs;
 using BankingService.API.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using SparkFinance.Database;
 
 namespace BankingService.API.Services
 {
@@ -45,7 +46,41 @@ namespace BankingService.API.Services
                 .SingleAsync(row => row.Id == 1, cancellationToken);
             var since = settings.SourceAfterUtc;
 
-            var candidates = await _context.Database.SqlQuery<PaymentBankingCandidate>($"""
+            List<PaymentBankingCandidate> candidates;
+            if (_context.Database.IsFinanceMySql())
+            {
+                candidates = await _context.Database.SqlQueryRaw<PaymentBankingCandidate>("""
+                    SELECT `Source`, `Id` FROM (
+                        SELECT 'Made' AS `Source`, p.`Id`
+                        FROM purchases__PaymentsMade p
+                        WHERE p.`CreatedDate` >= {0} AND p.`BankTransactionId` IS NULL
+                          AND NOT EXISTS (SELECT 1 FROM banking__PaymentBankingLinks l
+                              WHERE l.`Source` = 'Made' AND l.`SourcePaymentId` = p.`Id`)
+                        LIMIT 100
+                    ) made
+                    UNION ALL
+                    SELECT `Source`, `Id` FROM (
+                        SELECT 'Received' AS `Source`, p.`Id`
+                        FROM sales__SalesInvoicePayments p
+                        WHERE p.`Status` = 'Recorded' AND p.`CreatedDate` >= {0} AND p.`BankTransactionId` IS NULL
+                          AND NOT EXISTS (SELECT 1 FROM banking__PaymentBankingLinks l
+                              WHERE l.`Source` = 'Received' AND l.`SourcePaymentId` = p.`Id`)
+                        LIMIT 100
+                    ) received
+                    UNION ALL
+                    SELECT `Source`, `Id` FROM (
+                        SELECT 'Expense' AS `Source`, e.`Id`
+                        FROM expenses__Expenses e
+                        WHERE e.`CreatedDate` >= {0} AND e.`Status` = 'Recorded' AND e.`BankAccountId` IS NOT NULL
+                          AND NOT EXISTS (SELECT 1 FROM banking__PaymentBankingLinks l
+                              WHERE l.`Source` = 'Expense' AND l.`SourcePaymentId` = e.`Id`)
+                        LIMIT 100
+                    ) expense
+                    """, since).ToListAsync(cancellationToken);
+            }
+            else
+            {
+                candidates = await _context.Database.SqlQuery<PaymentBankingCandidate>($"""
                 SELECT TOP (100) 'Made' AS [Source], p.[Id]
                 FROM [purchases].[PaymentsMade] p
                 WHERE p.[CreatedDate] >= {since} AND p.[BankTransactionId] IS NULL
@@ -73,6 +108,7 @@ namespace BankingService.API.Services
                     WHERE l.[Source] = 'Expense'
                     AND l.[SourcePaymentId] = e.[Id])
                 """).ToListAsync(cancellationToken);
+            }
 
             var retries = await _context.PaymentBankingLinks.AsNoTracking()
                 .Where(row =>
@@ -141,7 +177,7 @@ namespace BankingService.API.Services
         {
             if (source == "Made")
             {
-                return (await _context.Database.SqlQuery<PaymentBankingSource>($"""
+                var sql = SourceSqlForProvider("""
                     SELECT 'Made' AS [Source], p.[Id], p.[RequestId], p.[PaymentNumber],
                     p.[VendorName] AS [PartyName], p.[VendorId] AS [PartyId],
                     p.[Branch], p.[Currency], p.[Amount],
@@ -157,13 +193,15 @@ namespace BankingService.API.Services
                     LEFT JOIN [amnikon].[Branches] b
                         ON b.[Name] = p.[Branch]
                         AND b.[IsActive] = 1
-                    WHERE p.[Id] = {id}
-                    """).ToListAsync(cancellationToken)).SingleOrDefault();
+                    WHERE p.[Id] = {0}
+                    """, "p");
+                return (await _context.Database.SqlQueryRaw<PaymentBankingSource>(sql, id)
+                    .ToListAsync(cancellationToken)).SingleOrDefault();
             }
 
             if (source == "Expense")
             {
-                return (await _context.Database.SqlQuery<PaymentBankingSource>($"""
+                var sql = SourceSqlForProvider("""
                     SELECT 'Expense' AS [Source], e.[Id], e.[RequestId],
                     CONCAT('EXP-', FORMAT(e.[Id], '000000')) AS [PaymentNumber],
                     e.[Supplier] AS [PartyName],
@@ -180,11 +218,13 @@ namespace BankingService.API.Services
                         ELSE CAST(NULL AS datetime2)
                     END AS [VoidedDate], e.[Status]
                     FROM [expenses].[Expenses] e WITH (UPDLOCK,HOLDLOCK)
-                    WHERE e.[Id] = {id}
-                    """).ToListAsync(cancellationToken)).SingleOrDefault();
+                    WHERE e.[Id] = {0}
+                    """, "e");
+                return (await _context.Database.SqlQueryRaw<PaymentBankingSource>(sql, id)
+                    .ToListAsync(cancellationToken)).SingleOrDefault();
             }
 
-            return (await _context.Database.SqlQuery<PaymentBankingSource>($"""
+            var receivedSql = SourceSqlForProvider("""
                 SELECT 'Received' AS [Source], p.[Id], p.[RequestId],
                 CONCAT('PAY-',FORMAT(p.[Id],'000000')) AS [PaymentNumber],
                 i.[ClientName] AS [PartyName], i.[ClientId] AS [PartyId],
@@ -198,8 +238,33 @@ namespace BankingService.API.Services
                 FROM [sales].[SalesInvoicePayments] p WITH (UPDLOCK,HOLDLOCK)
                 JOIN [sales].[SalesInvoices] i ON i.[Id] = p.[SalesInvoiceId]
                 LEFT JOIN [amnikon].[Branches] b ON b.[Name] = i.[Branch] AND b.[IsActive] = 1
-                WHERE p.[Id] = {id}
-                """).ToListAsync(cancellationToken)).SingleOrDefault();
+                WHERE p.[Id] = {0}
+                """, "p");
+            return (await _context.Database.SqlQueryRaw<PaymentBankingSource>(receivedSql, id)
+                .ToListAsync(cancellationToken)).SingleOrDefault();
+        }
+
+        private string SourceSqlForProvider(string sql, string lockAlias)
+        {
+            if (!_context.Database.IsFinanceMySql())
+            {
+                return sql;
+            }
+
+            return sql.Replace("[", "`", StringComparison.Ordinal)
+                .Replace("]", "`", StringComparison.Ordinal)
+                .Replace("`purchases`.`", "`purchases__", StringComparison.Ordinal)
+                .Replace("`expenses`.`", "`expenses__", StringComparison.Ordinal)
+                .Replace("`sales`.`", "`sales__", StringComparison.Ordinal)
+                .Replace("`amnikon`.`", "`amnikon__", StringComparison.Ordinal)
+                .Replace(" WITH (UPDLOCK,HOLDLOCK)", "", StringComparison.Ordinal)
+                .Replace("FORMAT(e.`Id`, '000000')", "LPAD(e.`Id`, 6, '0')", StringComparison.Ordinal)
+                .Replace("FORMAT(p.`Id`,'000000')", "LPAD(p.`Id`, 6, '0')", StringComparison.Ordinal)
+                .Replace("CAST(NULL AS uniqueidentifier)", "CAST(NULL AS CHAR(36))", StringComparison.Ordinal)
+                .Replace("CAST(NULL AS int)", "CAST(NULL AS SIGNED)", StringComparison.Ordinal)
+                .Replace("CAST(NULL AS datetime2)", "CAST(NULL AS DATETIME(6))", StringComparison.Ordinal)
+                .Replace("CAST('' AS nvarchar(3))", "CAST('' AS CHAR(3))", StringComparison.Ordinal)
+                + " FOR UPDATE OF " + lockAlias;
         }
 
         public async Task ProcessAsync(string source, int id, CancellationToken cancellationToken)
@@ -345,13 +410,41 @@ namespace BankingService.API.Services
                     "The bank amount or charge has more decimal places than the selected bank account supports.");
             }
 
-            var auditBeforeJson = await _context.Database.SqlQuery<string>($"""
-                SELECT (SELECT p.Id, i.Branch, p.Currency, p.SettlementType, p.BankAccountId, p.BankAmount, p.BankChargeAmount, p.BankCurrency
-                    FROM sales.SalesInvoicePayments p INNER JOIN sales.SalesInvoices i ON i.Id = p.SalesInvoiceId WHERE p.Id = {paymentId}
-                    FOR JSON PATH, INCLUDE_NULL_VALUES, WITHOUT_ARRAY_WRAPPER) AS Value
-                """).SingleAsync(cancellationToken);
+            string auditBeforeJson;
+            if (_context.Database.IsFinanceMySql())
+            {
+                auditBeforeJson = (await _context.Database.SqlQueryRaw<string>("""
+                    SELECT JSON_OBJECT('Id', p.Id, 'Branch', i.Branch, 'Currency', p.Currency,
+                        'SettlementType', p.SettlementType, 'BankAccountId', p.BankAccountId,
+                        'BankAmount', p.BankAmount, 'BankChargeAmount', p.BankChargeAmount,
+                        'BankCurrency', p.BankCurrency) AS Value
+                    FROM sales__SalesInvoicePayments p
+                    INNER JOIN sales__SalesInvoices i ON i.Id = p.SalesInvoiceId
+                    WHERE p.Id = {0}
+                    """, paymentId).ToListAsync(cancellationToken)).Single();
+            }
+            else
+            {
+                auditBeforeJson = await _context.Database.SqlQuery<string>($"""
+                    SELECT (SELECT p.Id, i.Branch, p.Currency, p.SettlementType, p.BankAccountId, p.BankAmount, p.BankChargeAmount, p.BankCurrency
+                        FROM sales.SalesInvoicePayments p INNER JOIN sales.SalesInvoices i ON i.Id = p.SalesInvoiceId WHERE p.Id = {paymentId}
+                        FOR JSON PATH, INCLUDE_NULL_VALUES, WITHOUT_ARRAY_WRAPPER) AS Value
+                    """).SingleAsync(cancellationToken);
+            }
             var auditBefore = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(auditBeforeJson)!;
-            await _context.Database.ExecuteSqlInterpolatedAsync($"""
+            if (_context.Database.IsFinanceMySql())
+            {
+                await _context.Database.ExecuteSqlInterpolatedAsync($"""
+                    UPDATE sales__SalesInvoicePayments
+                    SET SettlementType = 'Bank', BankAccountId = {account.Id},
+                        BankAmount = {dto.BankAmount}, BankChargeAmount = {dto.BankChargeAmount},
+                        BankAccountName = {account.Name}, BankCurrency = {account.Currency}
+                    WHERE Id = {paymentId}
+                    """, cancellationToken);
+            }
+            else
+            {
+                await _context.Database.ExecuteSqlInterpolatedAsync($"""
                 UPDATE [sales].[SalesInvoicePayments]
                 SET [SettlementType] = 'Bank',
                     [BankAccountId] = {account.Id},
@@ -361,6 +454,7 @@ namespace BankingService.API.Services
                     [BankCurrency] = {account.Currency}
                 WHERE [Id] = {paymentId}
                 """, cancellationToken);
+            }
             var auditAfter = new Dictionary<string, object?>(auditBefore)
             {
                 ["SettlementType"] = "Bank",

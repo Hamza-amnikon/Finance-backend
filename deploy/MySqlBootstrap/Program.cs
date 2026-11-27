@@ -43,7 +43,8 @@ var setupTables = new[]
 {
     "expenses__Companies", "amnikon__Branches", "security__Roles", "security__Permissions",
     "security__Users", "security__RolePermissions", "accounting__TaxTypes",
-    "sales__CurrencyMasters", "sales__PaymentModes"
+    "sales__CurrencyMasters", "sales__PaymentModes", "accounting__Accounts",
+    "expenses__BankAccounts", "banking__PaymentBankingSettings", "sales__OrganizationProfiles"
 };
 
 await ExecuteAsync("SET FOREIGN_KEY_CHECKS=0");
