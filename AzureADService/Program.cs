@@ -13,7 +13,7 @@ var timeout = roleService.GetValue<int>("TimeoutSeconds");
 
 if (!Uri.TryCreate(roleService["BaseUrl"], UriKind.Absolute, out var roleServiceUri) ||
     (roleServiceUri.Scheme != Uri.UriSchemeHttps &&
-     !(builder.Configuration["Database:Provider"] == "MySql" && roleServiceUri.IsLoopback &&
+     !(roleServiceUri.IsLoopback &&
        roleServiceUri.Scheme == Uri.UriSchemeHttp && string.IsNullOrEmpty(roleServiceUri.UserInfo))) ||
     timeout is < 1 or > 300)
 {
