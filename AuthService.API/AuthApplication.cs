@@ -51,15 +51,10 @@ namespace AuthService.API
             var mySqlConnection = builder.Configuration.GetConnectionString("MySqlConnection");
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-            if (string.IsNullOrWhiteSpace(connectionString) && string.IsNullOrWhiteSpace(mySqlConnection))
-            {
-                throw new InvalidOperationException("Configure a finance database connection string for MERIT AuthService.");
-            }
-
             var databaseProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
             builder.Services.AddDbContext<RoleDbContext>(options =>
             {
-                if (!string.IsNullOrWhiteSpace(mySqlConnection))
+                if (databaseProvider == "MySql" && !string.IsNullOrWhiteSpace(mySqlConnection))
                 {
                     options.UseMeritMySql(builder.Configuration);
                     return;
@@ -68,10 +63,12 @@ namespace AuthService.API
                 switch (databaseProvider)
                 {
                     case "SqlServer":
-                        options.UseSqlServer(connectionString!);
+                        options.UseSqlServer(connectionString ?? throw new InvalidOperationException(
+                            "Configure ConnectionStrings:DefaultConnection for SQL Server."));
                         break;
                     case "MySql":
-                        options.UseMySQL(connectionString!);
+                        options.UseMySQL(connectionString ?? throw new InvalidOperationException(
+                            "Configure a MySQL connection string for MERIT AuthService."));
                         break;
                     default:
                         throw new InvalidOperationException($"Unsupported database provider '{databaseProvider}'.");
