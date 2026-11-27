@@ -4,6 +4,10 @@ using PermissionService.API.Authentication;
 using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
 var roleService = builder.Configuration.GetSection("Services:RoleService");
 var timeout = roleService.GetValue<int>("TimeoutSeconds");
 

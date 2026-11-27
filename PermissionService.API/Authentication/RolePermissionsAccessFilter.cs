@@ -83,22 +83,21 @@ namespace PermissionService.API.Authentication
 
                 if (request != null)
                 {
-                    var targetIsAdmin = await _context.Set<PermissionRoleLookup>().AsNoTracking()
-                        .AnyAsync(role => role.RoleId == request.RoleId && role.Role == "Admin", http.RequestAborted);
-
-                    if (targetIsAdmin)
-                    {
-                        context.Result = Error(403, "Only Admin can change Admin permissions.");
-                        return;
-                    }
-
                     var actorAssignments = await _context.RolePermissions.AsNoTracking()
                         .Where(row => row.RoleId == roleId && row.CompanyId == companyId)
                         .ToDictionaryAsync(row => row.PermissionId, http.RequestAborted);
 
+                    var targetAssignments = await _context.RolePermissions.AsNoTracking()
+                        .Where(row => row.RoleId == request.RoleId && row.CompanyId == companyId)
+                        .ToDictionaryAsync(row => row.PermissionId, http.RequestAborted);
+
                     if (request.Permissions == null || request.Permissions.Any(grant =>
-                        !actorAssignments.TryGetValue(grant.PermissionId, out var actor) ||
-                        ExceedsActor(grant, actor)))
+                    {
+                        actorAssignments.TryGetValue(grant.PermissionId, out var actor);
+                        targetAssignments.TryGetValue(grant.PermissionId, out var target);
+
+                        return ExceedsActor(grant, target, actor);
+                    }))
                     {
                         context.Result = Error(403, "You cannot grant an action your role does not have in this company.");
                         return;
@@ -121,20 +120,23 @@ namespace PermissionService.API.Authentication
             await next();
         }
 
-        private static bool ExceedsActor(RolePermissionRequest grant, RolePermission actor)
+        private static bool ExceedsActor(
+            RolePermissionRequest grant,
+            RolePermission? target,
+            RolePermission? actor)
         {
-            return (grant.CanView && !actor.CanView) ||
-                (grant.CanCreate && !actor.CanCreate) ||
-                (grant.CanEdit && !actor.CanEdit) ||
-                (grant.CanDelete && !actor.CanDelete) ||
-                (grant.CanApprove && !actor.CanApprove) ||
-                (grant.CanExport && !actor.CanExport) ||
-                (grant.CanCancel && !actor.CanCancel) ||
-                (grant.CanIssue && !actor.CanIssue) ||
-                (grant.CanPost && !actor.CanPost) ||
-                (grant.CanVoid && !actor.CanVoid) ||
-                (grant.CanReverse && !actor.CanReverse) ||
-                (grant.CanReconcile && !actor.CanReconcile);
+            return (grant.CanView && target?.CanView != true && actor?.CanView != true) ||
+                (grant.CanCreate && target?.CanCreate != true && actor?.CanCreate != true) ||
+                (grant.CanEdit && target?.CanEdit != true && actor?.CanEdit != true) ||
+                (grant.CanDelete && target?.CanDelete != true && actor?.CanDelete != true) ||
+                (grant.CanApprove && target?.CanApprove != true && actor?.CanApprove != true) ||
+                (grant.CanExport && target?.CanExport != true && actor?.CanExport != true) ||
+                (grant.CanCancel && target?.CanCancel != true && actor?.CanCancel != true) ||
+                (grant.CanIssue && target?.CanIssue != true && actor?.CanIssue != true) ||
+                (grant.CanPost && target?.CanPost != true && actor?.CanPost != true) ||
+                (grant.CanVoid && target?.CanVoid != true && actor?.CanVoid != true) ||
+                (grant.CanReverse && target?.CanReverse != true && actor?.CanReverse != true) ||
+                (grant.CanReconcile && target?.CanReconcile != true && actor?.CanReconcile != true);
         }
 
         private static ObjectResult Error(int status, string message)
