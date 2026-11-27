@@ -61,8 +61,11 @@ if (builder.Environment.IsDevelopment())
     });
 }
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? builder.Configuration.GetConnectionString("MySqlConnection");
+var databaseProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
+var connectionString = databaseProvider == "MySql"
+    ? builder.Configuration.GetConnectionString("MySqlConnection")
+        ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    : builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException("Configure a finance database connection string.");
@@ -70,7 +73,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<RoleDbContext>(options =>
 {
-    if (builder.Configuration["Database:Provider"] == "MySql")
+    if (databaseProvider == "MySql")
     {
         options.UseMySQL(connectionString);
     }
