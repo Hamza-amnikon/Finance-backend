@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SalesEstimateService.API.Data;
 using SalesEstimateService.API.DTOs;
 using SalesEstimateService.API.Models;
+using SparkFinance.Database;
 
 namespace SalesEstimateService.API.Services
 {
@@ -52,29 +53,48 @@ namespace SalesEstimateService.API.Services
                 throw new ArgumentException("Choose a document date before selecting tax.");
             }
 
-            var branch = await _context.Database.SqlQuery<EstimateTaxBranch>($"""
-                SELECT AccountingCompanyId, CountryCode FROM amnikon.Branches
-                WHERE Name = {branchName} AND IsActive = 1
-                """).SingleOrDefaultAsync(cancellationToken);
+            var mySql = _context.Database.IsFinanceMySql();
+            var branchSql = mySql
+                ? "SELECT AccountingCompanyId, CountryCode FROM amnikon__Branches WHERE Name = {0} AND IsActive = 1"
+                : "SELECT AccountingCompanyId, CountryCode FROM amnikon.Branches WHERE Name = {0} AND IsActive = 1";
+            var branch = await _context.Database.SqlQueryRaw<EstimateTaxBranch>(branchSql, branchName)
+                .SingleOrDefaultAsync(cancellationToken);
 
             if (branch?.AccountingCompanyId == null)
             {
                 throw new ArgumentException("The selected branch must be linked to an accounting company.");
             }
 
-            return await _context.Database.SqlQuery<SalesEstimateTaxChoice>($"""
+            var choicesSql = mySql
+                ? """
+                SELECT r.Id, r.CompanyId, r.Code, r.Name, r.Rate, t.Treatment,
+                    r.ComponentsJson, r.EffectiveFrom, r.EffectiveTo, r.RowVersion
+                FROM accounting__TaxRates r
+                INNER JOIN accounting__TaxTypes t ON t.Id = r.TaxTypeId
+                INNER JOIN expenses__Companies c ON c.Id = r.CompanyId
+                WHERE r.CompanyId = {0}
+                    AND t.CountryCode = c.Country AND c.Country = {1}
+                    AND r.IsActive = 1 AND t.IsActive = 1
+                    AND r.EffectiveFrom <= {2}
+                    AND (r.EffectiveTo IS NULL OR r.EffectiveTo >= {2})
+                ORDER BY r.Code, r.EffectiveFrom
+                """
+                : """
                 SELECT r.Id, r.CompanyId, r.Code, r.Name, r.Rate, t.Treatment,
                     r.ComponentsJson, r.EffectiveFrom, r.EffectiveTo, r.RowVersion
                 FROM accounting.TaxRates r
                 INNER JOIN accounting.TaxTypes t ON t.Id = r.TaxTypeId
                 INNER JOIN expenses.Companies c ON c.Id = r.CompanyId
-                WHERE r.CompanyId = {branch.AccountingCompanyId.Value}
-                    AND t.CountryCode = c.Country AND c.Country = {branch.CountryCode}
+                WHERE r.CompanyId = {0}
+                    AND t.CountryCode = c.Country AND c.Country = {1}
                     AND r.IsActive = 1 AND t.IsActive = 1
-                    AND r.EffectiveFrom <= {documentDate}
-                    AND (r.EffectiveTo IS NULL OR r.EffectiveTo >= {documentDate})
+                    AND r.EffectiveFrom <= {2}
+                    AND (r.EffectiveTo IS NULL OR r.EffectiveTo >= {2})
                 ORDER BY r.Code, r.EffectiveFrom
-                """).ToListAsync(cancellationToken);
+                """;
+            return await _context.Database.SqlQueryRaw<SalesEstimateTaxChoice>(
+                choicesSql, branch.AccountingCompanyId.Value, branch.CountryCode, documentDate.ToDateTime(TimeOnly.MinValue))
+                .ToListAsync(cancellationToken);
         }
 
         private static SalesEstimateTaxTreatment Treatment(SalesEstimateTaxChoice choice)
