@@ -35,6 +35,49 @@ Check(suppress.NewVersion is { Length: 8 } && !suppress.NewVersion.SequenceEqual
 var property = context.Model.FindEntityType(typeof(PermissionRow))!.FindProperty(nameof(PermissionRow.RowVersion))!;
 Check(property.IsConcurrencyToken && property.ValueGenerated == Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.Never,
     "MySQL concurrency uses application tokens and preserves optimistic locking");
+var readOnlyConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Database:Provider"] = "MySql"
+}).Build();
+var readOnlyOptions = new DbContextOptionsBuilder<FinancePermissionContext>();
+readOnlyOptions.UseFinanceDatabase(readOnlyConfiguration, "Server=unused;Database=TestOnly;User ID=test;Password=test;");
+await using (var readOnlyContext = new FinancePermissionContext(readOnlyOptions.Options))
+{
+    readOnlyContext.Permissions.Add(new PermissionRow { Id = 2, CompanyId = 7, RowVersion = new byte[8] });
+    try
+    {
+        await readOnlyContext.SaveChangesAsync();
+        throw new Exception("Default MySQL writes were accepted.");
+    }
+    catch (NotSupportedException exception) when (exception.Message.Contains("reads only"))
+    {
+        Check(true, "Finance MySQL writes stay disabled by default");
+    }
+}
+var writeConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Database:Provider"] = "MySql",
+    ["Database:AllowMySqlWrites"] = "true"
+}).Build();
+var writeOptions = new DbContextOptionsBuilder<FinancePermissionContext>();
+writeOptions.UseFinanceDatabase(writeConfiguration, "Server=unused;Database=TestOnly;User ID=test;Password=test;");
+var writeSuppress = new NoDatabaseWrites();
+writeOptions.AddInterceptors(writeSuppress);
+await using (var writeContext = new FinancePermissionContext(writeOptions.Options))
+{
+    var writeRow = new PermissionRow { Id = 2, CompanyId = 7, RowVersion = new byte[8] };
+    writeContext.Attach(writeRow);
+    writeRow.CanView = true;
+    await writeContext.SaveChangesAsync();
+    Check(writeSuppress.OldVersion?.All(value => value == 0) == true &&
+          writeSuppress.NewVersion is { Length: 8 } &&
+          !writeSuppress.NewVersion.SequenceEqual(writeSuppress.OldVersion!),
+        "Opt-in Finance MySQL writes rotate the concurrency token");
+    var writeProperty = writeContext.Model.FindEntityType(typeof(PermissionRow))!
+        .FindProperty(nameof(PermissionRow.RowVersion))!;
+    Check(writeProperty.ValueGenerated == Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.Never,
+        "Finance MySQL mapping uses managed row versions");
+}
 var missingConfiguration = new ConfigurationBuilder().Build();
 try
 {
@@ -125,6 +168,17 @@ sealed class PermissionContext(DbContextOptions<PermissionContext> options) : Db
             ["purchases.Bills"] = "purchases_Bills",
             ["security.PermissionItems"] = "security_PermissionItems"
         });
+    }
+}
+
+sealed class FinancePermissionContext(DbContextOptions<FinancePermissionContext> options) : DbContext(options)
+{
+    public DbSet<PermissionRow> Permissions => Set<PermissionRow>();
+    protected override void OnModelCreating(ModelBuilder model)
+    {
+        model.Entity<PermissionRow>().ToTable("Permissions", "security");
+        model.Entity<PermissionRow>().Property(row => row.RowVersion).IsRowVersion();
+        model.MapFinanceMySql(Database);
     }
 }
 

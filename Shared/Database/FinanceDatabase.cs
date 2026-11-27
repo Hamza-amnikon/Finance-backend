@@ -22,7 +22,9 @@ internal static class FinanceDatabase
         return (configuration["Database:Provider"] ?? "SqlServer") switch
         {
             "SqlServer" => options.UseSqlServer(connectionString, configureSqlServer),
-            "MySql" => options.UseMySQL(connectionString).AddInterceptors(MySqlReadOnly.Instance),
+            "MySql" => configuration.GetValue<bool>("Database:AllowMySqlWrites")
+                ? options.UseMySQL(connectionString).AddInterceptors(MySqlRowVersionInterceptor.Instance)
+                : options.UseMySQL(connectionString).AddInterceptors(MySqlReadOnly.Instance),
             _ => throw new InvalidOperationException("Configure Database:Provider as SqlServer or MySql.")
         };
     }
@@ -71,6 +73,11 @@ internal static class FinanceDatabase
                 else if (type == typeof(byte[]) && property.IsConcurrencyToken)
                 {
                     property.SetColumnType("binary(8)");
+                    if (property.ValueGenerated == Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.OnAddOrUpdate)
+                    {
+                        property.ValueGenerated = Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.Never;
+                        property.SetAnnotation(MySqlModelMapping.ManagedRowVersion, true);
+                    }
                 }
             }
         }

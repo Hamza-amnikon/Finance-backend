@@ -33,4 +33,8 @@
     <Compile Include="../Shared/Http/FinanceSessionForwarding.cs" Link="Shared/FinanceSessionForwarding.cs" />
     <Compile Include="../Shared/Database/FinanceDatabase.cs" Link="Shared/FinanceDatabase.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Database/MySqlModelMapping.cs" Link="Shared/MySqlModelMapping.cs" />
+    <Compile Include="../Shared/Database/MySqlRowVersionInterceptor.cs" Link="Shared/MySqlRowVersionInterceptor.cs" />
+  </ItemGroup>
 </Project>

@@ -210,7 +210,9 @@ namespace SparkFinance.Auditing
                 int.TryParse(snapshot?.GetValueOrDefault("BankReconciliationId")?.ToString(), out var reconciliationId))
             {
                 companyId = await context.Database.SqlQueryRaw<int>(
-                    "SELECT CompanyId AS Value FROM banking.BankReconciliations WHERE Id = {0}",
+                    mySqlAudit
+                        ? "SELECT CompanyId AS Value FROM banking__BankReconciliations WHERE Id = {0}"
+                        : "SELECT CompanyId AS Value FROM banking.BankReconciliations WHERE Id = {0}",
                     reconciliationId
                 ).Select(value => (int?)value).SingleOrDefaultAsync(cancellationToken);
             }
@@ -220,15 +222,18 @@ namespace SparkFinance.Auditing
             if (string.IsNullOrWhiteSpace(branch) && companyId.HasValue &&
                 (service == "AccountingService.API" || service == "BankingService.API"))
             {
-                var mappedBranches = await context.Database.SqlQueryRaw<string>(
-                    """
+                var branchSql = mySqlAudit
+                    ? "SELECT MIN(Name) AS Value FROM amnikon__Branches WHERE AccountingCompanyId = {0} GROUP BY AccountingCompanyId HAVING COUNT(*) = 1"
+                    : """
                     IF COL_LENGTH(N'amnikon.Branches', N'AccountingCompanyId') IS NOT NULL
                         EXEC sp_executesql
                             N'SELECT MIN(Name) AS Value FROM amnikon.Branches WHERE AccountingCompanyId = @CompanyId GROUP BY AccountingCompanyId HAVING COUNT(*) = 1',
                             N'@CompanyId int', @CompanyId = {0};
                     ELSE
                         SELECT CAST(NULL AS nvarchar(100)) AS Value WHERE 1 = 0;
-                    """, companyId.Value
+                    """;
+                var mappedBranches = await context.Database.SqlQueryRaw<string>(
+                    branchSql, companyId.Value
                 ).ToListAsync(cancellationToken);
 
                 if (mappedBranches.Count == 1)
@@ -265,7 +270,7 @@ namespace SparkFinance.Auditing
 
     public abstract class AuditedDbContext : DbContext
     {
-        internal virtual bool UsesMySqlAudit => false;
+        internal virtual bool UsesMySqlAudit => Database.ProviderName == "MySql.EntityFrameworkCore";
         protected AuditedDbContext(DbContextOptions options) : base(options)
         {
         }
