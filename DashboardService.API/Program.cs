@@ -31,7 +31,7 @@ builder.Services.AddOptions<DashboardExchangeRateOptions>()
         options =>
             Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttps ||
-                (builder.Configuration["Database:Provider"] == "MySql" && uri.IsLoopback &&
+                (uri.IsLoopback &&
                     uri.Scheme == Uri.UriSchemeHttp && uri.AbsolutePath == "/api/exchange-rates/")) &&
             string.IsNullOrEmpty(uri.Query) &&
             string.IsNullOrEmpty(uri.Fragment),

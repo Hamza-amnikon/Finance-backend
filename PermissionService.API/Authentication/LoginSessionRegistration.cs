@@ -16,7 +16,7 @@ namespace PermissionService.API.Authentication
             var settings = section.Get<LoginSessionSettings>()
                 ?? new LoginSessionSettings();
             var trustedRoleService = roleServiceUri.Scheme == Uri.UriSchemeHttps ||
-                (configuration["Database:Provider"] == "MySql" && roleServiceUri.IsLoopback &&
+                (roleServiceUri.IsLoopback &&
                     roleServiceUri.Scheme == Uri.UriSchemeHttp && string.IsNullOrEmpty(roleServiceUri.UserInfo));
 
             services.AddOptions<LoginSessionSettings>()
