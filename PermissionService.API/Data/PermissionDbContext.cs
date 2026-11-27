@@ -8,6 +8,7 @@ namespace PermissionService.API.Data
     public class PermissionDbContext : DbContext
     {
         private readonly bool _allowMySqlRolePermissionWrites;
+        private readonly bool _allowMySqlWrites;
 
         public PermissionDbContext(
             DbContextOptions<PermissionDbContext> options)
@@ -21,6 +22,7 @@ namespace PermissionService.API.Data
         {
             _allowMySqlRolePermissionWrites = configuration.GetValue<bool>(
                 "Database:AllowMySqlRolePermissionWrites");
+            _allowMySqlWrites = configuration.GetValue<bool>("Database:AllowMySqlWrites");
         }
 
         public override Task<int> SaveChangesAsync(
@@ -29,16 +31,20 @@ namespace PermissionService.API.Data
         {
             if (Database.IsFinanceMySql())
             {
-                if (!_allowMySqlRolePermissionWrites || ChangeTracker.Entries().Any(entry =>
-                    entry.State != EntityState.Unchanged && entry.Entity is not RolePermission))
+                if (!_allowMySqlRolePermissionWrites && !_allowMySqlWrites ||
+                    ChangeTracker.Entries().Any(entry => entry.State != EntityState.Unchanged &&
+                        (_allowMySqlWrites
+                            ? entry.Entity is not RolePermission and not PermissionService.API.Models.Permission
+                            : entry.Entity is not RolePermission)))
                 {
-                    throw new NotSupportedException("MySQL writes are limited to role permissions in this deployment.");
+                    throw new NotSupportedException("This permission write is not enabled for MySQL in this deployment.");
                 }
 
-                foreach (var entry in ChangeTracker.Entries<RolePermission>()
-                    .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+                foreach (var entry in ChangeTracker.Entries()
+                    .Where(entry => (entry.State is EntityState.Added or EntityState.Modified) &&
+                        (entry.Entity is RolePermission or PermissionService.API.Models.Permission)))
                 {
-                    var version = entry.Property(permission => permission.RowVersion);
+                    var version = entry.Property("RowVersion");
                     version.CurrentValue = RandomNumberGenerator.GetBytes(8);
                     if (entry.State == EntityState.Modified)
                     {
@@ -67,6 +73,12 @@ namespace PermissionService.API.Data
             modelBuilder.Entity<Permission>(entity =>
             {
                 entity.ToTable("Permissions", "security");
+
+                if (Database.IsFinanceMySql())
+                {
+                    entity.Property(permission => permission.RowVersion)
+                        .HasColumnType("binary(8)").IsConcurrencyToken().ValueGeneratedNever();
+                }
 
                 entity.HasIndex(permission => permission.PermissionCode)
                     .IsUnique();

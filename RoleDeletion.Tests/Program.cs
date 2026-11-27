@@ -3,6 +3,9 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using RoleService.API.Data;
 using RoleService.API.Controllers;
 using RoleService.API.Models;
 using RoleService.API.Repositories;
@@ -83,7 +86,40 @@ catch (OperationCanceledException)
         "Cancellation prevents deletion.");
 }
 
-Console.WriteLine("All role deletion checks passed. No database connections were opened.");
+var mysqlConnection = "Server=unused;Database=TestOnly;User ID=test;Password=test;";
+var disabledOptions = new DbContextOptionsBuilder<RoleDbContext>().UseMySQL(mysqlConnection).Options;
+await using (var disabled = new RoleDbContext(disabledOptions))
+{
+    disabled.Roles.Add(new Roles { Role = "Test role" });
+    try
+    {
+        await disabled.SaveChangesAsync();
+        throw new Exception("A MySQL role write was allowed by default.");
+    }
+    catch (NotSupportedException)
+    {
+        Check(true, "MySQL role creation stays disabled by default.");
+    }
+}
+
+var enabledConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Database:AllowMySqlWrites"] = "true"
+}).Build();
+var enabledOptions = new DbContextOptionsBuilder<RoleDbContext>()
+    .UseMySQL(mysqlConnection)
+    .AddInterceptors(new SuppressRoleWrites())
+    .Options;
+await using (var enabled = new RoleDbContext(enabledOptions, enabledConfiguration))
+{
+    var newRole = new Roles { Role = "Test role" };
+    enabled.Roles.Add(newRole);
+    await enabled.SaveChangesAsync();
+    Check(newRole.RowVersion.Length == 8,
+        "Opt-in MySQL role creation sets a managed concurrency token.");
+}
+
+Console.WriteLine("All role deletion and MySQL opt-in checks passed. No database connections were opened.");
 
 static void Check(bool condition, string message)
 {
@@ -182,4 +218,13 @@ sealed class TestRoleRepository : IRoleRepository
     {
         throw new NotSupportedException();
     }
+}
+
+sealed class SuppressRoleWrites : SaveChangesInterceptor
+{
+    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(InterceptionResult<int>.SuppressWithResult(1));
 }

@@ -8,6 +8,7 @@ namespace RoleService.API.Data
     public class RoleDbContext : DbContext, IMySqlTableMappingContext
     {
         private readonly bool _allowMySqlUserWrites;
+        private readonly bool _allowMySqlWrites;
 
         public RoleDbContext(
             DbContextOptions<RoleDbContext> options,
@@ -15,6 +16,7 @@ namespace RoleService.API.Data
             : base(options)
         {
             _allowMySqlUserWrites = configuration?.GetValue<bool>("Database:AllowMySqlUserWrites") == true;
+            _allowMySqlWrites = configuration?.GetValue<bool>("Database:AllowMySqlWrites") == true;
             MySqlTableMappings = configuration?
                 .GetSection("Database:MySql:TableMappings")
                 .Get<Dictionary<string, string>>() ?? new Dictionary<string, string>();
@@ -34,17 +36,20 @@ namespace RoleService.API.Data
         {
             if (IsMySql)
             {
-                if (!_allowMySqlUserWrites || ChangeTracker.Entries()
+                if (!_allowMySqlUserWrites && !_allowMySqlWrites || ChangeTracker.Entries()
                     .Any(entry => entry.State != EntityState.Unchanged &&
-                        (entry.Entity is not User || entry.State != EntityState.Modified)))
+                        (_allowMySqlWrites
+                            ? entry.Entity is not User and not RoleService.API.Models.Roles
+                            : entry.Entity is not User || entry.State != EntityState.Modified)))
                 {
-                    throw new NotSupportedException("MySQL writes are limited to user updates in this deployment.");
+                    throw new NotSupportedException("This role or user write is not enabled for MySQL in this deployment.");
                 }
 
-                foreach (var entry in ChangeTracker.Entries<User>()
-                    .Where(entry => entry.State == EntityState.Modified))
+                foreach (var entry in ChangeTracker.Entries()
+                    .Where(entry => (entry.State is EntityState.Added or EntityState.Modified) &&
+                        (entry.Entity is User or RoleService.API.Models.Roles)))
                 {
-                    var version = entry.Property(user => user.RowVersion);
+                    var version = entry.Property("RowVersion");
                     version.CurrentValue = RandomNumberGenerator.GetBytes(8);
                     if (entry.State == EntityState.Modified)
                     {
