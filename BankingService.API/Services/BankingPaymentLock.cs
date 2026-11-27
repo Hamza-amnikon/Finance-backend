@@ -15,20 +15,7 @@ namespace BankingService.API.Services
             var resource = "Finance.AutomaticPayment." + key;
             if (context.Database.IsFinanceMySql())
             {
-                if (context.Database.CurrentTransaction == null)
-                {
-                    throw new InvalidOperationException("Bank transaction locking requires an active transaction.");
-                }
-                await context.Database.ExecuteSqlInterpolatedAsync(
-                    $"INSERT IGNORE INTO finance__OperationLocks (`Name`) VALUES ({resource})",
-                    cancellationToken);
-                var locked = await context.Database.SqlQueryRaw<string>(
-                    "SELECT `Name` AS Value FROM finance__OperationLocks WHERE `Name` = {0} FOR UPDATE",
-                    resource).ToListAsync(cancellationToken);
-                if (locked.Count != 1)
-                {
-                    throw new InvalidOperationException("Bank transaction lock could not be acquired.");
-                }
+                await MySqlTransactionLock.AcquireAsync(context, resource, cancellationToken);
                 return;
             }
             await context.Database.ExecuteSqlInterpolatedAsync(
