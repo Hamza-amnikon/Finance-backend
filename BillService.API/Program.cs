@@ -60,7 +60,8 @@ builder.Services.AddHttpClient<
     BillAccountingApiService>(httpClient =>
     {
         httpClient.BaseAddress = new Uri(
-            builder.Configuration["Services:AccountingService:BaseUrl"]
+            builder.Configuration["Services:AccountingPostingService:BaseUrl"]
+            ?? builder.Configuration["Services:AccountingService:BaseUrl"]
             ?? throw new InvalidOperationException(
                 "AccountingService BaseUrl is missing from appsettings.json."));
         httpClient.Timeout = TimeSpan.FromSeconds(15);
