@@ -192,7 +192,9 @@ namespace BillService.API.Services
             if (bill.SourcePurchaseOrderId.HasValue)
             {
                 var sourceId = bill.SourcePurchaseOrderId.Value;
-                var status = await _context.Database.SqlQuery<string>($"SELECT [Status] AS [Value] FROM [purchases].[PurchaseOrders] WITH (HOLDLOCK) WHERE [Id] = {sourceId}").SingleOrDefaultAsync(cancellationToken);
+                var status = _context.Database.IsFinanceMySql()
+                    ? (await _context.Database.SqlQuery<string>($"SELECT Status AS Value FROM purchases__PurchaseOrders WHERE Id = {sourceId} FOR UPDATE").ToListAsync(cancellationToken)).SingleOrDefault()
+                    : await _context.Database.SqlQuery<string>($"SELECT [Status] AS [Value] FROM [purchases].[PurchaseOrders] WITH (HOLDLOCK) WHERE [Id] = {sourceId}").SingleOrDefaultAsync(cancellationToken);
                 if (status != "Issued")
                 {
                     throw new InvalidOperationException("The source purchase order is no longer issued.");

@@ -7,6 +7,7 @@ using ExpenseService.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using SparkFinance.Database;
 
 namespace ExpenseService.API.Controllers
 {
@@ -137,11 +138,17 @@ namespace ExpenseService.API.Controllers
             [FromQuery, Range(1, int.MaxValue)] int companyId,
             CancellationToken cancellationToken)
         {
-            return Handle(async () => Ok(await _context.Database.SqlQuery<ClaimAccountLookup>($"""
-                SELECT Id, Code, Name, Type FROM accounting.Accounts
-                WHERE CompanyId = {companyId} AND IsActive = 1 AND IsPostingAccount = 1
-                ORDER BY Code
-                """).ToListAsync(cancellationToken)));
+            return Handle(async () =>
+            {
+                var table = _context.Database.IsFinanceMySql() ? "accounting__Accounts" : "accounting.Accounts";
+                var sql = $$"""
+                    SELECT Id, Code, Name, Type FROM {{table}}
+                    WHERE CompanyId = {0} AND IsActive = 1 AND IsPostingAccount = 1
+                    ORDER BY Code
+                    """;
+                return Ok(await _context.Database.SqlQueryRaw<ClaimAccountLookup>(sql, companyId)
+                    .ToListAsync(cancellationToken));
+            });
         }
 
         public sealed class ClaimAccountLookup
@@ -230,8 +237,10 @@ namespace ExpenseService.API.Controllers
             }
 
             var company = await _context.Companies.AsNoTracking().SingleOrDefaultAsync(row => row.Id == dto.CompanyId, cancellationToken) ?? throw new ValidationException("Select an existing company.");
-            var branchMatches = await _context.Database.SqlQuery<int>($@"SELECT COUNT(*) AS Value FROM amnikon.Branches
-                WHERE Name = {dto.Branch} AND IsActive = 1 AND AccountingCompanyId = {dto.CompanyId}").SingleAsync(cancellationToken);
+            var branchesTable = _context.Database.IsFinanceMySql() ? "amnikon__Branches" : "amnikon.Branches";
+            var branchSql = $"SELECT COUNT(*) AS Value FROM {branchesTable} WHERE Name = {{0}} AND IsActive = 1 AND AccountingCompanyId = {{1}}";
+            var branchMatches = (await _context.Database.SqlQueryRaw<int>(branchSql,
+                dto.Branch, dto.CompanyId).ToListAsync(cancellationToken)).Single();
             if (branchMatches != 1)
             {
                 throw new ValidationException("Select a branch linked to this accounting company.");
@@ -373,8 +382,10 @@ namespace ExpenseService.API.Controllers
             CancellationToken cancellationToken
         )
         {
-            var count = await _context.Database.SqlQuery<int>($@"SELECT COUNT(*) AS Value FROM accounting.Accounts
-                WHERE Id = {id} AND CompanyId = {companyId} AND Type = {type} AND IsActive = 1 AND IsPostingAccount = 1").SingleAsync(cancellationToken);
+            var accountsTable = _context.Database.IsFinanceMySql() ? "accounting__Accounts" : "accounting.Accounts";
+            var accountsSql = $"SELECT COUNT(*) AS Value FROM {accountsTable} WHERE Id = {{0}} AND CompanyId = {{1}} AND Type = {{2}} AND IsActive = 1 AND IsPostingAccount = 1";
+            var count = (await _context.Database.SqlQueryRaw<int>(accountsSql,
+                id!, companyId, type).ToListAsync(cancellationToken)).Single();
             if (count != 1)
             {
                 throw new ValidationException($"Select an active {type.ToLowerInvariant()} posting account for this company.");
@@ -402,7 +413,27 @@ namespace ExpenseService.API.Controllers
             }
 
             var now = DateTime.UtcNow;
-            await _context.Database.ExecuteSqlInterpolatedAsync(
+            if (_context.Database.IsFinanceMySql())
+            {
+                await _context.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO accounting__JournalEntries
+                        (CompanyId, EntryNumber, EntryDate, Branch, Currency, ExchangeRate, Narration, Reference,
+                         Source, SourceDocumentId, SourceDocumentNumber, Status, TotalDebit, TotalCredit, CreatedDate, PostedDate)
+                    VALUES ({claim.CompanyId}, {entryNumber}, {date}, {claim.Branch}, {claim.Currency}, {claim.ExchangeRate},
+                        {narration}, {claim.Reference}, 'Expense', {documentId}, {claim.Reference}, 'Posted', {total}, {total}, {now}, {now})
+                    """, cancellationToken);
+                var entryId = (await _context.Database.SqlQueryRaw<int>("SELECT LAST_INSERT_ID() AS Value")
+                    .ToListAsync(cancellationToken)).Single();
+                await _context.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO accounting__JournalEntryLines
+                        (JournalEntryId, CompanyId, LineNumber, AccountId, Description, DebitAmount, CreditAmount, BaseDebitAmount, BaseCreditAmount)
+                    VALUES ({entryId}, {claim.CompanyId}, 1, {debit}, {narration}, {total}, {0m}, {baseAmount}, {0m}),
+                           ({entryId}, {claim.CompanyId}, 2, {credit}, {narration}, {0m}, {total}, {0m}, {baseAmount})
+                    """, cancellationToken);
+            }
+            else
+            {
+                await _context.Database.ExecuteSqlInterpolatedAsync(
                 $@"
                 INSERT INTO accounting.JournalEntries
                     (CompanyId, EntryNumber, EntryDate, Branch, Currency, ExchangeRate, Narration, Reference,
@@ -415,7 +446,8 @@ namespace ExpenseService.API.Controllers
                 VALUES (@entry, {claim.CompanyId}, 1, {debit}, {narration}, {total}, 0, {baseAmount}, 0),
                        (@entry, {claim.CompanyId}, 2, {credit}, {narration}, 0, {total}, 0, {baseAmount});",
                 cancellationToken
-            );
+                );
+            }
             await SparkFinance.Auditing.FinanceAudit.WriteAsync(
                 _context,
                 "ClaimJournal",

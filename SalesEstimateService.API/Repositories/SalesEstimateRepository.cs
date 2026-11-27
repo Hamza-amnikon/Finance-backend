@@ -1,4 +1,5 @@
 using System.Data;
+using SparkFinance.Database;
 using Microsoft.EntityFrameworkCore;
 using SalesEstimateService.API.Data;
 using SalesEstimateService.API.Models;
@@ -122,7 +123,7 @@ namespace SalesEstimateService.API.Repositories
                 .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 
             var estimate = await _context.SalesEstimates
-                .FromSqlInterpolated($"SELECT * FROM [estimates].[SalesEstimates] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {id}")
+                .LockForUpdate(_context, nameof(SalesEstimate.Id), id)
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (estimate == null)
@@ -182,7 +183,7 @@ namespace SalesEstimateService.API.Repositories
                 .BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 
             var estimate = await _context.SalesEstimates
-                .FromSqlInterpolated($"SELECT * FROM [estimates].[SalesEstimates] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {id}")
+                .LockForUpdate(_context, nameof(SalesEstimate.Id), id)
                 .SingleOrDefaultAsync(cancellationToken);
 
             if (estimate == null)
@@ -221,7 +222,7 @@ namespace SalesEstimateService.API.Repositories
             {
                 var periodKey = $"{estimate.EstimateDate.Year:D4}{estimate.EstimateDate.Month:D2}";
                 var counter = await _context.Set<EstimateNumberCounter>()
-                    .FromSqlInterpolated($"SELECT * FROM [estimates].[EstimateNumberCounters] WITH (UPDLOCK, HOLDLOCK) WHERE [PeriodKey] = {periodKey}")
+                    .LockForUpdate(_context, nameof(EstimateNumberCounter.PeriodKey), periodKey)
                     .SingleOrDefaultAsync(cancellationToken);
 
                 if (counter == null)

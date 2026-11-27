@@ -251,14 +251,9 @@ namespace SalesInvoiceService.API.Repositories
                     cancellationToken);
 
             // Payments for this invoice must wait for this lock.
-            var invoice = await _context.SalesInvoices
-                .FromSqlInterpolated(
-                    $"""
-                    SELECT *
-                    FROM [sales].[SalesInvoices] WITH (UPDLOCK, HOLDLOCK)
-                    WHERE [Id] = {payment.SalesInvoiceId}
-                    """)
-                .FirstOrDefaultAsync(cancellationToken);
+            var invoice = (await _context.SalesInvoices
+                .LockForUpdate(_context, nameof(SalesInvoice.Id), payment.SalesInvoiceId)
+                .ToListAsync(cancellationToken)).SingleOrDefault();
 
             if (invoice == null)
             {

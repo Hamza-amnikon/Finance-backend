@@ -41,6 +41,7 @@
   <ItemGroup>
     <Compile Include="../Shared/Http/FinanceBranchReadFilter.cs" Link="Shared/FinanceBranchReadFilter.cs" />
     <Compile Include="../Shared/Database/FinanceDatabase.cs" Link="Shared/FinanceDatabase.cs" />
+    <Compile Include="../Shared/Database/FinancialRowLock.cs" Link="Shared/FinancialRowLock.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Shared/Database/MySqlModelMapping.cs" Link="Shared/MySqlModelMapping.cs" />

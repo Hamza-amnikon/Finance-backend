@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.Data;
 using SalesInvoiceService.API.DTOs;
 using SalesInvoiceService.API.Models;
+using SparkFinance.Database;
 
 namespace SalesInvoiceService.API.Services
 {
@@ -177,14 +178,14 @@ namespace SalesInvoiceService.API.Services
                 System.Data.IsolationLevel.Serializable, cancellationToken);
 
             // The unique source index and range lock serialize concurrent conversions.
-            existing = await _context.SalesInvoices
-                .FromSqlInterpolated($"SELECT * FROM [sales].[SalesInvoices] WITH (UPDLOCK, HOLDLOCK) WHERE [SourceEstimateId] = {dto.EstimateId}")
-                .AsNoTracking()
-                .Include(record => record.Items)
-                .SingleOrDefaultAsync(cancellationToken);
+            existing = (await _context.SalesInvoices
+                .LockForUpdate(_context, nameof(SalesInvoice.SourceEstimateId), dto.EstimateId)
+                .ToListAsync(cancellationToken)).SingleOrDefault();
 
             if (existing != null)
             {
+                await _context.Entry(existing).Collection(record => record.Items)
+                    .LoadAsync(cancellationToken);
                 var response = Replay(existing, dto);
                 await transaction.CommitAsync(cancellationToken);
                 return response;

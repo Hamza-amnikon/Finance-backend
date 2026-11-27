@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SalesInvoiceService.API.Data;
 using SalesInvoiceService.API.DTOs;
 using SalesInvoiceService.API.Models;
+using SparkFinance.Database;
 
 namespace SalesInvoiceService.API.Services
 {
@@ -395,15 +396,9 @@ namespace SalesInvoiceService.API.Services
             int id,
             CancellationToken cancellationToken)
         {
-            return await _context.SalesInvoices
-                .FromSqlInterpolated(
-                    $"""
-                    SELECT *
-                    FROM [sales].[SalesInvoices] WITH (UPDLOCK, HOLDLOCK)
-                    WHERE [Id] = {id}
-                    """)
-                .FirstOrDefaultAsync(
-                    cancellationToken);
+            return (await _context.SalesInvoices
+                .LockForUpdate(_context, nameof(SalesInvoice.Id), id)
+                .ToListAsync(cancellationToken)).SingleOrDefault();
         }
 
         private async Task<(

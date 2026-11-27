@@ -4,6 +4,7 @@ using AccountingService.API.Data;
 using AccountingService.API.DTOs;
 using AccountingService.API.Models;
 using Microsoft.EntityFrameworkCore;
+using SparkFinance.Database;
 
 namespace AccountingService.API.Services
 {
@@ -22,9 +23,11 @@ namespace AccountingService.API.Services
         {
             await using var transaction = await _context.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable, cancellationToken);
-            var status = await _context.Database.SqlQuery<string>($"""
-                SELECT Status AS Value FROM purchases.Bills WITH (UPDLOCK,HOLDLOCK) WHERE Id = {billId}
-                """).SingleOrDefaultAsync(cancellationToken);
+            var statusSql = _context.Database.IsFinanceMySql()
+                ? "SELECT Status AS Value FROM purchases__Bills WHERE Id = {0} FOR UPDATE"
+                : "SELECT Status AS Value FROM purchases.Bills WITH (UPDLOCK,HOLDLOCK) WHERE Id = {0}";
+            var status = (await _context.Database.SqlQueryRaw<string>(statusSql, billId)
+                .ToListAsync(cancellationToken)).SingleOrDefault();
             if (status != "Cancelled")
             {
                 throw new ValidationException("Only a cancelled purchase bill can reverse its linked posting.");

@@ -5,6 +5,7 @@ using System.Globalization;
 using AccountingService.API.DTOs;
 using AccountingService.API.Models;
 using AccountingService.API.Repositories;
+using SparkFinance.Database;
 
 namespace AccountingService.API.Services
 {
@@ -37,9 +38,11 @@ namespace AccountingService.API.Services
             Validate(dto);
             await using var transaction = await _context.Database.BeginTransactionAsync(
                 System.Data.IsolationLevel.Serializable, cancellationToken);
-            var billStatus = await _context.Database.SqlQuery<string>($"""
-                SELECT Status AS Value FROM purchases.Bills WITH (UPDLOCK,HOLDLOCK) WHERE Id = {dto.BillId}
-                """).SingleOrDefaultAsync(cancellationToken);
+            var billStatusSql = _context.Database.IsFinanceMySql()
+                ? "SELECT Status AS Value FROM purchases__Bills WHERE Id = {0} FOR UPDATE"
+                : "SELECT Status AS Value FROM purchases.Bills WITH (UPDLOCK,HOLDLOCK) WHERE Id = {0}";
+            var billStatus = (await _context.Database.SqlQueryRaw<string>(billStatusSql, dto.BillId)
+                .ToListAsync(cancellationToken)).SingleOrDefault();
             if (billStatus != "Issued")
             {
                 throw new ValidationException("Only an issued purchase bill can be posted. Cancelled bills cannot be reposted.");

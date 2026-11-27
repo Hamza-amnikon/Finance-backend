@@ -3,6 +3,7 @@ using System.Data;
 using AccountingService.API.Data;
 using AccountingService.API.Models;
 using Microsoft.EntityFrameworkCore;
+using SparkFinance.Database;
 
 namespace AccountingService.API.Services
 {
@@ -17,17 +18,22 @@ namespace AccountingService.API.Services
 
         public Task<List<int>> GetPendingIdsAsync(CancellationToken cancellationToken)
         {
-            return _context.Database.SqlQuery<int>($"""
-                SELECT t.Id AS Value FROM banking.BankTransfers t
+            var transfersTable = _context.Database.IsFinanceMySql()
+                ? "banking__BankTransfers" : "banking.BankTransfers";
+            var journalsTable = _context.Database.IsFinanceMySql()
+                ? "accounting__JournalEntries" : "accounting.JournalEntries";
+            var sql = $"""
+                SELECT t.Id AS Value FROM {transfersTable} t
                 WHERE t.Status IN (1, 2) AND
-                (NOT EXISTS (SELECT 1 FROM accounting.JournalEntries j
+                (NOT EXISTS (SELECT 1 FROM {journalsTable} j
                     WHERE j.CompanyId=t.SourceCompanyId AND j.Source=N'BankTransaction'
                     AND j.SourceDocumentId=CONCAT(N'Transfer:',t.Id,N':sent'))
-                 OR (t.Status=2 AND NOT EXISTS (SELECT 1 FROM accounting.JournalEntries j
+                 OR (t.Status=2 AND NOT EXISTS (SELECT 1 FROM {journalsTable} j
                     WHERE j.CompanyId=t.DestinationCompanyId AND j.Source=N'BankTransaction'
                     AND j.SourceDocumentId=CONCAT(N'Transfer:',t.Id,N':received'))))
                 ORDER BY t.Id
-                """).ToListAsync(cancellationToken);
+                """;
+            return _context.Database.SqlQueryRaw<int>(sql).ToListAsync(cancellationToken);
         }
 
         public async Task<int> PostAsync(int transferId, CancellationToken cancellationToken)
@@ -37,14 +43,19 @@ namespace AccountingService.API.Services
                 cancellationToken);
 
             // Serialize retries against the same saved transfer, including old transfers.
-            var transfer = await _context.Database.SqlQuery<TransferPostingRow>($"""
+            var transferTable = _context.Database.IsFinanceMySql()
+                ? "banking__BankTransfers" : "banking.BankTransfers WITH (UPDLOCK,HOLDLOCK)";
+            var lockSuffix = _context.Database.IsFinanceMySql() ? "FOR UPDATE" : "";
+            var transferSql = $$"""
                 SELECT Id,SourceCompanyId,DestinationCompanyId,SourceBankAccountId,
                     DestinationBankAccountId,SourceCurrency,DestinationCurrency,
                     SourceCurrencyDecimalPlaces,DestinationCurrencyDecimalPlaces,
                     SourceAmount,SourceFeeAmount,DestinationAmount,TransferDate,ReceivedDate,
                     Status,Reference,SourceTransactionId,SourceFeeTransactionId,DestinationTransactionId
-                FROM banking.BankTransfers WITH (UPDLOCK,HOLDLOCK) WHERE Id={transferId}
-                """).SingleOrDefaultAsync(cancellationToken)
+                FROM {{transferTable}} WHERE Id={0} {{lockSuffix}}
+                """;
+            var transfer = (await _context.Database.SqlQueryRaw<TransferPostingRow>(transferSql, transferId)
+                .ToListAsync(cancellationToken)).SingleOrDefault()
                 ?? throw new ValidationException("Bank transfer was not found.");
 
             if (transfer.Status is not (1 or 2))

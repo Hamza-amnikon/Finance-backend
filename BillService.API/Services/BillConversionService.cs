@@ -1,4 +1,5 @@
 using System.Data;
+using SparkFinance.Database;
 using Microsoft.EntityFrameworkCore;
 using BillService.API.Data;
 using BillService.API.DTOs;
@@ -37,12 +38,22 @@ namespace BillService.API.Services
             }
 
             await using var transaction = _context.Database.CurrentTransaction == null ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken) : null;
-            var source = await _context.Database.SqlQuery<PurchaseOrderSnapshot>($"""
+            FormattableString mysqlPurchaseOrderSql = $"""
+                SELECT Id, Status, RowVersion, PurchaseOrderNumber, VendorId, VendorName, CompanyName,
+                    BillingAddress, ShippingAddress, Branch, Currency, CurrencyDecimalPlaces, PaymentTerms,
+                    Reference, Notes, AdditionalTerms, GrandTotal, UsesTaxSettings, TaxTreatment
+                FROM purchases__PurchaseOrders WHERE Id = {purchaseOrderId} FOR UPDATE
+                """;
+            FormattableString sqlServerPurchaseOrderSql = $"""
                 SELECT [Id],[Status],[RowVersion],[PurchaseOrderNumber],[VendorId],[VendorName],[CompanyName],
                     [BillingAddress],[ShippingAddress],[Branch],[Currency],[CurrencyDecimalPlaces],[PaymentTerms],
                     [Reference],[Notes],[AdditionalTerms],[GrandTotal],[UsesTaxSettings],[TaxTreatment]
                 FROM [purchases].[PurchaseOrders] WITH (UPDLOCK,HOLDLOCK) WHERE [Id] = {purchaseOrderId}
-                """).SingleOrDefaultAsync(cancellationToken);
+                """;
+            var purchaseOrderSql = _context.Database.IsFinanceMySql()
+                ? mysqlPurchaseOrderSql : sqlServerPurchaseOrderSql;
+            var source = (await _context.Database.SqlQuery<PurchaseOrderSnapshot>(purchaseOrderSql)
+                .ToListAsync(cancellationToken)).SingleOrDefault();
             if (source == null)
             {
                 return null;
@@ -70,10 +81,19 @@ namespace BillService.API.Services
                 throw new DbUpdateConcurrencyException();
             }
 
-            var lines = await _context.Database.SqlQuery<PurchaseOrderItemSnapshot>($"""
+            FormattableString mysqlPurchaseOrderItemsSql = $"""
+                SELECT LineNumber, ItemName, Description, Unit, Quantity, UnitPrice, DiscountEnabled,
+                    DiscountAmount, DiscountType, DiscountValue, TaxRate, TaxSettingId, TaxSettingSnapshotJson
+                FROM purchases__PurchaseOrderItems WHERE PurchaseOrderId = {purchaseOrderId}
+                """;
+            FormattableString sqlServerPurchaseOrderItemsSql = $"""
                 SELECT [LineNumber],[ItemName],[Description],[Unit],[Quantity],[UnitPrice],[DiscountEnabled],[DiscountAmount],[DiscountType],[DiscountValue],[TaxRate],[TaxSettingId],[TaxSettingSnapshotJson]
                 FROM [purchases].[PurchaseOrderItems] WHERE [PurchaseOrderId] = {purchaseOrderId}
-                """).OrderBy(row => row.LineNumber).ToListAsync(cancellationToken);
+                """;
+            var purchaseOrderItemsSql = _context.Database.IsFinanceMySql()
+                ? mysqlPurchaseOrderItemsSql : sqlServerPurchaseOrderItemsSql;
+            var lines = await _context.Database.SqlQuery<PurchaseOrderItemSnapshot>(purchaseOrderItemsSql)
+                .OrderBy(row => row.LineNumber).ToListAsync(cancellationToken);
             var bill = new Bill
             {
                 RequestId = Guid.NewGuid(),

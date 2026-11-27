@@ -3,6 +3,7 @@ using System.Globalization;
 using BankingService.API.DTOs;
 using BankingService.API.Models;
 using Microsoft.EntityFrameworkCore;
+using SparkFinance.Database;
 
 namespace BankingService.API.Services
 {
@@ -110,15 +111,15 @@ namespace BankingService.API.Services
             await using var transaction = await database.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable,
                 cancellationToken);
-            var request = await database.InternalPaymentRequests.FromSqlInterpolated($"""
-                SELECT * FROM banking.InternalPaymentRequests WITH (UPDLOCK, HOLDLOCK) WHERE Id = {id}
-                """).SingleOrDefaultAsync(cancellationToken);
+            var request = (await database.InternalPaymentRequests
+                .LockForUpdate(database, nameof(InternalPaymentRequest.Id), id)
+                .ToListAsync(cancellationToken)).SingleOrDefault();
             Require(request != null && (scope.CanView(request.RequestingCompanyId) || scope.CanView(request.PayingCompanyId)),
                 404, "The request was not found.");
             RequireLinkAccess(request!, scope, transferScope);
-            var transfer = await database.BankTransfers.FromSqlInterpolated($"""
-                SELECT * FROM banking.BankTransfers WITH (UPDLOCK, HOLDLOCK) WHERE Id = {dto.BankTransferId}
-                """).SingleOrDefaultAsync(cancellationToken);
+            var transfer = (await database.BankTransfers
+                .LockForUpdate(database, nameof(BankTransfer.Id), dto.BankTransferId)
+                .ToListAsync(cancellationToken)).SingleOrDefault();
             Require(transfer != null, 404, "The bank transfer was not found.");
             ValidateTransfer(request!, transfer!);
             var existing = await database.InternalPaymentRequestTransfers.AsNoTracking()
