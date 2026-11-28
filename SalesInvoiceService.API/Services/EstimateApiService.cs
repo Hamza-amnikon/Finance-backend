@@ -1,4 +1,5 @@
 using System.Net;
+using SparkFinance.Http;
 using SalesInvoiceService.API.DTOs;
 
 namespace SalesInvoiceService.API.Services
@@ -6,15 +7,19 @@ namespace SalesInvoiceService.API.Services
     public class EstimateApiService : IEstimateApiService
     {
         private readonly HttpClient _httpClient;
+        private readonly IHttpContextAccessor _context;
 
-        public EstimateApiService(HttpClient httpClient)
+        public EstimateApiService(HttpClient httpClient, IHttpContextAccessor context)
         {
             _httpClient = httpClient;
+            _context = context;
         }
 
         public async Task<EstimateForInvoiceDto?> GetByIdAsync(int id, CancellationToken cancellationToken)
         {
-            using var response = await _httpClient.GetAsync($"api/sales-estimates/{id}", cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"api/sales-estimates/{id}");
+            FinanceSessionForwarding.AttachTo(request, _context.HttpContext?.Request);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {

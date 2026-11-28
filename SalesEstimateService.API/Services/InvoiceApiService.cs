@@ -1,5 +1,6 @@
 using SparkFinance.Http;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using SalesEstimateService.API.DTOs;
 
@@ -22,18 +23,19 @@ _httpClient = httpClient;
             CancellationToken cancellationToken
         )
         {
-            using var response = await _httpClient.PostAsJsonAsync(
-                "api/sales-invoices/from-estimate",
-                new
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/sales-invoices/from-estimate")
+            {
+                Content = JsonContent.Create(new
                 {
                     estimateId,
                     dto.RowVersion,
                     dto.InvoiceDate,
                     dto.DueDate,
                     dto.PreferredPaymentMode
-                },
-                cancellationToken
-            );
+                })
+            };
+            FinanceSessionForwarding.AttachTo(request, _context?.HttpContext?.Request);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             if (response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.Conflict)
             {
                 var message = "Conversion was rejected. Reload the estimate and review its details.";
