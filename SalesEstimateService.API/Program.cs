@@ -74,6 +74,10 @@ builder.Services.AddHttpClient<IInvoiceApiService, InvoiceApiService>(httpClient
 
     httpClient.BaseAddress = new Uri(baseUrl);
     httpClient.Timeout = TimeSpan.FromSeconds(30);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false,
+    AllowAutoRedirect = false
 });
 
 builder.Services.AddScoped<SalesEstimateTaxSettingsService>();
