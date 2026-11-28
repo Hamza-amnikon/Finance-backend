@@ -40,9 +40,7 @@ namespace BankingService.API.Services
                 return;
             }
 
-            var settings = await _context.PaymentBankingSettings
-                .AsNoTracking()
-                .SingleAsync(row => row.Id == 1, cancellationToken);
+            var settings = await GetSettingsAsync(cancellationToken);
             var since = settings.SourceAfterUtc;
 
             var candidates = await _context.Database.SqlQuery<PaymentBankingCandidate>($"""
@@ -132,6 +130,21 @@ namespace BankingService.API.Services
                     _context.ChangeTracker.Clear();
                 }
             }
+        }
+
+        public async Task<PaymentBankingSettings> GetSettingsAsync(CancellationToken cancellationToken)
+        {
+            // A restored database can contain the tables without the seed row from
+            // the original migration. Start at recovery time rather than replaying
+            // old financial records into bank balances without review.
+            await _context.Database.ExecuteSqlRawAsync("""
+                IF NOT EXISTS (SELECT 1 FROM [banking].[PaymentBankingSettings] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = 1)
+                    INSERT INTO [banking].[PaymentBankingSettings] ([Id], [SourceAfterUtc]) VALUES (1, SYSUTCDATETIME());
+                """, cancellationToken);
+
+            return await _context.PaymentBankingSettings
+                .AsNoTracking()
+                .SingleAsync(row => row.Id == 1, cancellationToken);
         }
 
         private async Task<PaymentBankingSource?> ReadSourceAsync(

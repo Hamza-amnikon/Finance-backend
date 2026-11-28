@@ -67,10 +67,7 @@ namespace BankingService.API.Controllers
                     .ToListAsync(cancellationToken);
 
             var enabledFromUtc =
-                await _context.PaymentBankingSettings
-                    .Where(row => row.Id == 1)
-                    .Select(row => row.SourceAfterUtc)
-                    .SingleAsync(cancellationToken);
+                (await _service.GetSettingsAsync(cancellationToken)).SourceAfterUtc;
 
             return Ok(new
             {
