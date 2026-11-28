@@ -47,11 +47,12 @@ namespace SalesInvoiceService.API.Services
                 SalesInvoiceAccountingPostingDto posting,
                 CancellationToken cancellationToken)
         {
-            using var response =
-                await _httpClient.PostAsJsonAsync(
-                    "api/accounting-postings/sales-invoices",
-                    posting,
-                    cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/accounting-postings/sales-invoices")
+            {
+                Content = JsonContent.Create(posting)
+            };
+            FinanceSessionForwarding.AttachTo(request, _httpContextAccessor?.HttpContext?.Request);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -80,11 +81,12 @@ namespace SalesInvoiceService.API.Services
                 SalesCreditNoteAccountingPostingDto posting,
                 CancellationToken cancellationToken)
         {
-            using var response =
-                await _httpClient.PostAsJsonAsync(
-                    "api/accounting-postings/sales-credit-notes",
-                    posting,
-                    cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/accounting-postings/sales-credit-notes")
+            {
+                Content = JsonContent.Create(posting)
+            };
+            FinanceSessionForwarding.AttachTo(request, _httpContextAccessor?.HttpContext?.Request);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
