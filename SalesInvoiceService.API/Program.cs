@@ -147,6 +147,11 @@ builder.Services.AddHttpClient<
 
         httpClient.BaseAddress = new Uri(baseUrl);
         httpClient.Timeout = TimeSpan.FromSeconds(15);
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        UseCookies = false,
+        AllowAutoRedirect = false
     });
 
 builder.Services.AddHttpClient<
