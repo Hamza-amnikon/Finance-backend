@@ -47,6 +47,8 @@ builder.Services.AddHttpClient<
     PaymentAccountingApiService>(httpClient =>
     {
         var baseUrl = builder.Configuration[
+            "Services:AccountingPostingsService:BaseUrl"]
+            ?? builder.Configuration[
             "Services:AccountingService:BaseUrl"]
             ?? throw new InvalidOperationException(
                 "AccountingService BaseUrl is missing from appsettings.json.");
