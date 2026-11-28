@@ -134,6 +134,14 @@ namespace BankingService.API.Services
 
         public async Task<PaymentBankingSettings> GetSettingsAsync(CancellationToken cancellationToken)
         {
+            var existing = await _context.PaymentBankingSettings
+                .AsNoTracking()
+                .SingleOrDefaultAsync(row => row.Id == 1, cancellationToken);
+            if (existing != null)
+            {
+                return existing;
+            }
+
             // A restored database can contain the tables without the seed row from
             // the original migration. Start at recovery time rather than replaying
             // old financial records into bank balances without review.
